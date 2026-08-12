@@ -11,7 +11,7 @@ class DashboardSatpam extends StatelessWidget {
         "nama": "Budi Santoso", 
         "info": "Bertemu: Budi (Staff IT)", 
         "checkIn": "10:00 WIB", 
-        "checkOut": "Menunggu", 
+        "checkOut": "-", 
         "status": "Sedang Menunggu", 
         "warna": "kuning"
       },
@@ -27,7 +27,7 @@ class DashboardSatpam extends StatelessWidget {
         "nama": "Joko Widodo", 
         "info": "Bertemu: Dewi (Admin)", 
         "checkIn": "11:00 WIB", 
-        "checkOut": "Menunggu", 
+        "checkOut": "-", 
         "status": "Sedang Menunggu", 
         "warna": "kuning"
       },
@@ -48,27 +48,26 @@ class DashboardSatpam extends StatelessWidget {
         elevation: 0,
         title: const Text(
           "Dashboard Satpam - Pos Penjagaan",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
-              // Kembali ke halaman Login / Beranda
               Navigator.popUntil(context, (route) => route.isFirst);
             },
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Sapaan & Status Pos
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -83,41 +82,43 @@ class DashboardSatpam extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF006B3F).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.security, color: Color(0xFF006B3F), size: 30),
+                    child: const Icon(Icons.security, color: Color(0xFF006B3F), size: 26),
                   ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Selamat Bertugas, Danru / Satpam",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "Cabang: Sleman • Shift Pagi",
-                        style: TextStyle(fontSize: 12, color: Color(0xFF778195)),
-                      ),
-                    ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          "Selamat Bertugas, Danru",
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          "Cabang: Sleman • Shift Pagi",
+                          style: TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
 
             // Judul Daftar Tamu Hari Ini
             const Text(
               "Daftar Tamu Masuk Hari Ini",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // Daftar List Tamu dengan Waktu Check-in & Check-out
+            // Daftar List Tamu dengan Tata Letak Vertikal yang Lega
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -144,7 +145,7 @@ class DashboardSatpam extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.02),
@@ -153,69 +154,76 @@ class DashboardSatpam extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Baris Atas: Nama Tamu dan Badge Status di Kanan
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF4F7FC),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.person, color: Color(0xFF778195), size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
                             children: [
+                              const CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Color(0xFFF4F7FC),
+                                child: Icon(Icons.person, color: Color(0xFF778195), size: 18),
+                              ),
+                              const SizedBox(width: 10),
                               Text(
                                 tamu["nama"]!,
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                               ),
-                              const SizedBox(height: 2),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: badgeColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              tamu["status"]!,
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Baris Informasi Tujuan Bertemu
+                      Text(
+                        tamu["info"]!,
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                      ),
+                      const SizedBox(height: 10),
+                      const Divider(height: 1, color: Color(0xFFF4F7FC)),
+                      const SizedBox(height: 8),
+
+                      // Baris Bawah: Waktu Check-in & Check-out berdampingan rapi
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.login, size: 13, color: Colors.green),
+                              const SizedBox(width: 4),
                               Text(
-                                tamu["info"]!,
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                                "In: ${tamu["checkIn"]}",
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF172033)),
                               ),
-                              const SizedBox(height: 6),
-                              // Waktu Check-in & Check-out
-                              Row(
-                                children: [
-                                  const Icon(Icons.login, size: 12, color: Colors.green),
-                                  const SizedBox(height: 2, width: 4),
-                                  Text(
-                                    " Check In: ${tamu["checkIn"]}",
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF172033)),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Icon(Icons.logout, size: 12, color: Colors.red),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    " Check Out: ${tamu["checkOut"]}",
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF172033)),
-                                  ),
-                                ],
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.logout, size: 13, color: Colors.red),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Out: ${tamu["checkOut"]}",
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF172033)),
                               ),
                             ],
                           ),
                         ],
-                      ),
-                      // Badge Status Kunjungan
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: badgeColor,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          tamu["status"]!,
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
-                        ),
                       ),
                     ],
                   ),
