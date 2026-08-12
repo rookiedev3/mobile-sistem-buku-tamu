@@ -99,7 +99,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(

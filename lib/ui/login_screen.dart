@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart'; // Impor Halaman Register
 import 'forgot_password_screen.dart'; // <-- 1. TAMBAHKAN IMPORT FORGOT PASSWORD DI SINI
+import 'dashboard_satpam.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -167,18 +168,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Simulasi Login Pegawai Berhasil!')),
+                      onPressed: () {
+                       Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const DashboardSatpam()),
                       );
                     },
-                    child: const Text(
-                      "Masuk",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      child: const Text(
+                        "Masuk",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                 // Navigasi ke Register
                 Row(
