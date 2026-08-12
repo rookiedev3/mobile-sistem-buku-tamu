@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart';
 
 class HomepageScreen extends StatelessWidget {
   const HomepageScreen({Key? key}) : super(key: key);
@@ -94,11 +95,11 @@ class HomepageScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: () {
-                      // Sementara pakai SnackBar untuk simulasi klik
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Menuju Halaman Login Pegawai')),
-                      );
-                    },
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    );
+                  },
                     child: const Text(
                       "Login Pegawai",
                       style: TextStyle(
