@@ -1,18 +1,24 @@
 class ApiUrl {
+  // Ubah URL dasar sesuai server backend teman Anda (misal: port 8080 atau 8000)
   static const String baseUrl = "http://localhost:8080"; 
 
-  static const String registrasi = baseUrl + '/registrasi';
-  static const String login = baseUrl + '/login';
-  static const String listProduk = baseUrl + '/produk';
-  static const String createProduk = baseUrl + '/produk';    // Pastikan ini ada
+  // Autentikasi
+  static const String registrasi = '$baseUrl/registrasi';
+  static const String login = '$baseUrl/login';
 
-  static String updateProduk(int id) {
-    return baseUrl + '/produk/' + id.toString();
+  // --- Sistem Buku Tamu (Guest Management) ---
+  static const String listTamu = '$baseUrl/tamu';
+  static const String createTamu = '$baseUrl/tamu';
+
+  static String showTamu(int id) {
+    return '$baseUrl/tamu/$id';
   }
-  static String showProduk (int id){
-    return baseUrl + '/produk/' + id.toString();             // Ditambah / sebelum ID
+
+  static String updateTamu(int id) {
+    return '$baseUrl/tamu/$id';
   }
-  static String deleteProduk (int id){
-    return baseUrl + '/produk/' + id.toString();             // Ditambah / sebelum ID
+
+  static String deleteTamu(int id) {
+    return '$baseUrl/tamu/$id';
   }
 }
