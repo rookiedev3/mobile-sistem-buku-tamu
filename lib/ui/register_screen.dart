@@ -103,7 +103,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _namaController,
                   decoration: InputDecoration(
-                    hintText: "Nama Anda",
+                    hintText: "Masukkan nama lengkap Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -120,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -138,7 +138,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _whatsappController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    hintText: "081234567890",
+                    hintText: "Masukkan nomor WhatsApp Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(

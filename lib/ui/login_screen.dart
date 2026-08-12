@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: "••••••••",
+                    hintText: "Masukkan password Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     suffixIcon: IconButton(
