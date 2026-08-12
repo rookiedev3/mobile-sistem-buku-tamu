@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
-import 'register_screen.dart'; // Impor Halaman Register
-import 'forgot_password_screen.dart'; // <-- 1. TAMBAHKAN IMPORT FORGOT PASSWORD DI SINI
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+class ResetPasswordScreen extends StatefulWidget {
+  const ResetPasswordScreen({Key? key}) : super(key: key);
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _ResetPasswordScreenState createState() => _ResetPasswordScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  void dispose() {
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tombol Kembali ke Beranda
+                // Tombol Kembali
                 GestureDetector(
                   onTap: () {
-                    Navigator.pop(context); // Kembali ke Homepage
+                    Navigator.pop(context);
                   },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -49,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF006B3F)),
                       SizedBox(width: 4),
                       Text(
-                        "Kembali ke Beranda",
+                        "Kembali",
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -61,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Ikon / Logo Kecil
+                // Ikon Gembok Reset
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -69,14 +76,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(0xFF013220),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.lock_outline, color: Colors.white, size: 32),
+                    child: const Icon(Icons.vpn_key_outlined, color: Colors.white, size: 32),
                   ),
                 ),
                 const SizedBox(height: 24),
 
                 // Judul Halaman
                 const Text(
-                  "Login Pegawai",
+                  "Reset Password Baru",
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -85,20 +92,28 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  "Silakan masuk menggunakan akun internal Anda.",
+                  "Masukkan kata sandi baru untuk akun Anda.",
                   style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
                 ),
                 const SizedBox(height: 24),
 
-                // Form Email
-                const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                // Form Password Baru
+                const Text("Password Baru", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
-                  controller: _emailController,
+                  controller: _newPasswordController,
+                  obscureText: _obscureNewPassword,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "••••••••",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscureNewPassword ? Icons.visibility_off : Icons.visibility,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -107,22 +122,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Form Password
-                const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                // Form Konfirmasi Password Baru
+                const Text("Konfirmasi Password Baru", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(
                     hintText: "••••••••",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
                         size: 18,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -130,31 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 24),
 
-                // 👇 2. TAMBAHKAN TOMBOL "LUPA PASSWORD?" DI SINI (SEBELAH KANAN BAWAH PASSWORD)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                      );
-                    },
-                    child: const Text(
-                      "Lupa Password?",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF006B3F),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Tombol Masuk
+                // Tombol Simpan Password Baru
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -168,43 +161,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       elevation: 0,
                     ),
                     onPressed: () {
+                      if (_newPasswordController.text != _confirmPasswordController.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Password baru dan konfirmasi tidak cocok!')),
+                        );
+                        return;
+                      }
+
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Simulasi Login Pegawai Berhasil!')),
+                        const SnackBar(content: Text('Password berhasil diatur ulang!')),
                       );
                     },
                     child: const Text(
-                      "Masuk",
+                      "Simpan Password Baru",
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                // Navigasi ke Register
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Belum punya akun? ",
-                      style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                        );
-                      },
-                      child: const Text(
-                        "Daftar",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF006B3F),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
