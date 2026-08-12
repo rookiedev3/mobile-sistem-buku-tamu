@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'register_screen.dart'; // Impor Halaman Register
-import 'forgot_password_screen.dart'; // <-- 1. TAMBAHKAN IMPORT FORGOT PASSWORD DI SINI
+import 'register_screen.dart';
+import 'forgot_password_screen.dart';
+import 'dashboard_satpam.dart';
+import 'package:mobile_flutter/bloc/login_bloc.dart';
+import 'package:mobile_flutter/helpers/user_info.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -13,6 +16,62 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> _handleLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan password wajib diisi')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await LoginBloc.login(email: email, password: password);
+
+      await UserInfo().setToken(result.token ?? '');
+      await UserInfo().setUserId(result.userID ?? 0);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Selamat datang, ${result.userName ?? result.userEmail ?? ''}!')),
+      );
+
+      _navigateByRole(result.userRole);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ← Ini versi Flutter dari DashboardController::index() di web
+  void _navigateByRole(String? role) {
+    switch (role) {
+      case 'security':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardSatpam()),
+        );
+        break;
+      // TODO: tambah case lain kalau dashboard role-nya udah dibikin
+      // case 'owner': ...
+      // case 'pic': ...
+      // case 'manager': ...
+      default:
+        // Dashboard role ini belum dibuat, sementara balik ke Homepage
+        Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tombol Kembali ke Beranda
                 GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context); // Kembali ke Homepage
-                  },
+                  onTap: () => Navigator.pop(context),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
@@ -50,18 +106,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       SizedBox(width: 4),
                       Text(
                         "Kembali ke Beranda",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF006B3F),
-                        ),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Ikon / Logo Kecil
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -73,15 +123,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Judul Halaman
                 const Text(
                   "Login Pegawai",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF172033),
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -89,72 +133,49 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
                 ),
                 const SizedBox(height: 24),
-
-                // Form Email
                 const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Form Password
                 const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    hintText: "••••••••",
+                    hintText: "Masukkan password Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        size: 18,
-                      ),
+                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 18),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // 👇 2. TAMBAHKAN TOMBOL "LUPA PASSWORD?" DI SINI (SEBELAH KANAN BAWAH PASSWORD)
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()));
                     },
                     child: const Text(
                       "Lupa Password?",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF006B3F),
-                      ),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Tombol Masuk
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -162,46 +183,30 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF006B3F),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Simulasi Login Pegawai Berhasil!')),
-                      );
-                    },
-                    child: const Text(
-                      "Masuk",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
+                    onPressed: _isLoading ? null : _handleLogin,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20, height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text("Masuk", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Navigasi ke Register
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Belum punya akun? ",
-                      style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
-                    ),
+                    const Text("Belum punya akun? ", style: TextStyle(fontSize: 13, color: Color(0xFF778195))),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                        );
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
                       },
                       child: const Text(
                         "Daftar",
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF006B3F),
-                        ),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
                       ),
                     ),
                   ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'tamu_form_step1.dart';
 
 class HomepageScreen extends StatelessWidget {
   const HomepageScreen({Key? key}) : super(key: key);
@@ -70,10 +71,10 @@ class HomepageScreen extends StatelessWidget {
                       elevation: 0,
                     ),
                     onPressed: () {
-                      // Sementara pakai SnackBar untuk simulasi klik
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Menuju Form Check-in Tamu')),
-                      );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TamuFormStep1()),
+                    );
                     },
                     child: const Text(
                       "Check-in Tamu",

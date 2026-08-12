@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/bloc/registrasi_bloc.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -7,19 +8,68 @@ class RegisterScreen extends StatefulWidget {
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
+final Map<String, int> _cabangIdMap = {
+  'Cabang Sleman': 1,
+  'Cabang Magelang': 2,
+};
+
 class _RegisterScreenState extends State<RegisterScreen> {
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
-  final _whatsappController = TextEditingController(); // Controller No WhatsApp
+  final _whatsappController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController(); // Controller Konfirmasi Password
+  final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true; // State untuk sembunyi/tampil konfirmasi password
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
-  // Variabel untuk Dropdown Cabang
   String? _selectedCabang;
   final List<String> _listCabang = ['Cabang Sleman', 'Cabang Magelang'];
+
+  Future<void> _handleRegister() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password dan Konfirmasi Password tidak sama!')),
+      );
+      return;
+    }
+
+    if (_selectedCabang == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pilih cabang penempatan dulu')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await RegistrasiBloc.registrasi(
+        name: _namaController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _whatsappController.text.trim(),
+        branchId: _cabangIdMap[_selectedCabang!],
+        password: _passwordController.text,
+        passwordConfirmation: _confirmPasswordController.text,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.data ?? 'Pendaftaran berhasil')),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,10 +95,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Tombol Kembali ke Halaman Login
                 GestureDetector(
                   onTap: () {
-                    Navigator.pop(context); // Kembali ke halaman sebelumnya (Login)
+                    Navigator.pop(context);
                   },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -67,8 +116,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Ikon / Logo Kecil
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -80,8 +127,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Judul Halaman
                 const Text(
                   "Daftar Akun Pegawai",
                   style: TextStyle(
@@ -96,14 +141,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
                 ),
                 const SizedBox(height: 24),
-
-                // Form Nama Lengkap
                 const Text("Nama Lengkap", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _namaController,
                   decoration: InputDecoration(
-                    hintText: "Nama Anda",
+                    hintText: "Masukkan nama lengkap Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -113,14 +156,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Form Email
                 const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: "pegawai@perusahaan.com",
+                    hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -130,15 +172,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 1. TAMBAHAN: Form No WhatsApp
                 const Text("No. WhatsApp", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: _whatsappController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    hintText: "081234567890",
+                    hintText: "Masukkan nomor WhatsApp Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     border: OutlineInputBorder(
@@ -148,8 +188,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 2. TAMBAHAN: Dropdown Cabang (Sleman / Magelang)
                 const Text("Pilih Cabang", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
@@ -176,8 +214,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // Form Password
                 const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
@@ -201,8 +237,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 3. TAMBAHAN: Form Konfirmasi Password
                 const Text("Konfirmasi Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 TextField(
@@ -226,8 +260,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Tombol Daftar (Simulasi Tampilan Saja)
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -240,23 +272,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       elevation: 0,
                     ),
-                    onPressed: () {
-                      // Validasi kecil pencocokan password khusus UI
-                      if (_passwordController.text != _confirmPasswordController.text) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Password dan Konfirmasi Password tidak sama!')),
-                        );
-                        return;
-                      }
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Simulasi Pendaftaran Akun Berhasil!')),
-                      );
-                    },
-                    child: const Text(
-                      "Daftar Sekarang",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
+                    onPressed: _isLoading ? null : _handleRegister,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "Daftar Sekarang",
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
