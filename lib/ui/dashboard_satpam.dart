@@ -5,12 +5,40 @@ class DashboardSatpam extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Simulasi data status tamu untuk satpam
+    // Simulasi data status tamu lengkap dengan Waktu Check-in dan Check-out
     final List<Map<String, String>> daftarTamu = [
-      {"nama": "Budi Santoso", "info": "Bertemu: Budi (Staff IT) • 10:00 WIB", "status": "Sedang Menunggu", "warna": "kuning"},
-      {"nama": "Siti Aminah", "info": "Bertemu: Andi (Sales) • 10:30 WIB", "status": "Sedang Meeting", "warna": "hijau"},
-      {"nama": "Joko Widodo", "info": "Bertemu: Dewi (Admin) • 11:00 WIB", "status": "Sedang Menunggu", "warna": "kuning"},
-      {"nama": "Rina Melati", "info": "Bertemu: Budi (Staff IT) • 13:00 WIB", "status": "Selesai", "warna": "abu"},
+      {
+        "nama": "Budi Santoso", 
+        "info": "Bertemu: Budi (Staff IT)", 
+        "checkIn": "10:00 WIB", 
+        "checkOut": "Menunggu", 
+        "status": "Sedang Menunggu", 
+        "warna": "kuning"
+      },
+      {
+        "nama": "Siti Aminah", 
+        "info": "Bertemu: Andi (Sales)", 
+        "checkIn": "10:30 WIB", 
+        "checkOut": "11:45 WIB", 
+        "status": "Sedang Meeting", 
+        "warna": "hijau"
+      },
+      {
+        "nama": "Joko Widodo", 
+        "info": "Bertemu: Dewi (Admin)", 
+        "checkIn": "11:00 WIB", 
+        "checkOut": "Menunggu", 
+        "status": "Sedang Menunggu", 
+        "warna": "kuning"
+      },
+      {
+        "nama": "Rina Melati", 
+        "info": "Bertemu: Budi (Staff IT)", 
+        "checkIn": "13:00 WIB", 
+        "checkOut": "14:15 WIB", 
+        "status": "Selesai", 
+        "warna": "abu"
+      },
     ];
 
     return Scaffold(
@@ -89,7 +117,7 @@ class DashboardSatpam extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Daftar List Tamu dengan Status
+            // Daftar List Tamu dengan Waktu Check-in & Check-out
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -127,8 +155,10 @@ class DashboardSatpam extends StatelessWidget {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
                             width: 40,
@@ -152,11 +182,30 @@ class DashboardSatpam extends StatelessWidget {
                                 tamu["info"]!,
                                 style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
                               ),
+                              const SizedBox(height: 6),
+                              // Waktu Check-in & Check-out
+                              Row(
+                                children: [
+                                  const Icon(Icons.login, size: 12, color: Colors.green),
+                                  const SizedBox(height: 2, width: 4),
+                                  Text(
+                                    " Check In: ${tamu["checkIn"]}",
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF172033)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Icon(Icons.logout, size: 12, color: Colors.red),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    " Check Out: ${tamu["checkOut"]}",
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF172033)),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ],
                       ),
-                      // Badge Status Pengganti Tombol Check-in
+                      // Badge Status Kunjungan
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
