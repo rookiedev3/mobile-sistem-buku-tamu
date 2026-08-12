@@ -1,24 +1,28 @@
 class ApiUrl {
-  // Ubah URL dasar sesuai server backend teman Anda (misal: port 8080 atau 8000)
-  static const String baseUrl = "http://localhost:8080"; 
+  // Sesuaikan sama target run-mu:
+  // - Android Emulator     : http://10.0.2.2:8000
+  // - HP fisik (WiFi sama) : http://192.168.x.x:8000  (IP lokal laptop)
+  // - Windows Desktop      : http://127.0.0.1:8000
+  static const String baseUrl = "http://127.0.0.1:8000";
+  // ================= AUTH =================
+  static const String registrasi = baseUrl + '/api/register';
+  static const String login = baseUrl + '/api/login';
+  static const String logout = baseUrl + '/api/logout';
+  static const String me = baseUrl + '/api/me';
 
-  // Autentikasi
-  static const String registrasi = '$baseUrl/registrasi';
-  static const String login = '$baseUrl/login';
+  // ================= PRODUK =================
+  static const String listProduk = baseUrl + '/api/products';
+  static const String createProduk = baseUrl + '/api/products';
 
-  // --- Sistem Buku Tamu (Guest Management) ---
-  static const String listTamu = '$baseUrl/tamu';
-  static const String createTamu = '$baseUrl/tamu';
+  static String updateProduk(int id) => baseUrl + '/api/products/' + id.toString();
+  static String showProduk(int id) => baseUrl + '/api/products/' + id.toString();
+  static String deleteProduk(int id) => baseUrl + '/api/products/' + id.toString();
 
-  static String showTamu(int id) {
-    return '$baseUrl/tamu/$id';
+  // ================= USER MANAGEMENT =================
+  static String users({String? status}) {
+    return baseUrl + '/api/users' + (status != null ? '?status=$status' : '');
   }
-
-  static String updateTamu(int id) {
-    return '$baseUrl/tamu/$id';
-  }
-
-  static String deleteTamu(int id) {
-    return '$baseUrl/tamu/$id';
-  }
+  static String approveUser(int id) => baseUrl + '/api/users/$id/approve';
+  static String deactivateUser(int id) => baseUrl + '/api/users/$id/deactivate';
+  static String deleteUser(int id) => baseUrl + '/api/users/$id';
 }
