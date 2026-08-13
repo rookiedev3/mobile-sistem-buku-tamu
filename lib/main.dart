@@ -6,9 +6,9 @@ import 'ui/admin/dashboard_admin_screen.dart';
 import 'ui/admin/daftar_tamu_screen.dart';
 import 'ui/admin/riwayat_screen.dart';
 import 'ui/admin/janji_tamu_screen.dart';
-import 'ui/admin/manajemen_pengguna_screen.dart';
-
-
+import 'ui/frontoffice/dashboard_fo_screen.dart';
+import 'ui/frontoffice/lead_fo_screen.dart';
+import 'ui/frontoffice/riwayat_fo_screen.dart';
 
 void main() {
   runApp(const MainApp());
@@ -26,7 +26,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const HomepageScreen (),
+      home: const HomepageScreen(),
     );
   }
 }
