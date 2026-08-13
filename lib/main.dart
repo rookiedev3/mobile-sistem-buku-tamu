@@ -4,6 +4,10 @@ import 'ui/manager/dashboard_manager.dart';
 import 'ui/admin/manajemen_pengguna_screen.dart';
 import 'ui/admin/dashboard_admin_screen.dart';
 import 'ui/admin/daftar_tamu_screen.dart';
+import 'ui/admin/riwayat_screen.dart';
+import 'ui/admin/janji_tamu_screen.dart';
+import 'ui/admin/manajemen_pengguna_screen.dart';
+
 
 
 void main() {
@@ -22,7 +26,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const DaftarTamuScreen(),
+      home: const ManajemenPenggunaScreen (),
     );
   }
 }
