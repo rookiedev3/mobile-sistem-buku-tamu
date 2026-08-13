@@ -1,5 +1,5 @@
 class ApiUrl {
-  static const String baseUrl = "http://127.0.0.1:8000";
+  static const String baseUrl = "http://192.168.100.85:8000";
 
   // ================= AUTH =================
   static const String registrasi = '$baseUrl/api/register';
@@ -19,7 +19,15 @@ class ApiUrl {
   static String users({String? status}) {
     return '$baseUrl/api/users' + (status != null ? '?status=$status' : '');
   }
+
   static String approveUser(int id) => '$baseUrl/api/users/$id/approve';
   static String deactivateUser(int id) => '$baseUrl/api/users/$id/deactivate';
   static String deleteUser(int id) => '$baseUrl/api/users/$id';
+
+  // ================= CHECK-IN (TAMBAHAN BARU) =================
+  static const String checkInFormData = '$baseUrl/api/check-in/form-data';
+  static const String checkInValidateStep1 = '$baseUrl/api/check-in/validate-step1';
+  static const String checkInStore = '$baseUrl/api/check-in';
+
+  static String checkInDetail(int id) => '$baseUrl/api/check-in/$id';
 }
