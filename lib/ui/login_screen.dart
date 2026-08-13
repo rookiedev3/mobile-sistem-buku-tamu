@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/ui/admin/dashboard_admin_screen.dart';
 import 'package:mobile_flutter/ui/admin/manajemen_pengguna_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
         break;
       case 'admin':
       Navigator.pushReplacement(context,
-       MaterialPageRoute(builder: (_) => const ManajemenPenggunaScreen()),
+       MaterialPageRoute(builder: (_) => const DashboardAdminScreen()),
        );
       // TODO: tambah case lain kalau dashboard role-nya udah dibikin
       // case 'owner': ...

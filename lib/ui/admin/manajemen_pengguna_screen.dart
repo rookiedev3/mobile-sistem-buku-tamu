@@ -3,7 +3,7 @@ import 'dashboard_admin_screen.dart';
 import 'daftar_tamu_screen.dart';
 import 'riwayat_screen.dart';
 import 'janji_tamu_screen.dart';
-import 'branches_screen.dart'; // File Master Data Branches
+import 'master_data/master_data_screen.dart'; // File Master Data Branches
 
 class ManajemenPenggunaScreen extends StatefulWidget {
   const ManajemenPenggunaScreen({Key? key}) : super(key: key);
