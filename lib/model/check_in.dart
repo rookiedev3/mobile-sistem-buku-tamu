@@ -15,7 +15,7 @@ class OptionItem {
 class CheckInMasterData {
   final List<OptionItem> guestCategories;
   final List<OptionItem> pics;
-  final List<OptionItem> branches;
+final List<OptionItem> branches;
   final List<OptionItem> visitPurposes;
   final List<OptionItem> products;
   final List<OptionItem> leadSources;

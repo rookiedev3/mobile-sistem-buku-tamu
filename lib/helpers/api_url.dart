@@ -1,5 +1,6 @@
 class ApiUrl {
-  static const String baseUrl = "http://192.168.100.85:8000";
+  // static const String baseUrl = "http://192.168.100.85:8000";
+  static const String baseUrl = "http://127.0.0.1:8000";
 
   // ================= AUTH =================
   static const String registrasi = '$baseUrl/api/register';
@@ -28,13 +29,12 @@ class ApiUrl {
 
 
   // ================= SECURITY =================
-  static String securityDashboard({String? date, int perPage = 10}) {
-    final query = <String>['per_page=$perPage'];
-    if (date != null) query.add('date=$date');
-    return '$baseUrl/api/security/dashboard?${query.join('&')}';
-  }
-  static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
-  static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
+static String securityDashboard({String? date}) {
+  return '$baseUrl/api/security/dashboard' + (date != null ? '?date=$date' : '');
+}
+static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
+static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
+
 
   // ================= CHECK-IN (TAMBAHAN BARU) =================
   static const String checkInFormData = '$baseUrl/api/check-in/form-data';

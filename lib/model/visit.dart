@@ -13,6 +13,8 @@ class Visit {
   final String status;
   final String queueNumber;
   final String? notes;
+  final String? checkOutAt;   // tambah di deklarasi field
+
 
   // Relasi Eloquent dari Laravel
   final Guest? guest;
@@ -38,6 +40,8 @@ class Visit {
     this.assignedUser,
     this.purpose,
     this.products,
+    this.checkOutAt,
+
   });
 
   factory Visit.fromJson(Map<String, dynamic> json) {
@@ -58,6 +62,7 @@ class Visit {
       assignedUser: json['assigned_user'],
       purpose: json['purpose'],
       products: json['products'],
+      checkOutAt: json['check_out_at'],
     );
   }
 }
