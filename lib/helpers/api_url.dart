@@ -12,10 +12,34 @@ class ApiUrl {
   // ================= PRODUK =================
   static const String listProduk = '$baseUrl/api/products';
   static const String createProduk = '$baseUrl/api/products';
-
   static String updateProduk(int id) => '$baseUrl/api/products/$id';
   static String showProduk(int id) => '$baseUrl/api/products/$id';
   static String deleteProduk(int id) => '$baseUrl/api/products/$id';
+
+    // ================= BRANCH (TAMBAHAN BARU) =================
+  static const String listBranch = '$baseUrl/api/branches';
+  static const String createBranch = '$baseUrl/api/branches';
+  static String updateBranch(int id) => '$baseUrl/api/branches/$id';
+  static String showBranch(int id) => '$baseUrl/api/branches/$id';
+  static String deleteBranch(int id) => '$baseUrl/api/branches/$id';
+
+  // ================= LEAD SOURCES (TAMBAHAN BARU) =================
+static const String listLeadSource = '$baseUrl/api/lead-sources';
+static const String createLeadSource = '$baseUrl/api/lead-sources';
+static String updateLeadSource(int id) => '$baseUrl/api/lead-sources/$id';
+static String deleteLeadSource(int id) => '$baseUrl/api/lead-sources/$id';
+
+// ================= VISIT PURPOSES (TAMBAHAN BARU) =================
+static const String listVisitPurpose = '$baseUrl/api/visit-purposes';
+static const String createVisitPurpose = '$baseUrl/api/visit-purposes';
+static String updateVisitPurpose(int id) => '$baseUrl/api/visit-purposes/$id';
+static String deleteVisitPurpose(int id) => '$baseUrl/api/visit-purposes/$id';
+
+// ================= GUEST CATEGORIES (TAMBAHAN BARU) =================
+static const String listGuestCategory = '$baseUrl/api/guest-categories';
+static const String createGuestCategory = '$baseUrl/api/guest-categories';
+static String updateGuestCategory(int id) => '$baseUrl/api/guest-categories/$id';
+static String deleteGuestCategory(int id) => '$baseUrl/api/guest-categories/$id';
 
   // ================= USER MANAGEMENT =================
   static String users({String? status}) {

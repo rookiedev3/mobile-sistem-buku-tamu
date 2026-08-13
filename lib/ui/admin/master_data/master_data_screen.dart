@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'core/shared_widgets.dart';
 import 'branch_tab.dart';
 import 'product_tab.dart';
-import 'lead_tab.dart';
-import 'visit_tab.dart';
-import 'guest_tab.dart';
+import 'lead_source_tab.dart';
+import 'visit_purpose_tab.dart';
+import 'guest_category_tab.dart';
 
 class BranchesScreen extends StatefulWidget {
   const BranchesScreen({Key? key}) : super(key: key);
@@ -62,9 +62,9 @@ class _BranchesScreenState extends State<BranchesScreen> with SingleTickerProvid
         children: const [
           BranchTab(),
           ProductTab(),
-          LeadTab(),
-          VisitTab(),
-          GuestTab(),
+          LeadSourceTab(),
+          VisitPurposeTab(),
+          GuestCategoryTab(),
         ],
       ),
     );
