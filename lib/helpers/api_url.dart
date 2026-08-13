@@ -53,6 +53,17 @@ static String deleteGuestCategory(int id) => '$baseUrl/api/guest-categories/$id'
   static String createUser() => '$baseUrl/api/users';
 
 
+  // ================= MANAGER =================
+    static String managerDashboard(String date, String vipStatus) =>
+      '$baseUrl/api/manager/dashboard?date=$date&vip_status=$vipStatus';
+    static String managerLeadsPipeline(String filter, String vipStatus, {String? keyword, int page = 1}) {
+      final buffer = StringBuffer('$baseUrl/api/manager/leads?filter=$filter&vip_status=$vipStatus&page=$page');
+      if (keyword != null && keyword.isNotEmpty) {
+        buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+      }
+      return buffer.toString();
+    }
+
   // ================= SECURITY =================
 static String securityDashboard({String? date}) {
   return '$baseUrl/api/security/dashboard' + (date != null ? '?date=$date' : '');
