@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/registrasi_bloc.dart';
+import 'package:mobile_flutter/helpers/title_case_formatter.dart'; // ← import baru
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -145,6 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 6),
                 TextField(
                   controller: _namaController,
+                  inputFormatters: [TitleCaseTextFormatter()], // ← TAMBAHAN
                   decoration: InputDecoration(
                     hintText: "Masukkan nama lengkap Anda",
                     filled: true,

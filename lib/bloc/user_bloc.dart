@@ -12,6 +12,54 @@ class UserBloc {
     return UserListResponse.fromJson(json.decode(response.body));
   }
 
+    static Future<SimpleResponse> create({
+    required String name,
+    required String email,
+    String? phone,
+    required String password,
+    required String role,
+    int? branchId,
+    bool isActive = true,
+  }) async {
+    String apiUrl = ApiUrl.createUser();
+    var body = {
+      "name": name,
+      "email": email,
+      "phone": phone ?? '',
+      "password": password,
+      "role": role,
+      "branch_id": branchId?.toString() ?? '',
+      "is_active": isActive.toString(),
+    };
+    var response = await Api().post(apiUrl, body);
+    return SimpleResponse.fromJson(json.decode(response.body));
+  }
+
+    static Future<SimpleResponse> updateUser({
+    required int id,
+    required String name,
+    required String email,
+    String? phone,
+    String? password, // kosongkan kalau gak mau ganti password
+    required String role,
+    int? branchId,
+    bool isActive = true,
+  }) async {
+    String apiUrl = ApiUrl.updateUser(id);
+    var body = {
+      "name": name,
+      "email": email,
+      "phone": phone ?? '',
+      "role": role,
+      "branch_id": branchId?.toString() ?? '',
+      "is_active": isActive.toString(),
+      if (password != null && password.isNotEmpty) "password": password,
+    };
+    var response = await Api().put(apiUrl, body);
+    return SimpleResponse.fromJson(json.decode(response.body));
+  }
+
+
   static Future<SimpleResponse> approve({required int id, required String role}) async {
     String apiUrl = ApiUrl.approveUser(id);
     var body = {"role": role};
