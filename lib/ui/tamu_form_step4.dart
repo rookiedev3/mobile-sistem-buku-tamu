@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
+import 'homepage_screen.dart'; // Sesuaikan path jika lokasi file berbeda (misal: 'package:mobile_flutter/ui/homepage_screen.dart')
 
 class TamuFormStep4 extends StatefulWidget {
   final int? visitId;
@@ -26,13 +27,11 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
   @override
   void initState() {
     super.initState();
-    // Jika visitId ada tetapi detail jam/tanggal belum lengkap, fetch dari API
     if (widget.visitId != null && widget.scheduledAt == null) {
       _fetchVisitDetail();
     }
   }
 
-  /// Memuat detail kunjungan dari API jika diperlukan
   Future<void> _fetchVisitDetail() async {
     setState(() => _isLoading = true);
     try {
@@ -48,7 +47,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
     }
   }
 
-  /// Format Tanggal (YYYY-MM-DD -> DD-MM-YYYY)
   String _getFormattedDate() {
     String? rawDate = widget.scheduledAt ?? _visitDetail?['scheduled_at'];
     if (rawDate == null || rawDate.isEmpty) return "-";
@@ -60,7 +58,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
     }
   }
 
-  /// Format Jam (HH:mm)
   String _getFormattedTime() {
     String? rawDate = widget.scheduledAt ?? _visitDetail?['scheduled_at'];
     if (rawDate == null || rawDate.isEmpty) return "-";
@@ -112,7 +109,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Ikon Sukses Ceklis Hijau
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -127,7 +123,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Judul Berhasil
                       const Text(
                         "Check-in Berhasil!",
                         style: TextStyle(
@@ -144,7 +139,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
                       ),
                       const SizedBox(height: 24),
 
-                      // KARTU NOMOR ANTREAN & KODE VISIT
                       Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(bottom: 16),
@@ -187,7 +181,6 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
                         ),
                       ),
 
-                      // KARTU INFORMASI JADWAL PERTEMUAN
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -256,7 +249,14 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
                             elevation: 0,
                           ),
                           onPressed: () {
-                            Navigator.popUntil(context, (route) => route.isFirst);
+                            // 👇 2. NAVIGASI LANGSUNG KE HOMEPAGESCREEN
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HomepageScreen(),
+                              ),
+                              (route) => false, // Menghapus seluruh halaman sebelumnya dari history
+                            );
                           },
                           child: const Text(
                             "Selesai",

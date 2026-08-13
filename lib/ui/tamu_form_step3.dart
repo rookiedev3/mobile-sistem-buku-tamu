@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
 import 'package:mobile_flutter/model/check_in.dart';
-import 'tamu_form_step4.dart'; // Buat halaman ini untuk tiket/bukti check-in
+import 'tamu_form_step4.dart';
 
 class TamuFormStep3 extends StatefulWidget {
   final Map<String, dynamic>? step1Data;
@@ -63,6 +63,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
             visitId: result.visitId,
             visitCode: result.visitCode,
             queueNumber: result.queueNumber,
+            scheduledAt: step2['scheduled_at'], // 🟢 Optimalisasi: Meneruskan scheduledAt agar tiket tampil instan
           ),
         ),
         (route) => route.isFirst,
