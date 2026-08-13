@@ -22,4 +22,17 @@ class ApiUrl {
   static String approveUser(int id) => '$baseUrl/api/users/$id/approve';
   static String deactivateUser(int id) => '$baseUrl/api/users/$id/deactivate';
   static String deleteUser(int id) => '$baseUrl/api/users/$id';
+  static String updateUser(int id) => '$baseUrl/api/users/$id';
+  static String createUser() => '$baseUrl/api/users';
+
+
+  // ================= SECURITY =================
+  static String securityDashboard({String? date, int perPage = 10}) {
+    final query = <String>['per_page=$perPage'];
+    if (date != null) query.add('date=$date');
+    return '$baseUrl/api/security/dashboard?${query.join('&')}';
+  }
+  static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
+  static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
 }
+

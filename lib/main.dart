@@ -21,7 +21,7 @@ class MainApp extends StatelessWidget {
         fontFamily: 'Plus Jakarta Sans',
       ),
       // Langsung arahkan ke HomepageScreen sebagai pintu utama aplikasi
-      home: const ManajemenPenggunaScreen(),
+      home: const HomepageScreen(),
     );
   }
 }

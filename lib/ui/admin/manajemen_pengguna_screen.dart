@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/bloc/user_bloc.dart';
+import 'package:mobile_flutter/model/user.dart';
+import 'package:mobile_flutter/helpers/title_case_formatter.dart'; // ← import baru
+
 
 class ManajemenPenggunaScreen extends StatefulWidget {
   const ManajemenPenggunaScreen({Key? key}) : super(key: key);
@@ -8,49 +12,185 @@ class ManajemenPenggunaScreen extends StatefulWidget {
 }
 
 class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
-  // Data Simulasi Daftar Pengguna
-  final List<Map<String, dynamic>> _daftarPengguna = [
-    {
-      "id": "1",
-      "nama": "Bapak Manager",
-      "kontak": "manager@office.com\n081234567890",
-      "role": "Manager",
-      "cabang": "Cabang Sleman",
-      "status": "Aktif",
-    },
-    {
-      "id": "2",
-      "nama": "Rian Sales",
-      "kontak": "rian@office.com\n089876543210",
-      "role": "PIC / Sales",
-      "cabang": "Cabang Magelang",
-      "status": "Aktif",
-    },
-    {
-      "id": "3",
-      "nama": "Satpam Jaga Pagi",
-      "kontak": "satpam1@office.com\n085678123456",
-      "role": "Satpam",
-      "cabang": "Cabang Sleman",
-      "status": "Non-Aktif",
-    },
-  ];
+  List<UserModel> _daftarPengguna = [];
+  bool _isLoading = true;
 
-  // Opsi Dropdown untuk Role & Cabang
+  final Map<String, int> _cabangIdMap = {
+  'Cabang Sleman': 1,
+  'Cabang Magelang': 2,
+  };
+
+  // Pemetaan role backend (Inggris) <-> label yang ditampilkan di UI (Indonesia)
+  static const Map<String, String> _roleToDisplay = {
+    'owner': 'Owner',
+    'manager': 'Manager',
+    'pic': 'PIC / Sales',
+    'security': 'Satpam',
+    'admin': 'Admin',
+    'tamu': 'Tamu',
+  };
+
   final List<String> _roleOptions = ['Owner', 'Manager', 'PIC / Sales', 'Satpam', 'Admin'];
-  final List<String> _cabangOptions = ['Cabang Sleman', 'Cabang Magelang', 'Cabang Yogyakarta', 'Cabang Solo'];
+  final List<String> _cabangOptions = ['Cabang Sleman', 'Cabang Magelang'];
 
-  // Fungsi Pop-Up Dialog untuk Tambah / Edit Pengguna
-  void _showFormPenggunaDialog(BuildContext context, {Map<String, dynamic>? userData}) {
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
+
+  Future<void> _fetchUsers() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await UserBloc.listUsers();
+      setState(() => _daftarPengguna = result.data ?? []);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data: ${e.toString().replaceAll('Exception: ', '')}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleNonaktifkan(UserModel user) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Nonaktifkan Pengguna'),
+      content: Text('Yakin ingin menonaktifkan ${user.name}?'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Nonaktifkan'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    await UserBloc.deactivate(id: user.id!);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${user.name} berhasil dinonaktifkan')),
+    );
+    _fetchUsers();
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+    );
+  }
+}
+
+  Future<void> _handleAktifkan(UserModel user) async {
+  // Kalau role-nya udah pernah ada, aktifkan ulang pakai role yang sama.
+  // Kalau baru daftar (role masih null), minta admin pilih dulu.
+  String? roleToUse = user.role;
+
+  if (roleToUse == null) {
+    roleToUse = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String tempRole = _roleOptions[0];
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Pilih Role'),
+              content: DropdownButtonFormField<String>(
+                value: tempRole,
+                items: _roleOptions
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setStateDialog(() => tempRole = val);
+                },
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+                ElevatedButton(
+                  onPressed: () {
+                    final roleValue = _roleToDisplay.entries
+                        .firstWhere((e) => e.value == tempRole)
+                        .key;
+                    Navigator.pop(ctx, roleValue);
+                  },
+                  child: const Text('Aktifkan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (roleToUse == null) return; // admin batal pilih role
+  }
+
+  try {
+    await UserBloc.approve(id: user.id!, role: roleToUse);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${user.name} berhasil diaktifkan')),
+    );
+    _fetchUsers();
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+    );
+  }
+}
+
+  Future<void> _handleHapus(UserModel user) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Pengguna'),
+        content: Text('Yakin ingin menghapus ${user.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await UserBloc.destroy(id: user.id!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pengguna ${user.name} dihapus!')),
+      );
+      _fetchUsers(); // refresh list
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+      );
+    }
+  }
+
+  // Dialog Tambah/Edit — MASIH SIMULASI, belum tersambung ke backend
+  // (butuh endpoint baru khusus admin buat create/update user, dibahas terpisah)
+  void _showFormPenggunaDialog(BuildContext context, {UserModel? userData}) {
     final bool isEdit = userData != null;
 
-    final TextEditingController namaController = TextEditingController(text: isEdit ? userData['nama'] : '');
-    final TextEditingController emailController = TextEditingController(text: isEdit ? userData['kontak'].split('\n')[0] : '');
-    final TextEditingController waController = TextEditingController(text: isEdit ? userData['kontak'].split('\n')[1] : '');
+    final TextEditingController namaController = TextEditingController(text: isEdit ? userData.name : '');
+    final TextEditingController emailController = TextEditingController(text: isEdit ? userData.email : '');
+    final TextEditingController waController = TextEditingController(text: isEdit ? userData.phone : '');
     final TextEditingController passwordController = TextEditingController();
 
-    String selectedRole = isEdit ? userData['role'] : _roleOptions[0];
-    String selectedCabang = isEdit ? userData['cabang'] : _cabangOptions[0];
+    String selectedRole = isEdit ? (_roleToDisplay[userData.role] ?? _roleOptions[0]) : _roleOptions[0];
+    String selectedCabang = isEdit ? (userData.branchName ?? _cabangOptions[0]) : _cabangOptions[0];
 
     showDialog(
       context: context,
@@ -80,25 +220,17 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                   children: [
                     const Text("Nama Lengkap", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
                     const SizedBox(height: 4),
-                    TextField(
-                      controller: namaController,
-                      decoration: _inputDecoration("Masukkan nama lengkap"),
-                    ),
+                    TextField(controller: namaController, 
+                    inputFormatters: [TitleCaseTextFormatter()], // ← TAMBAHAN
+                    decoration: _inputDecoration("Masukkan nama lengkap")),
                     const SizedBox(height: 10),
                     const Text("Email", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
                     const SizedBox(height: 4),
-                    TextField(
-                      controller: emailController,
-                      decoration: _inputDecoration("contoh@office.com"),
-                    ),
+                    TextField(controller: emailController, decoration: _inputDecoration("contoh@office.com")),
                     const SizedBox(height: 10),
                     const Text("No. WhatsApp", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
                     const SizedBox(height: 4),
-                    TextField(
-                      controller: waController,
-                      keyboardType: TextInputType.phone,
-                      decoration: _inputDecoration("08xxxxxxxxxx"),
-                    ),
+                    TextField(controller: waController, keyboardType: TextInputType.phone, decoration: _inputDecoration("08xxxxxxxxxx")),
                     const SizedBox(height: 10),
                     const Text("Password", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
                     const SizedBox(height: 4),
@@ -122,18 +254,9 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                           value: selectedRole,
                           isExpanded: true,
                           style: const TextStyle(fontSize: 12, color: Color(0xFF172033), fontWeight: FontWeight.w600),
-                          items: _roleOptions.map((String role) {
-                            return DropdownMenuItem<String>(
-                              value: role,
-                              child: Text(role),
-                            );
-                          }).toList(),
+                          items: _roleOptions.map((String role) => DropdownMenuItem<String>(value: role, child: Text(role))).toList(),
                           onChanged: (String? val) {
-                            if (val != null) {
-                              setStateDialog(() {
-                                selectedRole = val;
-                              });
-                            }
+                            if (val != null) setStateDialog(() => selectedRole = val);
                           },
                         ),
                       ),
@@ -153,18 +276,9 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                           value: selectedCabang,
                           isExpanded: true,
                           style: const TextStyle(fontSize: 12, color: Color(0xFF172033), fontWeight: FontWeight.w600),
-                          items: _cabangOptions.map((String cabang) {
-                            return DropdownMenuItem<String>(
-                              value: cabang,
-                              child: Text(cabang),
-                            );
-                          }).toList(),
+                          items: _cabangOptions.map((String cabang) => DropdownMenuItem<String>(value: cabang, child: Text(cabang))).toList(),
                           onChanged: (String? val) {
-                            if (val != null) {
-                              setStateDialog(() {
-                                selectedCabang = val;
-                              });
-                            }
+                            if (val != null) setStateDialog(() => selectedCabang = val);
                           },
                         ),
                       ),
@@ -184,12 +298,54 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(isEdit ? 'Pengguna berhasil diperbarui!' : 'Pengguna baru berhasil ditambahkan!')),
-                    );
-                  },
+                  onPressed: () async {
+  // Petain balik label UI (Indonesia) -> value backend (Inggris)
+  final roleValue = _roleToDisplay.entries
+      .firstWhere((e) => e.value == selectedRole, orElse: () => const MapEntry('tamu', 'Tamu'))
+      .key;
+  final branchIdValue = _cabangIdMap[selectedCabang]; // map yang sama kayak di register_screen.dart
+
+  if (!isEdit && passwordController.text.isEmpty) {
+    ScaffoldMessenger.of(dialogContext).showSnackBar(
+      const SnackBar(content: Text('Password wajib diisi untuk user baru')),
+    );
+    return;
+  }
+
+  try {
+    if (isEdit) {
+      await UserBloc.updateUser(
+        id: userData.id!,
+        name: namaController.text.trim(),
+        email: emailController.text.trim(),
+        phone: waController.text.trim(),
+        password: passwordController.text.isNotEmpty ? passwordController.text : null,
+        role: roleValue,
+        branchId: branchIdValue,
+        isActive: userData.isActive ?? true,
+      );
+    } else {
+      await UserBloc.create(
+        name: namaController.text.trim(),
+        email: emailController.text.trim(),
+        phone: waController.text.trim(),
+        password: passwordController.text,
+        role: roleValue,
+        branchId: branchIdValue,
+      );
+    }
+
+    Navigator.of(dialogContext).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(isEdit ? 'Pengguna berhasil diperbarui!' : 'Pengguna baru berhasil ditambahkan!')),
+    );
+    _fetchUsers(); // refresh list
+  } catch (e) {
+    ScaffoldMessenger.of(dialogContext).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+    );
+  }
+},
                   child: Text(isEdit ? "Simpan Perubahan" : "Simpan"),
                 ),
               ],
@@ -224,163 +380,186 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _fetchUsers),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF006B3F)))
+          : RefreshIndicator(
+              onRefresh: _fetchUsers,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Daftar Pengguna Sistem",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Daftar Pengguna Sistem",
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "Kelola hak akses dan akun staf perusahaan",
+                              style: TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                            ),
+                          ],
+                        ),
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF006B3F),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () => _showFormPenggunaDialog(context),
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text("Tambah", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      "Kelola hak akses dan akun staf perusahaan",
-                      style: TextStyle(fontSize: 12, color: Color(0xFF778195)),
-                    ),
+                    const SizedBox(height: 16),
+                    if (_daftarPengguna.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: Text('Belum ada data pengguna', style: TextStyle(color: Color(0xFF778195)))),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _daftarPengguna.length,
+                        itemBuilder: (context, index) {
+                          final user = _daftarPengguna[index];
+                          final isAktif = user.isActive == true;
+                          final roleLabel = _roleToDisplay[user.role] ?? (user.role ?? 'Belum ditentukan');
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
+                                          child: Text("No. ${user.id}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(user.name ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF172033))),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isAktif ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        isAktif ? "Aktif" : "Non-Aktif",
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isAktif ? Colors.green[700] : Colors.red[700]),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.email_outlined, size: 14, color: Color(0xFF778195)),
+                                    const SizedBox(width: 6),
+                                    Text('${user.email}\n${user.phone}', style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.admin_panel_settings_outlined, size: 14, color: Color(0xFF778195)),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      "Role: $roleLabel • Cabang: ${user.branchName ?? '-'}",
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF006B3F)),
+                                    ),
+                                  ],
+                                ),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Divider(height: 1, color: Color(0xFFE5E7EB)),
+                                ),
+                               Row(
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    // Tombol toggle status — selalu tampil, beda label/aksi tergantung status sekarang
+    OutlinedButton.icon(
+      onPressed: () => isAktif ? _handleNonaktifkan(user) : _handleAktifkan(user),
+      icon: Icon(
+        isAktif ? Icons.toggle_off_outlined : Icons.check_circle_outline,
+        size: 14,
+        color: isAktif ? Colors.orange[700] : Colors.green,
+      ),
+      label: Text(
+        isAktif ? "Nonaktifkan" : "Aktifkan",
+        style: TextStyle(fontSize: 11, color: isAktif ? Colors.orange[700] : Colors.green),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        side: BorderSide(color: isAktif ? Colors.orange[700]! : Colors.green),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        minimumSize: const Size(50, 28),
+      ),
+    ),
+    const SizedBox(width: 8),
+    OutlinedButton.icon(
+      onPressed: () => _showFormPenggunaDialog(context, userData: user),
+      icon: const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF1B65E3)),
+      label: const Text("Edit", style: TextStyle(fontSize: 11, color: Color(0xFF1B65E3))),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        side: const BorderSide(color: Color(0xFF1B65E3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        minimumSize: const Size(50, 28),
+      ),
+    ),
+    const SizedBox(width: 8),
+    OutlinedButton.icon(
+      onPressed: () => _handleHapus(user),
+      icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.red),
+      label: const Text("Hapus", style: TextStyle(fontSize: 11, color: Colors.red)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        side: const BorderSide(color: Colors.red),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        minimumSize: const Size(50, 28),
+      ),
+    ),
+  ],
+),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                   ],
                 ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF006B3F),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => _showFormPenggunaDialog(context),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text("Tambah", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 16),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _daftarPengguna.length,
-              itemBuilder: (context, index) {
-                final user = _daftarPengguna[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                child: Text("No. ${user["id"]}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(user["nama"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF172033))),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: user["status"] == "Aktif" ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              user["status"],
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: user["status"] == "Aktif" ? Colors.green[700] : Colors.red[700],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.email_outlined, size: 14, color: Color(0xFF778195)),
-                          const SizedBox(width: 6),
-                          Text(user["kontak"], style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.admin_panel_settings_outlined, size: 14, color: Color(0xFF778195)),
-                          const SizedBox(width: 6),
-                          Text("Role: ${user["role"]} • Cabang: ${user["cabang"]}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
-                        ],
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Divider(height: 1, color: Color(0xFFE5E7EB)),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () => _showFormPenggunaDialog(context, userData: user),
-                            icon: const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF1B65E3)),
-                            label: const Text("Edit", style: TextStyle(fontSize: 11, color: Color(0xFF1B65E3))),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              side: const BorderSide(color: Color(0xFF1B65E3)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              minimumSize: const Size(50, 28),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Pengguna ${user["nama"]} dihapus!')),
-                              );
-                            },
-                            icon: const Icon(Icons.delete_outline_rounded, size: 14, color: Colors.red),
-                            label: const Text("Hapus", style: TextStyle(fontSize: 11, color: Colors.red)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              side: const BorderSide(color: Colors.red),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              minimumSize: const Size(50, 28),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

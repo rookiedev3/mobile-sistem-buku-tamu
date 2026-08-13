@@ -1,18 +1,27 @@
 import 'package:mobile_flutter/model/user.dart';
 
 class UserListResponse {
-  int? code;
-  bool? status;
-  List<UserModel>? data;
+  final bool? status;
+  final String? message;
+  final List<UserModel>? data;
 
-  UserListResponse({this.code, this.status, this.data});
+  UserListResponse({this.status, this.message, this.data});
 
-  factory UserListResponse.fromJson(Map<String, dynamic> obj) {
-    var list = obj['data'] as List;
+  factory UserListResponse.fromJson(Map<String, dynamic> json) {
     return UserListResponse(
-      code: obj['code'],
-      status: obj['status'],
-      data: list.map((e) => UserModel.fromJson(e)).toList(),
+      status: json['status'] as bool?,
+      message: json['message'] as String? ?? json['pesan'] as String?,
+      data: json['data'] != null
+          ? (json['data'] as List).map((i) => UserModel.fromJson(i)).toList()
+          : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+      'message': message,
+      'data': data,
+    };
   }
 }
