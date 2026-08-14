@@ -91,16 +91,29 @@ static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
 static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
 
 
-  // ================= OWNER =================
+// ================= OWNER =================
   static String ownerDashboard() {
-  return '$baseUrl/api/owner/dashboard';
-}
-static String ownerProdukDiminati({int? month, int? year}) {
-  final m = month ?? DateTime.now().month;
-  final y = year ?? DateTime.now().year;
-  return '$baseUrl/api/owner/produk-diminati?month=$m&year=$y';
-}
+    return '$baseUrl/api/owner/dashboard';
+  }
 
+  static String ownerActivityLog({String? keyword, int page = 1, int perPage = 10}) {
+    final buffer = StringBuffer('$baseUrl/api/owner/activity-log?page=$page&per_page=$perPage');
+    if (keyword != null && keyword.isNotEmpty) {
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    return buffer.toString();
+  }
+
+  static String ownerProdukDiminati({int? month, int? year}) {
+    final m = month ?? DateTime.now().month;
+    final y = year ?? DateTime.now().year;
+    return '$baseUrl/api/owner/produk-diminati?month=$m&year=$y';
+  }
+  static String ownerKategoriTamu({int? month, int? year}) {
+    final m = month ?? DateTime.now().month;
+    final y = year ?? DateTime.now().year;
+    return '$baseUrl/api/owner/kategori-tamu?month=$m&year=$y';
+  }
 
 
   // ================= CHECK-IN (TAMBAHAN BARU) =================

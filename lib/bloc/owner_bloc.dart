@@ -31,4 +31,28 @@ class DashboardOwnerBloc {
     }
     throw Exception('Gagal memuat dashboard owner (${response.statusCode})');
   }
+  // owner_bloc.dart
+static Future<ActivityLogResponse> fetchActivityLog({
+  String keyword = '',
+  int page = 1,
+  int perPage = 25,
+}) async {
+  final uri = Uri.parse(ApiUrl.ownerActivityLog(keyword: keyword, page: page, perPage: perPage));
+
+  final response = await http.get(uri, headers: await _headers());
+
+  if (response.statusCode != 200) {
+    throw Exception('Gagal memuat log aktivitas');
+  }
+
+  final body = jsonDecode(response.body);
+  final items = (body['data'] as List).map((e) => ActivityLogItem.fromJson(e)).toList();
+  final meta = body['meta'];
+
+  return ActivityLogResponse(
+    items: items,
+    currentPage: meta['current_page'],
+    lastPage: meta['last_page'],
+  );
+}
 }

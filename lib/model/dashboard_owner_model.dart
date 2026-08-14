@@ -177,3 +177,31 @@ class DashboardOwnerResponse {
     );
   }
 }
+
+class ActivityLogItem {
+  final String? guestName;
+  final String? companyName;
+  final String? newStatus;
+  final String? changedAt;
+
+  ActivityLogItem({this.guestName, this.companyName, this.newStatus, this.changedAt});
+
+  factory ActivityLogItem.fromJson(Map<String, dynamic> json) {
+    return ActivityLogItem(
+      guestName: json['guest_name'],
+      companyName: json['company_name'],
+      newStatus: json['new_status'],
+      changedAt: json['changed_at'],
+    );
+  }
+}
+
+class ActivityLogResponse {
+  final List<ActivityLogItem> items;
+  final int currentPage;
+  final int lastPage;
+
+  ActivityLogResponse({required this.items, required this.currentPage, required this.lastPage});
+
+  bool get hasMore => currentPage < lastPage;
+}

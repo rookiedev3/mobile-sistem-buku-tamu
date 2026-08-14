@@ -10,10 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.0
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
   shared_preferences: ^2.2.2
   cupertino_icons: ^1.0.9
   intl: ^0.20.3
   image_picker: ^1.2.3
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
