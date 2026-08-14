@@ -9,6 +9,8 @@ import 'ui/admin/janji_tamu_screen.dart';
 import 'ui/frontoffice/dashboard_fo_screen.dart';
 import 'ui/frontoffice/lead_fo_screen.dart';
 import 'ui/frontoffice/riwayat_fo_screen.dart';
+import 'ui/owner/dashboard_owner_screen.dart';
+
 
 void main() {
   runApp(const MainApp());
@@ -26,7 +28,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const HomepageScreen(),
+      home: const DashboardOwnerScreen(),
     );
   }
 }
