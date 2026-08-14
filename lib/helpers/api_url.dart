@@ -91,6 +91,18 @@ static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
 static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
 
 
+  // ================= OWNER =================
+  static String ownerDashboard() {
+  return '$baseUrl/api/owner/dashboard';
+}
+static String ownerProdukDiminati({int? month, int? year}) {
+  final m = month ?? DateTime.now().month;
+  final y = year ?? DateTime.now().year;
+  return '$baseUrl/api/owner/produk-diminati?month=$m&year=$y';
+}
+
+
+
   // ================= CHECK-IN (TAMBAHAN BARU) =================
   static const String checkInFormData = '$baseUrl/api/check-in/form-data';
   static const String checkInValidateStep1 = '$baseUrl/api/check-in/validate-step1';

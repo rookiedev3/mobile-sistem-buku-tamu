@@ -38,7 +38,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const MainOwnerNavigator(),
+      home: const HomepageScreen(),
     );
   }
 }
