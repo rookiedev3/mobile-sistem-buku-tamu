@@ -19,7 +19,6 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _filterStatus = 'Semua Status';
   String _filterPic = 'Semua PIC';
-  int _currentIndex = 0;
 
   late Future<DashboardOwnerResponse> _futureDashboard;
 
@@ -549,32 +548,32 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-  currentIndex: _currentIndex,
-  selectedItemColor: corporateGreen,
-  unselectedItemColor: const Color(0xFF778195),
-  backgroundColor: Colors.white,
-  type: BottomNavigationBarType.fixed,
-  selectedFontSize: 9,
-  unselectedFontSize: 9,
-  onTap: (index) {
-    setState(() => _currentIndex = index);
-    if (index == 0) {
-      // Sudah di Dashboard
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')),
-      );
-    }
-  },
-  items: const [
-    BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 16), label: 'Dashboard'),
-    BottomNavigationBarItem(icon: Icon(Icons.assignment_rounded, size: 16), label: 'Kunjungan'),
-    BottomNavigationBarItem(icon: Icon(Icons.group_rounded, size: 16), label: 'Database'),
-    BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 16), label: 'Lead & FU'),
-    BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded, size: 16), label: 'Laporan'),
-  ],
-),
+//       bottomNavigationBar: BottomNavigationBar(
+//   currentIndex: _currentIndex,
+//   selectedItemColor: corporateGreen,
+//   unselectedItemColor: const Color(0xFF778195),
+//   backgroundColor: Colors.white,
+//   type: BottomNavigationBarType.fixed,
+//   selectedFontSize: 9,
+//   unselectedFontSize: 9,
+//   onTap: (index) {
+//     setState(() => _currentIndex = index);
+//     if (index == 0) {
+//       // Sudah di Dashboard
+//     } else {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')),
+//       );
+//     }
+//   },
+//   items: const [
+//     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 16), label: 'Dashboard'),
+//     BottomNavigationBarItem(icon: Icon(Icons.assignment_rounded, size: 16), label: 'Kunjungan'),
+//     BottomNavigationBarItem(icon: Icon(Icons.group_rounded, size: 16), label: 'Database'),
+//     BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 16), label: 'Lead & FU'),
+//     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded, size: 16), label: 'Laporan'),
+//   ],
+// ),
     );
   }
 

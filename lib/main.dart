@@ -40,7 +40,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const MainManagerNavigator(),
+      home: const MainOwnerNavigator(),
     );
   }
 }
