@@ -63,6 +63,25 @@ static String deleteGuestCategory(int id) => '$baseUrl/api/guest-categories/$id'
       }
       return buffer.toString();
     }
+    static String managerKunjungan({
+  String? startDate,
+  String? endDate,
+  String vipStatus = 'all',
+  String? keyword,
+  int page = 1,
+}) {
+  final buffer = StringBuffer('$baseUrl/api/manager/kunjungan?vip_status=$vipStatus&page=$page');
+  if (startDate != null && startDate.isNotEmpty) {
+    buffer.write('&start_date=$startDate');
+  }
+  if (endDate != null && endDate.isNotEmpty) {
+    buffer.write('&end_date=$endDate');
+  }
+  if (keyword != null && keyword.isNotEmpty) {
+    buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+  }
+  return buffer.toString();
+}
 
   // ================= SECURITY =================
 static String securityDashboard({String? date}) {

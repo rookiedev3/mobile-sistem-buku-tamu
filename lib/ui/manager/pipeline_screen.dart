@@ -16,15 +16,17 @@ class _PipelineScreenState extends State<PipelineScreen> {
   int _currentIndex = 1;
 
   // Label tampilan -> value filter backend
+  // REVISI: ditambah tab "Semua" di posisi paling depan, menyamakan dengan tab di web
   final Map<String, String> _categoryMap = {
+    'Semua': 'all',
     'Aktif': 'active',
+    'Deal': 'deal',
     'Terlambat': 'overdue',
     'Hari Ini': 'today',
     'Menunggu': 'upcoming',
-    'Deal': 'deal',
     'Lost': 'lost',
   };
-  String _selectedCategory = 'Aktif';
+  String _selectedCategory = 'Semua';
   String _vipFilter = 'all'; // all | vip | reguler
 
   late Future<LeadPipelineResponse> _futurePipeline;
@@ -82,7 +84,33 @@ class _PipelineScreenState extends State<PipelineScreen> {
                   Text("Ditangani oleh: ${lead.ownerName ?? '-'} (PIC)",
                       style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  const Text("📌 Catatan Pertemuan Awal:",
+
+                  // REVISI: ringkasan status/jadwal/estimasi value di bagian atas, menyamakan
+                  // dengan box "Tahap Pipeline Terakhir / Jadwal / Estimasi Value" di web.
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Wrap(
+                      spacing: 20,
+                      runSpacing: 8,
+                      children: [
+                        _summaryItem("Tahap Pipeline Terakhir",
+                            (_leadBadges[lead.status] ?? _leadBadges['new']!)['label'] as String),
+                        _summaryItem("Jadwal Follow-Up", _scheduleText(lead)),
+                        _summaryItem("Estimasi Value", _rupiah(lead.estimatedValue)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // REVISI: dipecah jadi dua blok terpisah seperti di web,
+                  // "Catatan Awal Kunjungan" (notes) dan "Hasil Meeting Pertama" (meetingResult)
+                  const Text("📝 Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -92,10 +120,26 @@ class _PipelineScreenState extends State<PipelineScreen> {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(lead.meetingResult ?? 'Tidak ada catatan awal.',
+                    child: Text(lead.notes ?? 'Tidak ada catatan awal.',
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
+
+                  const Text("📌 Hasil Meeting Pertama:",
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(lead.meetingResult ?? 'Tidak ada hasil meeting.',
+                        style: const TextStyle(fontSize: 12, height: 1.4)),
+                  ),
+                  const SizedBox(height: 14),
+
                   const Text("🔄 Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
@@ -136,11 +180,19 @@ class _PipelineScreenState extends State<PipelineScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(fu.result ?? '-', style: const TextStyle(fontSize: 12)),
-                            if (fu.dueAt != null) ...[
-                              const SizedBox(height: 4),
-                              Text('Target Due Date: ${_formatDate(fu.dueAt!)}',
-                                  style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
-                            ],
+                            const SizedBox(height: 6),
+                            // REVISI: tambah estimasi value per update, menyamakan dengan web
+                            Wrap(
+                              spacing: 16,
+                              runSpacing: 4,
+                              children: [
+                                Text('💰 Estimasi Value: ${_rupiah(fu.estimatedValue)}',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                                if (fu.dueAt != null)
+                                  Text('Target Due Date: ${_formatDate(fu.dueAt!)}',
+                                      style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
+                              ],
+                            ),
                           ],
                         ),
                       );
@@ -160,12 +212,47 @@ class _PipelineScreenState extends State<PipelineScreen> {
     );
   }
 
+  // REVISI: format manual tanpa bergantung pada DateFormat(locale: 'id_ID'),
+  // karena kalau initializeDateFormatting('id_ID') belum dipanggil di main(),
+  // DateFormat akan throw dan fallback ke string ISO mentah (itu yang kejadian sebelumnya).
+  static const List<String> _bulanIndo = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
   String _formatDate(String raw) {
     try {
-      return DateFormat('d MMM yyyy', 'id_ID').format(DateTime.parse(raw));
+      final d = DateTime.parse(raw).toLocal();
+      return '${d.day} ${_bulanIndo[d.month - 1]} ${d.year}';
     } catch (_) {
       return raw;
     }
+  }
+
+  // Alias supaya pemanggilan lama (_formatFullDate) tetap jalan tanpa perlu ganti semua pemanggil.
+  String _formatFullDate(String raw) => _formatDate(raw);
+
+  // REVISI: menyamakan logika $scheduleText di web (riwayat.blade.php / leads.blade.php)
+  String _scheduleText(LeadModel lead) {
+    if (lead.status == 'deal') return 'Sudah Deal 🎉';
+    if (lead.status == 'lost') return 'Lead Hilang / Lost';
+    if (lead.followUpAt != null) return _formatDate(lead.followUpAt!);
+    return 'Tidak ada jadwal lanjutan';
+  }
+
+  Widget _summaryItem(String label, String value) {
+    return SizedBox(
+      width: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+        ],
+      ),
+    );
   }
 
   Widget _buildFollowUpBadge(String? followUpAt, String status) {
@@ -426,6 +513,23 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   const SizedBox(height: 6),
 
+                                  // REVISI: tambah baris nama instansi (company_name), meniru web
+                                  if (lead.companyName != null && lead.companyName!.isNotEmpty) ...[
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(lead.companyName!,
+                                              style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                  ],
+
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -443,11 +547,17 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   const SizedBox(height: 6),
 
+                                  // REVISI: tanggal follow-up lengkap ("15 Agustus 2026") + badge relatif di sampingnya
                                   Row(
                                     children: [
                                       const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF778195)),
                                       const SizedBox(width: 6),
                                       const Text("Follow Up: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                      if (lead.followUpAt != null) ...[
+                                        Text(_formatFullDate(lead.followUpAt!),
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                                        const SizedBox(width: 6),
+                                      ],
                                       _buildFollowUpBadge(lead.followUpAt, lead.status),
                                     ],
                                   ),

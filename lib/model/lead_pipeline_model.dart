@@ -35,8 +35,9 @@ class FollowUpModel {
   final String? status;
   final String? dueAt;
   final String createdAt;
+  final num? estimatedValue; // REVISI: nilai estimasi per update pipeline (menyamakan dengan web)
 
-  FollowUpModel({required this.id, this.result, this.status, this.dueAt, required this.createdAt});
+  FollowUpModel({required this.id, this.result, this.status, this.dueAt, required this.createdAt, this.estimatedValue});
 
   factory FollowUpModel.fromJson(Map<String, dynamic> json) => FollowUpModel(
         id: json['id'],
@@ -44,6 +45,9 @@ class FollowUpModel {
         status: json['status'],
         dueAt: json['due_at'],
         createdAt: json['created_at'] ?? '',
+        estimatedValue: json['estimated_value'] != null
+            ? num.tryParse(json['estimated_value'].toString())
+            : null,
       );
 } // tutup class FollowUpModel
 
@@ -60,6 +64,7 @@ class LeadModel {
   final String? potentialLevel;
   final num? estimatedValue;
   final String? followUpAt;
+  final String? notes; // REVISI: catatan awal kunjungan (dari visits.notes)
   final String? meetingResult;
   final List<FollowUpModel> followUps;
 
@@ -76,6 +81,7 @@ class LeadModel {
     this.potentialLevel,
     this.estimatedValue,
     this.followUpAt,
+    this.notes,
     this.meetingResult,
     this.followUps = const [],
   });
@@ -95,6 +101,7 @@ class LeadModel {
             ? num.tryParse(json['estimated_value'].toString())
             : null,
         followUpAt: json['follow_up_at'],
+        notes: json['notes'], // REVISI: ambil dari field 'notes' di response
         meetingResult: json['meeting_result'],
         followUps: (json['follow_ups'] as List? ?? [])
             .map((f) => FollowUpModel.fromJson(f))
