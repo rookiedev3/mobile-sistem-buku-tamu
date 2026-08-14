@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/admin/dashboard_admin_screen.dart';
-import 'package:mobile_flutter/ui/owner/dashboard_owner_screen.dart';
+// import 'package:mobile_flutter/ui/owner/dashboard_owner_screen.dart';
 import 'package:mobile_flutter/ui/manager/main_manager_navigator.dart';
+import 'package:mobile_flutter/ui/owner/main_owner_navigator.dart';
+
 
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -109,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => DashboardOwnerScreen(),
+            builder: (_) => const MainOwnerNavigator(),
           ),
         );
         break;
