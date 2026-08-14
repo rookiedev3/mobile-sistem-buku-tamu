@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
+import 'package:mobile_flutter/ui/manager/pipeline_screen.dart';
 import 'ui/manager/dashboard_manager.dart';
 import 'ui/admin/manajemen_pengguna_screen.dart';
 import 'ui/admin/dashboard_admin_screen.dart';
@@ -10,6 +11,10 @@ import 'ui/frontoffice/dashboard_fo_screen.dart';
 import 'ui/frontoffice/lead_fo_screen.dart';
 import 'ui/frontoffice/riwayat_fo_screen.dart';
 import 'ui/owner/dashboard_owner_screen.dart';
+import 'ui/owner/daftar_kunjungan_screen.dart';
+import 'ui/owner/database_tamu_screen.dart';
+
+
 
 
 void main() {
