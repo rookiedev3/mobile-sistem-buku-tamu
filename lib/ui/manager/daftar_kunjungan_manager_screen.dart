@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_manager.dart';
-import 'pipeline_screen.dart';
+
 import '/bloc/kunjungan_bloc.dart';
 import '/model/kunjungan.dart';
 
@@ -12,7 +11,6 @@ class DaftarKunjunganManagerScreen extends StatefulWidget {
 }
 
 class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScreen> {
-  int _currentIndex = 2;
 
   String _searchQuery = '';
   String _selectedStatus = 'Semua'; // Semua / VIP / Reguler -> mapped ke vip_status di API
@@ -59,17 +57,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
         )}';
   }
 
-  // String _formatWaktu(String? iso) {
-  //   if (iso == null) return '-';
-  //   try {
-  //     final dt = DateTime.parse(iso).toLocal();
-  //     const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-  //     return '${dt.day} ${bulan[dt.month - 1]} ${dt.year}, '
-  //         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
-  //   } catch (_) {
-  //     return '-';
-  //   }
-  // }
+  
 
 static const List<String> _bulanIndo = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -570,36 +558,7 @@ Row(
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 0) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardManager()));
-          } else if (index == 1) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const PipelineScreen()));
-          } else if (index == 2) {
-            // Sudah di halaman ini
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Kunjungan'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Laporan'),
-          BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'Eksport'),
-        ],
-      ),
+     
     );
   }
 }

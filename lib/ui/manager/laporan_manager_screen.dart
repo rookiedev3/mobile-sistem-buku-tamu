@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dashboard_manager.dart';
-import 'pipeline_screen.dart';
-import 'daftar_kunjungan_manager_screen.dart';
 
 class LaporanManagerScreen extends StatefulWidget {
   const LaporanManagerScreen({Key? key}) : super(key: key);
@@ -11,355 +8,458 @@ class LaporanManagerScreen extends StatefulWidget {
 }
 
 class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
-  // Indeks 3 untuk menu Laporan pada Bottom Navigation Bar
-  int _currentIndex = 3;
+  final Color corporateGreen = const Color(0xFF006B3F);
 
-  // State Filter Periode Laporan
-  String _selectedPeriode = 'Bulan Ini (Agustus 2026)';
-  final List<String> _periodeOptions = [
-    'Hari Ini',
-    'Minggu Ini',
-    'Bulan Ini (Agustus 2026)',
-    'Tahun Ini'
+  // State Filter Laporan
+  String _selectedBulan = 'Agustus';
+  String _selectedTahun = '2026';
+  String _selectedKategori = 'Semua Kategori'; // VIP / Reguler
+  String _selectedCabang = 'Semua Cabang'; // Sleman / Magelang
+  String _selectedPic = 'Semua PIC';
+
+  final List<String> _bulanList = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
+  final List<String> _tahunList = ['2025', '2026', '2027'];
+  final List<String> _kategoriList = ['Semua Kategori', 'VIP', 'Reguler'];
+  final List<String> _cabangList = ['Semua Cabang', 'Sleman', 'Magelang'];
+  final List<String> _picList = ['Semua PIC', 'Chyntia', 'Budi', 'Rian'];
+
+  // Data Simulasi Laporan Kunjungan
+  final List<Map<String, dynamic>> _laporanData = [
+    {
+      "no": 1,
+      "checkIn": "14 Agu 2026, 09:00",
+      "checkOut": "14 Agu 2026, 10:15",
+      "durasi": "1 Jam 15 Menit",
+      "nama": "Budi Santoso",
+      "kontak": "+62 812-3456-7890",
+      "cabang": "Sleman",
+      "pic": "Chyntia",
+      "tujuan": "Meeting Bisnis",
+      "produk": "Software POS",
+      "sumber": "Google",
+      "potensi": "Hot",
+      "catatanHasil": "Klien sepakat lanjut ke tahap penawaran harga enterprise.",
+      "status": "Deal",
+      "kategori": "VIP"
+    },
+    {
+      "no": 2,
+      "checkIn": "14 Agu 2026, 10:30",
+      "checkOut": "14 Agu 2026, 11:10",
+      "durasi": "40 Menit",
+      "nama": "Siti Aminah",
+      "kontak": "+62 856-9876-5432",
+      "cabang": "Magelang",
+      "pic": "Budi",
+      "tujuan": "Konsultasi Sistem",
+      "produk": "ERP System",
+      "sumber": "LinkedIn",
+      "potensi": "Lead",
+      "catatanHasil": "Menunggu konfirmasi anggaran dari divisi keuangan.",
+      "status": "Baru",
+      "kategori": "Reguler"
+    },
+    {
+      "no": 3,
+      "checkIn": "13 Agu 2026, 13:00",
+      "checkOut": "13 Agu 2026, 13:30",
+      "durasi": "30 Menit",
+      "nama": "Dewi Lestari",
+      "kontak": "+62 813-1122-3344",
+      "cabang": "Sleman",
+      "pic": "Rian",
+      "tujuan": "Wawancara",
+      "produk": "HRIS Mobile",
+      "sumber": "Instagram",
+      "potensi": "Lead",
+      "catatanHasil": "Jadwal dibatalkan karena pelamar berhalangan hadir.",
+      "status": "Dibatalkan",
+      "kategori": "Reguler"
+    },
+  ];
+
+  // Reset Filter
+  void _resetFilter() {
+    setState(() {
+      _selectedBulan = 'Agustus';
+      _selectedTahun = '2026';
+      _selectedKategori = 'Semua Kategori';
+      _selectedCabang = 'Semua Cabang';
+      _selectedPic = 'Semua PIC';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Filter laporan berhasil direset."), duration: Duration(milliseconds: 600)),
+    );
+  }
+
+  // Aksi Tampilkan Preview
+  void _tampilkanPreview() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Menampilkan laporan periode $_selectedBulan $_selectedTahun..."), backgroundColor: corporateGreen, duration: const Duration(milliseconds: 800)),
+    );
+  }
+
+  // Aksi Export Excel
+  void _exportExcel() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Berhasil meng-export laporan ke format Excel (.xlsx)!"), backgroundColor: Colors.teal),
+    );
+  }
+
+  // Aksi Export PDF
+  void _exportPdf() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Berhasil meng-export laporan ke format PDF (.pdf)!"), backgroundColor: Colors.redAccent),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Logika Filter
+    List filteredLaporan = _laporanData.where((item) {
+      bool matchKategori = (_selectedKategori == 'Semua Kategori') || (item['kategori'] == _selectedKategori);
+      bool matchCabang = (_selectedCabang == 'Semua Cabang') || (item['cabang'] == _selectedCabang);
+      bool matchPic = (_selectedPic == 'Semua PIC') || (item['pic'] == _selectedPic);
+      return matchKategori && matchCabang && matchPic;
+    }).toList();
+
+    int totalKunjungan = filteredLaporan.length;
+    int totalDeal = filteredLaporan.where((i) => i['status'] == 'Deal').length;
+    double conversionRate = totalKunjungan > 0 ? (totalDeal / totalKunjungan) * 100 : 0.0;
+    int totalVip = filteredLaporan.where((i) => i['kategori'] == 'VIP').length;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF006B3F),
+        backgroundColor: corporateGreen,
         elevation: 0,
         title: const Text(
-          "Laporan & Analitik Performa",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          "Laporan & Export Data Kunjungan",
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===================================================
-            // BAGIAN 1: FILTER PERIODE LAPORAN
-            // ===================================================
+            // ================= 4 CARD STATISTIK LAPORAN =================
+            GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: 2.1,
+              children: [
+                _buildStatCard("Total Kunjungan", "$totalKunjungan Tamu", Icons.groups_rounded, Colors.blue),
+                _buildStatCard("Total Deal", "$totalDeal Klien", Icons.task_alt_rounded, corporateGreen),
+                _buildStatCard("Conversion Rate", "${conversionRate.toStringAsFixed(1)}%", Icons.trending_up_rounded, Colors.purple),
+                _buildStatCard("Tamu VIP", "$totalVip Orang", Icons.star_rounded, Colors.amber.shade800),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ================= FILTER PERIODE & PARAMETER =================
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text("Filter Periode & Parameter Laporan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                  const SizedBox(height: 8),
+
+                  // Baris 1: Bulan & Tahun
                   Row(
                     children: [
-                      const Icon(Icons.date_range_rounded, size: 18, color: Color(0xFF006B3F)),
-                      const SizedBox(width: 8),
-                      const Text(
-                        "Periode:",
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF778195)),
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedBulan,
+                              isDense: true,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
+                              items: _bulanList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                              onChanged: (val) => setState(() => _selectedBulan = val!),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedTahun,
+                              isDense: true,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
+                              items: _tahunList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                              onChanged: (val) => setState(() => _selectedTahun = val!),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedPeriode,
-                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF006B3F)),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-                      items: _periodeOptions.map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedPeriode = newValue;
-                          });
-                        }
-                      },
-                    ),
+                  const SizedBox(height: 6),
+
+                  // Baris 2: Kategori & Cabang
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedKategori,
+                              isDense: true,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
+                              items: _kategoriList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                              onChanged: (val) => setState(() => _selectedKategori = val!),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedCabang,
+                              isDense: true,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
+                              items: _cabangList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                              onChanged: (val) => setState(() => _selectedCabang = val!),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Baris 3: PIC & Tombol Aksi (Tampilkan & Reset)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedPic,
+                              isDense: true,
+                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
+                              items: _picList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
+                              onChanged: (val) => setState(() => _selectedPic = val!),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      SizedBox(
+                        height: 32,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: corporateGreen, padding: const EdgeInsets.symmetric(horizontal: 10), elevation: 0),
+                          onPressed: _tampilkanPreview,
+                          child: const Text("Tampilkan", style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), side: const BorderSide(color: Color(0xFFE2E8F0))),
+                          onPressed: _resetFilter,
+                          child: const Text("Reset", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            // ===================================================
-            // BAGIAN 2: RINGKASAN KARTU METRIK EKSEKUTIF
-            // ===================================================
+            // ================= TOMBOL EXPORT EXCEL & PDF =================
             Row(
               children: [
                 Expanded(
-                  child: _buildSummaryCard(
-                    title: "Total Kunjungan",
-                    value: "142",
-                    subtext: "+18% dari bln lalu",
-                    icon: Icons.people_alt_rounded,
-                    color: Colors.blue,
+                  child: SizedBox(
+                    height: 34,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, elevation: 0),
+                      onPressed: _exportExcel,
+                      icon: const Icon(Icons.table_chart_rounded, size: 14, color: Colors.white),
+                      label: const Text("Export Excel", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _buildSummaryCard(
-                    title: "Konversi Deal",
-                    value: "34",
-                    subtext: "24% conversion rate",
-                    icon: Icons.task_alt_rounded,
-                    color: const Color(0xFF006B3F),
+                  child: SizedBox(
+                    height: 34,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, elevation: 0),
+                      onPressed: _exportPdf,
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 14, color: Colors.white),
+                      label: const Text("Export PDF", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
+
+            // ================= TABEL PREVIEW HASIL LAPORAN =================
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text("Total Potensi Nilai Bisnis (Pipeline Value)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
-                      SizedBox(height: 6),
-                      Text("Rp 1.450.000.000", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF006B3F).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF006B3F), size: 24),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // ===================================================
-            // BAGIAN 3: ANALISIS BERDASARKAN KATEGORI & PRODUK
-            // ===================================================
-            const Text(
-              "Distribusi Kategori Tamu",
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-            const SizedBox(height: 10),
-
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
               ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProgressBarItem(label: "Tamu VIP (Enterprise/Partner)", percentage: 0.65, count: "92 Kunjungan", color: Colors.amber[800]!),
-                  const SizedBox(height: 14),
-                  _buildProgressBarItem(label: "Tamu Reguler (Vendor/Umum)", percentage: 0.35, count: "50 Kunjungan", color: Colors.blue),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Preview Hasil Laporan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                      Text("$_selectedBulan $_selectedTahun", style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: corporateGreen)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  filteredLaporan.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(15.0),
+                          child: Center(child: Text("Tidak ada data laporan untuk filter ini.", style: TextStyle(fontSize: 10, color: Colors.grey))),
+                        )
+                      : SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowHeight: 28,
+                            dataRowHeight: 45,
+                            columnSpacing: 10,
+                            columns: const [
+                              DataColumn(label: Text('No', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Waktu & Durasi', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Tamu & Kontak', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Cabang & PIC', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Tujuan & Product', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Sumber & Potensi', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Catatan Hasil', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Status', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                            ],
+                            rows: List.generate(filteredLaporan.length, (index) {
+                              final item = filteredLaporan[index];
+                              return DataRow(cells: [
+                                DataCell(Text((index + 1).toString(), style: const TextStyle(fontSize: 9))),
+                                DataCell(Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text("In: ${item['checkIn']}", style: const TextStyle(fontSize: 8.5)),
+                                    Text("Out: ${item['checkOut']}", style: const TextStyle(fontSize: 8.5)),
+                                    Text("Durasi: ${item['durasi']}", style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: corporateGreen)),
+                                  ],
+                                )),
+                                DataCell(Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(item['nama'], style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                    Text(item['kontak'], style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                                  ],
+                                )),
+                                DataCell(Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(item['cabang'], style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600)),
+                                    Text("PIC: ${item['pic']}", style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                                  ],
+                                )),
+                                DataCell(Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(item['tujuan'], style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                    Text(item['produk'], style: TextStyle(fontSize: 8, color: corporateGreen, fontWeight: FontWeight.bold)),
+                                  ],
+                                )),
+                                DataCell(Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(item['sumber'], style: const TextStyle(fontSize: 9)),
+                                    Text("Potensi: ${item['potensi']}", style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                  ],
+                                )),
+                                DataCell(SizedBox(
+                                  width: 140,
+                                  child: Text(item['catatanHasil'], style: const TextStyle(fontSize: 8.5), overflow: TextOverflow.ellipsis, maxLines: 2),
+                                )),
+                                DataCell(Text(item['status'], style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: item['status'] == 'Deal' ? corporateGreen : (item['status'] == 'Baru' ? Colors.blue : Colors.red)))),
+                              ]);
+                            }),
+                          ),
+                        ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // ===================================================
-            // BAGIAN 4: KINERJA PIC / SALES TERBAIK
-            // ===================================================
-            const Text(
-              "Performa PIC / Sales",
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-            const SizedBox(height: 10),
-
-            _buildPicPerformanceCard(name: "Rian (Sales Utama)", totalDeal: "14 Deal", value: "Rp 650.000.000", rank: "1"),
-            _buildPicPerformanceCard(name: "Siska (Sales Senior)", totalDeal: "11 Deal", value: "Rp 420.000.000", rank: "2"),
-            _buildPicPerformanceCard(name: "Ahmad (Sales Eksekutif)", totalDeal: "9 Deal", value: "Rp 380.000.000", rank: "3"),
-            
-            const SizedBox(height: 20),
           ],
         ),
       ),
 
-      // ===================================================
-      // BAGIAN 5: NAVBAR BAWAH
-      // ===================================================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DashboardManager()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const PipelineScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DaftarKunjunganManagerScreen()),
-            );
-          } else if (index == 3) {
-            // Sudah di halaman Laporan
-          } else if (index == 4) {
-            // Indeks 4 untuk Eksport (bisa diarahkan ke menu eksport atau menampilkan dialog)
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Mengarahkan ke menu Eksport Laporan...')),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Kunjungan'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Laporan'),
-          BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'Eksport'),
-        ],
-      ),
+     
     );
   }
 
-  // Widget Kartu Ringkasan Atas
-  Widget _buildSummaryCard({required String title, required String value, required String subtext, required IconData icon, required Color color}) {
+  // Widget Compact Card Statistik Laporan
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 3, offset: const Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
-              Icon(icon, color: color, size: 18),
+              Text(title, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+              Icon(icon, size: 14, color: color),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
           const SizedBox(height: 4),
-          Text(subtext, style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
-        ],
-      ),
-    );
-  }
-
-  // Widget Indikator Progress Bar Distribusi Tamu
-  Widget _buildProgressBarItem({required String label, required double percentage, required String count, required Color color}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF172033))),
-            Text(count, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: percentage,
-            backgroundColor: const Color(0xFFF4F7FC),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 8,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Widget Kinerja PIC / Sales
-  Widget _buildPicPerformanceCard({required String name, required String totalDeal, required String value, required String rank}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: const Color(0xFF006B3F).withOpacity(0.1),
-                child: Text(rank, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-                  const SizedBox(height: 2),
-                  Text("Pencapaian: $totalDeal", style: const TextStyle(fontSize: 11, color: Color(0xFF778195))),
-                ],
-              ),
-            ],
-          ),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );

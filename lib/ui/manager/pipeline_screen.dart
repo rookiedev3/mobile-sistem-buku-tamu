@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dashboard_manager.dart';
-import 'daftar_kunjungan_manager_screen.dart';
+// import 'dashboard_manager.dart';
+// import 'daftar_kunjungan_manager_screen.dart';
 import '../../bloc/pipeline_bloc.dart';
 import '../../model/lead_pipeline_model.dart';
 
@@ -13,7 +13,6 @@ class PipelineScreen extends StatefulWidget {
 }
 
 class _PipelineScreenState extends State<PipelineScreen> {
-  int _currentIndex = 1;
 
   // Label tampilan -> value filter backend
   // REVISI: ditambah tab "Semua" di posisi paling depan, menyamakan dengan tab di web
@@ -600,34 +599,34 @@ class _PipelineScreenState extends State<PipelineScreen> {
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 0) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardManager()));
-          } else if (index == 1) {
-            // Berada di Pipeline
-          } else if (index == 2) {
-            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DaftarKunjunganManagerScreen()));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')));
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Kunjungan'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Laporan'),
-          BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'Eksport'),
-        ],
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: const Color(0xFF006B3F),
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedFontSize: 11,
+      //   unselectedFontSize: 11,
+      //   onTap: (index) {
+      //     setState(() => _currentIndex = index);
+      //     if (index == 0) {
+      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardManager()));
+      //     } else if (index == 1) {
+      //       // Berada di Pipeline
+      //     } else if (index == 2) {
+      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DaftarKunjunganManagerScreen()));
+      //     } else {
+      //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')));
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Kunjungan'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Laporan'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'Eksport'),
+      //   ],
+      // ),
     );
   }
 

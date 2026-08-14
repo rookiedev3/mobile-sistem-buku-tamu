@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'pipeline_screen.dart';
+// import 'pipeline_screen.dart';
 import '../../bloc/manager_bloc.dart';
 import '../../model/manager_dashboard_model.dart';
+import 'package:mobile_flutter/ui/homepage_screen.dart';
+
 
 class DashboardManager extends StatefulWidget {
   const DashboardManager({Key? key}) : super(key: key);
@@ -12,7 +14,6 @@ class DashboardManager extends StatefulWidget {
 }
 
 class _DashboardManagerState extends State<DashboardManager> {
-  int _currentIndex = 0;
 
   String _selectedFilter = 'Semua'; // Semua | VIP | Reguler
   final List<String> _filterOptions = ['Semua', 'VIP', 'Reguler'];
@@ -54,10 +55,46 @@ class _DashboardManagerState extends State<DashboardManager> {
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
+
+          //button logout sementara
+         IconButton(
+  icon: const Icon(Icons.logout, color: Colors.white),
+  onPressed: () {
+    // Menampilkan dialog konfirmasi atau langsung redirect
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Tutup dialog
+            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
           ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Tutup dialog konfirmasi
+
+              // REDIRECT KE HOMESCREEN DAN HAPUS SEMUA RIWAYAT HALAMAN SEBELUMNYA
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomepageScreen()), // Ganti dengan nama widget HomeScreen Anda
+                (route) => false,
+              );
+            },
+            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+          ),
+        ],
+      ),
+    );
+  },
+),
         ],
       ),
       body: RefreshIndicator(
@@ -168,25 +205,25 @@ class _DashboardManagerState extends State<DashboardManager> {
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PipelineScreen()));
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Guest'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Reports'),
-        ],
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: const Color(0xFF006B3F),
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   onTap: (index) {
+      //     setState(() => _currentIndex = index);
+      //     if (index == 1) {
+      //       Navigator.push(context, MaterialPageRoute(builder: (context) => const PipelineScreen()));
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Guest'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Reports'),
+      //   ],
+      // ),
     );
   }
 
