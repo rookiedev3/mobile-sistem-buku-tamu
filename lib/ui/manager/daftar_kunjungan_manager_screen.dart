@@ -59,46 +59,198 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
         )}';
   }
 
-  String _formatWaktu(String? iso) {
-    if (iso == null) return '-';
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
-      return '${dt.day} ${bulan[dt.month - 1]} ${dt.year}, '
-          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
-    } catch (_) {
-      return '-';
-    }
-  }
+  // String _formatWaktu(String? iso) {
+  //   if (iso == null) return '-';
+  //   try {
+  //     final dt = DateTime.parse(iso).toLocal();
+  //     const bulan = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  //     return '${dt.day} ${bulan[dt.month - 1]} ${dt.year}, '
+  //         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
+  //   } catch (_) {
+  //     return '-';
+  //   }
+  // }
 
-  void _showCatatanDialog(BuildContext context, String token, String catatan) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          title: Row(
-            children: [
-              const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
-              const SizedBox(width: 8),
-              Text("Catatan Arsip ($token)", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Text(
-            catatan,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Tutup", style: TextStyle(color: Color(0xFF006B3F), fontWeight: FontWeight.bold)),
+static const List<String> _bulanIndo = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+String _formatWaktu(String? iso) {
+  if (iso == null) return '-';
+  try {
+    final dt = DateTime.parse(iso).toLocal();
+    return '${dt.day} ${_bulanIndo[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return '-';
+  }
+}
+
+  
+
+  void _showCatatanDialog(BuildContext context, Kunjungan item) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: Row(
+          children: [
+            const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text("Riwayat – ${item.guestName ?? item.visitCode}",
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text("PIC/Sales: ${item.assignedUser ?? '-'}",
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
+                const SizedBox(height: 12),
 
+                // Ringkasan atas: Jenis Kunjungan / Tahap / Estimasi Value
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Wrap(
+                    spacing: 20,
+                    runSpacing: 8,
+                    children: [
+                      _summaryItem("Jenis Kunjungan", item.purpose ?? '-'),
+                      _summaryItem("Tahap Pipeline", item.leadStatus ?? '-'),
+                      _summaryItem("Estimasi Value", _formatValue(item.estimatedValue)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text("📝 Catatan Awal Kunjungan:",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(item.notes ?? 'Tidak ada catatan awal.',
+                      style: const TextStyle(fontSize: 12, height: 1.4)),
+                ),
+                const SizedBox(height: 14),
+
+                const Text("📌 Hasil Meeting:",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(item.meetingResult ?? 'Tidak ada hasil meeting.',
+                      style: const TextStyle(fontSize: 12, height: 1.4)),
+                ),
+                const SizedBox(height: 14),
+
+                const Text("🔄 Riwayat Update Pipeline:",
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                const SizedBox(height: 6),
+                if (item.followUps.isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('Belum ada catatan update follow-up.',
+                        style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic)),
+                  )
+                else
+                  ...item.followUps.map((fu) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDFDFD),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('📅 ${_formatWaktu(fu.createdAt)}',
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                              if (fu.status != null)
+                                Text('Tahap: ${fu.status}',
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1B65E3))),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(fu.result ?? '-', style: const TextStyle(fontSize: 12)),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 4,
+                            children: [
+                              Text('💰 ${_formatValue(fu.estimatedValue?.toDouble())}',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                              if (fu.dueAt != null)
+                                Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt!)}', 
+                                    style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Tutup", style: TextStyle(color: Color(0xFF006B3F), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Widget _summaryItem(String label, String value) {
+  return SizedBox(
+    width: 140,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(),
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+      ],
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     // Filter pencarian dilakukan client-side tambahan (selain keyword yang dikirim ke API)
@@ -337,33 +489,44 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                             ],
                           ),
                           const SizedBox(height: 6),
+// Jenis Kunjungan (purpose) & Value
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Row(
+      children: [
+        const Icon(Icons.category_outlined, size: 14, color: Color(0xFF778195)),
+        const SizedBox(width: 6),
+        Text("Jenis Kunjungan: ${item.purpose ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+      ],
+    ),
+    Text(_formatValue(item.estimatedValue), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+  ],
+),
+const SizedBox(height: 6),
 
-                          // Jenis Kunjungan (purpose) & Value
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.category_outlined, size: 14, color: Color(0xFF778195)),
-                                  const SizedBox(width: 6),
-                                  Text("Jenis: ${item.purpose ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
-                                ],
-                              ),
-                              Text(_formatValue(item.estimatedValue), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
+// Keperluan (notes)
+Row(
+  children: [
+    const Icon(Icons.description_outlined, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text("Keperluan: ${item.purpose ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+    ),
+  ],
+),
+const SizedBox(height: 6),
 
-                          // PIC / Sales
-                          Row(
-                            children: [
-                              const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF778195)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text("PIC/Sales: ${item.assignedUser ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                              ),
-                            ],
-                          ),
+// PIC / Sales
+Row(
+  children: [
+    const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text("PIC/Sales: ${item.assignedUser ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+    ),
+  ],
+),
 
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -386,7 +549,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 ),
                               ),
                               InkWell(
-                                onTap: () => _showCatatanDialog(context, item.visitCode, catatan),
+                                onTap: () => _showCatatanDialog(context, item),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(

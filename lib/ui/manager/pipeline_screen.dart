@@ -189,7 +189,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                 Text('💰 Estimasi Value: ${_rupiah(fu.estimatedValue)}',
                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 if (fu.dueAt != null)
-                                  Text('Target Due Date: ${_formatDate(fu.dueAt!)}',
+                                  Text('Tanggal Follow Up: ${_formatDate(fu.dueAt!)}',
                                       style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
                               ],
                             ),

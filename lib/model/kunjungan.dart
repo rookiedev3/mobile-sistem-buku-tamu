@@ -1,14 +1,29 @@
 class FollowUp {
   final int id;
-  final String? note;
+  final String? result;
+  final String? status;
+  final String? dueAt;
+  final num? estimatedValue;
   final String? createdAt;
 
-  FollowUp({required this.id, this.note, this.createdAt});
+  FollowUp({
+    required this.id,
+    this.result,
+    this.status,
+    this.dueAt,
+    this.estimatedValue,
+    this.createdAt,
+  });
 
   factory FollowUp.fromJson(Map<String, dynamic> json) {
     return FollowUp(
       id: json['id'],
-      note: json['note'],
+      result: json['result'],
+      status: json['status'],
+      dueAt: json['due_at'],
+      estimatedValue: json['estimated_value'] != null
+          ? num.tryParse(json['estimated_value'].toString())
+          : null,
       createdAt: json['created_at'],
     );
   }
@@ -30,8 +45,11 @@ class Kunjungan {
   final String? checkInAt;
   final String? checkOutAt;
   final String status;
+  final String? notes;            // BARU
+  final String? meetingResult;    // BARU
   final String? leadStatus;
   final double? estimatedValue;
+  final String? followUpAt;       // BARU
   final List<FollowUp> followUps;
 
   Kunjungan({
@@ -50,14 +68,16 @@ class Kunjungan {
     this.checkInAt,
     this.checkOutAt,
     required this.status,
+    this.notes,
+    this.meetingResult,
     this.leadStatus,
     this.estimatedValue,
+    this.followUpAt,
     this.followUps = const [],
   });
 
-  // Catatan terakhir (follow_ups sudah diurutkan terbaru dulu dari backend)
   String? get catatanTerakhir =>
-      followUps.isNotEmpty ? followUps.first.note : null;
+      followUps.isNotEmpty ? (followUps.first.result) : null;
 
   factory Kunjungan.fromJson(Map<String, dynamic> json) {
     return Kunjungan(
@@ -76,10 +96,13 @@ class Kunjungan {
       checkInAt: json['check_in_at'],
       checkOutAt: json['check_out_at'],
       status: json['status'] ?? '-',
+      notes: json['notes'],
+      meetingResult: json['meeting_result'],
       leadStatus: json['lead_status'],
       estimatedValue: json['estimated_value'] != null
           ? double.tryParse(json['estimated_value'].toString())
           : null,
+      followUpAt: json['follow_up_at'],
       followUps: (json['follow_ups'] as List?)
               ?.map((f) => FollowUp.fromJson(f))
               .toList() ??
