@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Model Dummy untuk contoh struktur LeadModel & FollowUpModel
+// Model Data Lead & Follow Up
 class FollowUpModel {
   final String status;
   final String? result;
@@ -18,7 +18,10 @@ class FollowUpModel {
 }
 
 class LeadModel {
-  final String? guestName;
+  final String token;
+  final String guestName;
+  final String jabatan;
+  final String perusahaan;
   final String? ownerName;
   final String status; // 'new', 'meeting', 'negotiation', 'deal', 'lost'
   final double estimatedValue;
@@ -27,13 +30,13 @@ class LeadModel {
   final List<FollowUpModel> followUps;
   final String? followUpAt;
   final String jenisKunjungan; // Mitra, Prospek, Klien, Vendor, Pelamar, Umum
-  final String token;
-  final String jabatan;
-  final String perusahaan;
   final String waktu;
 
   LeadModel({
-    this.guestName,
+    required this.token,
+    required this.guestName,
+    required this.jabatan,
+    required this.perusahaan,
     this.ownerName,
     required this.status,
     required this.estimatedValue,
@@ -42,30 +45,27 @@ class LeadModel {
     required this.followUps,
     this.followUpAt,
     required this.jenisKunjungan,
-    required this.token,
-    required this.jabatan,
-    required this.perusahaan,
     required this.waktu,
   });
 }
 
-class DaftarKunjunganScreen extends StatefulWidget {
-  const DaftarKunjunganScreen({Key? key}) : super(key: key);
+class LeadScreen extends StatefulWidget {
+  const LeadScreen({Key? key}) : super(key: key);
 
   @override
-  State<DaftarKunjunganScreen> createState() => _DaftarKunjunganScreenState();
+  State<LeadScreen> createState() => _LeadScreenState();
 }
 
-class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
+class _LeadScreenState extends State<LeadScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
+  // State Filter Tab & Dropdown
+  String _selectedTab = 'Semua';
+  String _filterJenis = 'Semua Tipe';
   final TextEditingController _searchController = TextEditingController();
-  String _filterJenis = 'Semua Jenis';
-  String _filterStatusPipeline = 'Semua Status';
-  DateTime? _startDate;
-  DateTime? _endDate;
 
-  // Badge Status Pipeline
+  final List<String> _tabs = ['Semua', 'Aktif', 'Terlambat', 'Hari Ini', 'Mendatang', 'Deal', 'Lost'];
+
   final Map<String, Map<String, dynamic>> _leadBadges = {
     'new': {'label': 'Baru', 'color': Colors.blue},
     'meeting': {'label': 'Meeting Selesai', 'color': Colors.orange},
@@ -74,43 +74,59 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     'lost': {'label': 'Dibatalkan / Lost', 'color': Colors.red},
   };
 
-  // Data Simulasi Daftar Tamu & Lead
+  // Data Dummy Prospek Aktif & Leads
   final List<LeadModel> _daftarLead = [
     LeadModel(
-      guestName: "Budi Santoso",
-      ownerName: "Chyntia",
-      status: "meeting",
-      estimatedValue: 75000000,
-      notes: "Meminta penawaran harga khusus paket software POS skala enterprise.",
-      meetingResult: "Klien sangat tertarik dengan fitur laporan keuangan otomatis.",
-      jenisKunjungan: "Mitra",
       token: "TRX-001",
+      guestName: "Budi Santoso",
       jabatan: "Direktur",
       perusahaan: "PT Maju Sejahtera",
-      waktu: "14 Agu 2026, 10:00",
-      followUpAt: "2026-08-20T10:00:00Z",
+      ownerName: "Chyntia",
+      status: "negotiation",
+      estimatedValue: 75000000,
+      notes: "Meminta penawaran khusus POS Enterprise.",
+      meetingResult: "Klien tertarik dengan integrasi keuangan otomatis.",
+      jenisKunjungan: "Mitra",
+      waktu: "14 Agu 2026",
+      followUpAt: "2026-08-14T15:00:00Z",
       followUps: [
         FollowUpModel(
           status: "negotiation",
-          result: "Klien meminta diskon 10% untuk pembayaran di muka.",
-          estimatedValue: 70000000,
-          createdAt: "2026-08-14T11:00:00Z",
-          dueAt: "2026-08-18T10:00:00Z",
+          result: "Diskusi penawaran harga via telepon.",
+          estimatedValue: 75000000,
+          createdAt: "2026-08-14T10:00:00Z",
+          dueAt: "2026-08-14T15:00:00Z",
         )
       ],
     ),
     LeadModel(
-      guestName: "Siti Aminah",
-      ownerName: "Budi",
-      status: "new",
-      estimatedValue: 15000000,
-      notes: "Diskusi implementasi modul inventaris gudang cabang.",
-      meetingResult: "Menunggu persetujuan anggaran dari komisaris.",
-      jenisKunjungan: "Prospek",
       token: "TRX-002",
+      guestName: "Siti Aminah",
       jabatan: "Consultant",
       perusahaan: "CV Konsultan Mandiri",
-      waktu: "14 Agu 2026, 11:30",
+      ownerName: "Budi",
+      status: "new",
+      estimatedValue: 25000000,
+      notes: "Konsultasi sistem modul inventaris.",
+      meetingResult: "Menunggu ACC anggaran.",
+      jenisKunjungan: "Prospek",
+      waktu: "10 Agu 2026",
+      followUpAt: "2026-08-12T10:00:00Z",
+      followUps: [],
+    ),
+    LeadModel(
+      token: "TRX-003",
+      guestName: "Joko Widodo",
+      jabatan: "Manager Operasional",
+      perusahaan: "PT Inovasi Teknologi",
+      ownerName: "Chyntia",
+      status: "deal",
+      estimatedValue: 120000000,
+      notes: "Demo produk ERP komplit.",
+      meetingResult: "Deal tercapai, MoU ditandatangani.",
+      jenisKunjungan: "Mitra",
+      waktu: "05 Agu 2026",
+      followUpAt: null,
       followUps: [],
     ),
   ];
@@ -119,17 +135,43 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     return "Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}";
   }
 
-  void _resetFilter() {
-    setState(() {
-      _searchController.clear();
-      _filterJenis = 'Semua Jenis';
-      _filterStatusPipeline = 'Semua Status';
-      _startDate = null;
-      _endDate = null;
-    });
+  static const List<String> _bulanIndo = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
+  String _formatDate(String raw) {
+    try {
+      final d = DateTime.parse(raw).toLocal();
+      return '${d.day} ${_bulanIndo[d.month - 1]} ${d.year}';
+    } catch (_) {
+      return raw;
+    }
   }
 
-  // --- POP-UP DIALOG RIWAYAT SESUAI REQUEST REVISI ---
+  String _scheduleText(LeadModel lead) {
+    if (lead.status == 'deal') return 'Sudah Deal 🎉';
+    if (lead.status == 'lost') return 'Lead Hilang / Lost';
+    if (lead.followUpAt != null) return _formatDate(lead.followUpAt!);
+    return 'Tidak ada jadwal lanjutan';
+  }
+
+  Widget _summaryItem(String label, String value) {
+    return SizedBox(
+      width: 140,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(),
+              style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+        ],
+      ),
+    );
+  }
+
+  // --- POP-UP DIALOG CATATAN & RIWAYAT ---
   void _showCatatanDialog(BuildContext context, LeadModel lead) {
     showDialog(
       context: context,
@@ -141,7 +183,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
               const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
               const SizedBox(width: 8),
               Expanded(
-                child: Text("Riwayat – ${lead.guestName ?? 'Klien'}",
+                child: Text("Riwayat – ${lead.guestName}",
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -157,7 +199,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                       style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
 
-                  // Ringkasan status/jadwal/estimasi value di bagian atas
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
@@ -179,7 +220,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Catatan Awal Kunjungan & Hasil Meeting Pertama
                   const Text("📝 Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
@@ -210,7 +250,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Riwayat Update Pipeline
                   const Text("🔄 Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
@@ -282,54 +321,42 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     );
   }
 
-  static const List<String> _bulanIndo = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-  ];
-
-  String _formatDate(String raw) {
-    try {
-      final d = DateTime.parse(raw).toLocal();
-      return '${d.day} ${_bulanIndo[d.month - 1]} ${d.year}';
-    } catch (_) {
-      return raw;
-    }
-  }
-
-  String _scheduleText(LeadModel lead) {
-    if (lead.status == 'deal') return 'Sudah Deal 🎉';
-    if (lead.status == 'lost') return 'Lead Hilang / Lost';
-    if (lead.followUpAt != null) return _formatDate(lead.followUpAt!);
-    return 'Tidak ada jadwal lanjutan';
-  }
-
-  Widget _summaryItem(String label, String value) {
-    return SizedBox(
-      width: 140,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(),
-              style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-          const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Hitung jumlah orang/klien prospek aktif
+    int totalProspekAktifOrang = _daftarLead
+        .where((l) => l.status != 'deal' && l.status != 'lost')
+        .length;
+
+    // Hitung total karyawan yang deal
+    int totalKaryawanDeal = _daftarLead
+        .where((l) => l.status == 'deal')
+        .length;
+
+    // Logika Filter Berdasarkan Tab & Dropdown Jenis
     List<LeadModel> filteredList = _daftarLead.where((item) {
       String query = _searchController.text.toLowerCase();
-      bool matchSearch = (item.guestName ?? '').toLowerCase().contains(query) ||
+      bool matchSearch = item.guestName.toLowerCase().contains(query) ||
           item.perusahaan.toLowerCase().contains(query);
 
-      bool matchJenis = (_filterJenis == 'Semua Jenis') || (item.jenisKunjungan == _filterJenis);
-      bool matchStatus = (_filterStatusPipeline == 'Semua Status') || 
-          ((_leadBadges[item.status]?['label'] ?? '') == _filterStatusPipeline);
+      bool matchJenis = (_filterJenis == 'Semua Tipe') || (item.jenisKunjungan == _filterJenis);
 
-      return matchSearch && matchJenis && matchStatus;
+      bool matchTab = true;
+      if (_selectedTab == 'Aktif') {
+        matchTab = item.status != 'deal' && item.status != 'lost';
+      } else if (_selectedTab == 'Terlambat') {
+        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).isBefore(DateTime.now()) && item.status != 'deal';
+      } else if (_selectedTab == 'Hari Ini') {
+        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).day == DateTime.now().day;
+      } else if (_selectedTab == 'Mendatang') {
+        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).isAfter(DateTime.now());
+      } else if (_selectedTab == 'Deal') {
+        matchTab = item.status == 'deal';
+      } else if (_selectedTab == 'Lost') {
+        matchTab = item.status == 'lost';
+      }
+
+      return matchSearch && matchJenis && matchTab;
     }).toList();
 
     return Scaffold(
@@ -338,7 +365,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
         backgroundColor: corporateGreen,
         elevation: 0,
         title: const Text(
-          "Daftar Kunjungan & Pipeline",
+          "Manajemen Lead & Follow-Up",
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
@@ -347,7 +374,108 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ================= FILTER & SEARCH BAR =================
+            // ================= 2 CARD STATISTIK DI ATAS =================
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 3, offset: const Offset(0, 1))],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Prospek Aktif", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            Icon(Icons.trending_up_rounded, size: 14, color: corporateGreen),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text("$totalProspekAktifOrang Orang", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: corporateGreen)),
+                        const SizedBox(height: 2),
+                        const Text("Klien dalam pipeline", style: TextStyle(fontSize: 7, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 3, offset: const Offset(0, 1))],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Karyawan Deal", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const Icon(Icons.task_alt_rounded, size: 14, color: Colors.blue),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text("$totalKaryawanDeal Orang", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        const SizedBox(height: 2),
+                        const Text("Berhasil konversi", style: TextStyle(fontSize: 7, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ================= 7 TAB FILTER (TANPA IKON CENTANG) =================
+            SizedBox(
+              height: 28,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _tabs.length,
+                itemBuilder: (context, index) {
+                  String tab = _tabs[index];
+                  bool isSelected = _selectedTab == tab;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6.0),
+                    child: InkWell(
+                      onTap: () => setState(() => _selectedTab = tab),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isSelected ? corporateGreen : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isSelected ? corporateGreen : const Color(0xFFE2E8F0)),
+                        ),
+                        child: Center(
+                          child: Text(
+                            tab,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : const Color(0xFF172033),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ================= SEARCH BAR & FILTER TIPE TAMU =================
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -378,7 +506,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      // Dropdown Jenis Kunjungan (Mitra, Prospek, Klien, Vendor, Pelamar, Umum)
                       Expanded(
                         child: Container(
                           height: 32,
@@ -389,95 +516,10 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                               value: _filterJenis,
                               isDense: true,
                               style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
-                              items: ['Semua Jenis', 'Mitra', 'Prospek', 'Klien', 'Vendor', 'Pelamar', 'Umum']
+                              items: ['Semua Tipe', 'Mitra', 'Prospek', 'Klien', 'Vendor', 'Pelamar', 'Umum']
                                   .map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
                               onChanged: (val) => setState(() => _filterJenis = val!),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      // Dropdown Status Pipeline
-                      Expanded(
-                        child: Container(
-                          height: 32,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _filterStatusPipeline,
-                              isDense: true,
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
-                              items: ['Semua Status', 'Baru', 'Meeting Selesai', 'Negosiasi', 'Deal / Selesai', 'Dibatalkan / Lost']
-                                  .map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                              onChanged: (val) => setState(() => _filterStatusPipeline = val!),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 32,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2025),
-                                lastDate: DateTime(2027),
-                              );
-                              if (picked != null) setState(() => _startDate = picked);
-                            },
-                            icon: const Icon(Icons.date_range, size: 12, color: Colors.grey),
-                            label: Text(_startDate == null ? "Dari Tanggal" : "${_startDate!.day}/${_startDate!.month}/${_startDate!.year}", style: const TextStyle(fontSize: 9.5, color: Colors.grey)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: SizedBox(
-                          height: 32,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2025),
-                                lastDate: DateTime(2027),
-                              );
-                              if (picked != null) setState(() => _endDate = picked);
-                            },
-                            icon: const Icon(Icons.date_range, size: 12, color: Colors.grey),
-                            label: Text(_endDate == null ? "Sampai Tanggal" : "${_endDate!.day}/${_endDate!.month}/${_endDate!.year}", style: const TextStyle(fontSize: 9.5, color: Colors.grey)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      SizedBox(
-                        height: 32,
-                        child: OutlinedButton.icon(
-                          onPressed: _resetFilter,
-                          icon: const Icon(Icons.refresh, size: 12, color: Colors.grey),
-                          label: const Text("Reset", style: TextStyle(fontSize: 9.5, color: Colors.grey)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
                           ),
                         ),
                       ),
@@ -486,9 +528,9 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
-            // ================= TABEL DAFTAR KUNJUNGAN =================
+            // ================= TABEL DAFTAR LEAD =================
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -499,13 +541,13 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Tabel Riwayat Kunjungan & Pipeline", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                  Text("Daftar Prospek & PIC Penanggung Jawab ($_selectedTab)", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                   const SizedBox(height: 8),
 
                   filteredList.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(15.0),
-                          child: Center(child: Text("Tidak ada data kunjungan.", style: TextStyle(fontSize: 10, color: Colors.grey))),
+                          child: Center(child: Text("Tidak ada data lead pada kategori ini.", style: TextStyle(fontSize: 10, color: Colors.grey))),
                         )
                       : SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -517,13 +559,11 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                               DataColumn(label: Text('No', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                               DataColumn(label: Text('Token', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                               DataColumn(label: Text('Tamu & Jabatan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Tanggal & Waktu', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Jenis Kunjungan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Keperluan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                               DataColumn(label: Text('PIC / Sales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                               DataColumn(label: Text('Value', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Catatan & Riwayat', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Tanggal Follow Up', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                               DataColumn(label: Text('Tahap Pipeline', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text('Catatan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                             ],
                             rows: List.generate(filteredList.length, (index) {
                               final item = filteredList[index];
@@ -535,15 +575,14 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(item.guestName ?? '-', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                                    Text(item.jabatan, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                                    Text(item.guestName, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                    Text("${item.perusahaan} (${item.jabatan})", style: const TextStyle(fontSize: 8, color: Colors.grey)),
                                   ],
                                 )),
-                                DataCell(Text(item.waktu, style: const TextStyle(fontSize: 9))),
-                                DataCell(Text(item.jenisKunjungan, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
-                                DataCell(Text(item.notes ?? '-', style: const TextStyle(fontSize: 9))),
                                 DataCell(Text(item.ownerName ?? '-', style: const TextStyle(fontSize: 9))),
                                 DataCell(Text(_rupiah(item.estimatedValue), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: corporateGreen))),
+                                DataCell(Text(item.followUpAt != null ? _formatDate(item.followUpAt!) : '-', style: const TextStyle(fontSize: 9))),
+                                DataCell(Text(badge['label'], style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badge['color']))),
                                 DataCell(ElevatedButton(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blue.shade50,
@@ -556,7 +595,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                   onPressed: () => _showCatatanDialog(context, item),
                                   child: const Text("Catatan", style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold)),
                                 )),
-                                DataCell(Text(badge['label'], style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badge['color']))),
                               ]);
                             }),
                           ),
@@ -568,7 +606,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
         ),
       ),
 
-     
+      
     );
   }
-} 
+}

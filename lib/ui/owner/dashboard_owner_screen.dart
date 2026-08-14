@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'produk_diminati_screen.dart';
 import 'kategori_tamu_screen.dart';
 import 'aktivitas_terbaru_screen.dart';
+import 'package:mobile_flutter/ui/homepage_screen.dart';
+
 
 class DashboardOwnerScreen extends StatefulWidget {
   const DashboardOwnerScreen({Key? key}) : super(key: key);
@@ -12,7 +14,6 @@ class DashboardOwnerScreen extends StatefulWidget {
 
 class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
-  int _currentIndex = 0; // 0: Dashboard Owner
 
   // Controller & Variabel Filter Tabel Kunjungan Hari Ini
   final TextEditingController _searchController = TextEditingController();
@@ -79,7 +80,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
     },
   ];
 
-  // Data Aktivitas Terbaru yang Diperkaya (Lengkap dengan Waktu, Warna Indikator, dan Status)
+  // Data Aktivitas Terbaru
   final List<Map<String, dynamic>> _aktivitasList = [
     {
       "nama": "Hendri Setiawan", 
@@ -164,6 +165,39 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
     );
   }
 
+  // Dialog Konfirmasi Keluar / Logout dengan Redirect ke HomeScreen / Halaman Login
+  void _konfirmasiLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        content: const Text("Apakah Anda yakin ingin keluar dari sesi Owner?", style: TextStyle(fontSize: 11)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Menutup dialog
+            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0),
+            onPressed: () {
+              Navigator.pop(context); // Tutup dialog konfirmasi terlebih dahulu
+
+              // REDIRECT KE HOMESCREEN / HALAMAN UTAMA / LOGIN
+              // Ganti 'HomeScreen()' dengan nama class halaman utama/login Anda
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomepageScreen()), // Ganti dengan widget HomeScreen Anda
+                (route) => false, // Menghapus seluruh riwayat halaman sebelumnya agar tidak bisa tombol back
+              );
+            },
+            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List filteredTabel = _daftarKunjunganHariIni.where((item) {
@@ -186,6 +220,14 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
           "Dashboard Owner",
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        actions: [
+          // Tombol Keluar / Logout di AppBar
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
+            tooltip: "Keluar",
+            onPressed: () => _konfirmasiLogout(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(10.0),
@@ -256,7 +298,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
             ),
             const SizedBox(height: 8),
 
-            // ================= CARD AKTIVITAS TERBARU (DIPERCANTIK DENGAN IKON & BADGE) =================
+            // ================= CARD AKTIVITAS TERBARU =================
             InkWell(
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AktivitasTerbaruScreen()));
@@ -274,7 +316,6 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Card
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -285,12 +326,10 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                             const Text("Aktivitas Terbaru", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                           ],
                         ),
-                      
                       ],
                     ),
                     const Divider(height: 12),
 
-                    // List Item Aktivitas
                     ..._aktivitasList.asMap().entries.map((entry) {
                       int idx = entry.key;
                       Map log = entry.value;
@@ -356,10 +395,8 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                   const Text("Tabel Kunjungan Hari Ini", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                   const SizedBox(height: 8),
 
-                  // Search Bar & Filter Compact (Ditukar & Disamakan Ukurannya)
                   Row(
                     children: [
-                      // Baris 1: Dropdown Status & Dropdown PIC
                       Expanded(
                         child: Container(
                           height: 32,
@@ -399,7 +436,6 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
 
                   Row(
                     children: [
-                      // Baris 2: Kolom Cari Nama Tamu & Tombol Reset dengan tinggi yang sama (32)
                       Expanded(
                         flex: 3,
                         child: SizedBox(
@@ -439,7 +475,6 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Tabel Data
                   filteredTabel.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(15.0),
@@ -501,25 +536,6 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
             ),
           ],
         ),
-      ),
-
-      // ================= 5 NAVBAR BAWAH OWNER =================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: corporateGreen,
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 9,
-        unselectedFontSize: 9,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 16), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.assignment_rounded, size: 16), label: 'Kunjungan'),
-          BottomNavigationBarItem(icon: Icon(Icons.group_rounded, size: 16), label: 'Database'),
-          BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 16), label: 'Lead & FU'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded, size: 16), label: 'Laporan'),
-        ],
       ),
     );
   }

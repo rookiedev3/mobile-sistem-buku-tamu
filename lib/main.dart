@@ -13,6 +13,11 @@ import 'ui/frontoffice/riwayat_fo_screen.dart';
 import 'ui/owner/dashboard_owner_screen.dart';
 import 'ui/owner/daftar_kunjungan_screen.dart';
 import 'ui/owner/database_tamu_screen.dart';
+import 'ui/owner/lead_screen.dart';
+import 'ui/owner/laporan_screen.dart';
+import 'ui/owner/main_owner_navigator.dart';
+
+
 
 
 
@@ -33,7 +38,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const HomepageScreen(),
+      home: const MainOwnerNavigator(),
     );
   }
 }
