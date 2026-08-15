@@ -1,14 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
+
 import 'ui/manager/dashboard_manager.dart';
+import 'ui/manager/daftar_kunjungan_manager_screen.dart';
+import 'ui/manager/laporan_manager_screen.dart';
+import 'ui/manager/pipeline_screen.dart';
+import 'ui/manager/main_manager_navigator.dart';
+
 import 'ui/admin/manajemen_pengguna_screen.dart';
 import 'ui/admin/dashboard_admin_screen.dart';
 import 'ui/admin/daftar_tamu_screen.dart';
 import 'ui/admin/riwayat_screen.dart';
 import 'ui/admin/janji_tamu_screen.dart';
-import 'ui/admin/manajemen_pengguna_screen.dart';
 
+import 'ui/frontoffice/dashboard_fo_screen.dart';
+import 'ui/frontoffice/lead_fo_screen.dart';
+import 'ui/frontoffice/riwayat_fo_screen.dart';
 
+import 'ui/owner/dashboard_owner_screen.dart';
+import 'ui/owner/daftar_kunjungan_screen.dart';
+import 'ui/owner/database_tamu_screen.dart';
+import 'ui/owner/lead_screen.dart';
+import 'ui/owner/laporan_screen.dart';
+import 'ui/owner/main_owner_navigator.dart';
 
 void main() {
   runApp(const MainApp());
@@ -26,7 +40,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const HomepageScreen(),
+      home: const MainOwnerNavigator(),
     );
   }
 }

@@ -1,4 +1,7 @@
+// lib/ui/branch_tab.dart
 import 'package:flutter/material.dart';
+import 'package:mobile_flutter/bloc/branch_bloc.dart';
+import 'package:mobile_flutter/model/branch.dart';
 import '../master_data/core/shared_widgets.dart';
 
 class BranchTab extends StatefulWidget {
@@ -10,16 +13,36 @@ class BranchTab extends StatefulWidget {
 
 class _BranchTabState extends State<BranchTab> {
   final TextEditingController _searchBranchController = TextEditingController();
-  final List<Map<String, dynamic>> _daftarBranch = [
-    {"id": 1, "kode": "SLM", "nama": "Cabang Sleman", "alamat": "Jl. Ringroad Utara, Sleman", "telepon": "0274-123456", "status": "Aktif"},
-    {"id": 2, "kode": "MGL", "nama": "Cabang Magelang", "alamat": "Jl. Pemuda No. 15, Magelang", "telepon": "0293-654321", "status": "Aktif"},
-  ];
+  List<Branch> _daftarBranch = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await BranchBloc.daftarBranch();
+      setState(() => _daftarBranch = result.data ?? []);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data: ${e.toString().replaceAll('Exception: ', '')}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    List filtered = _daftarBranch.where((item) => 
-        item['nama'].toLowerCase().contains(_searchBranchController.text.toLowerCase()) || 
-        item['kode'].toLowerCase().contains(_searchBranchController.text.toLowerCase())).toList();
+    List<Branch> filtered = _daftarBranch.where((item) {
+      final kw = _searchBranchController.text.toLowerCase();
+      return item.name.toLowerCase().contains(kw) || (item.code ?? '').toLowerCase().contains(kw);
+    }).toList();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -47,61 +70,98 @@ class _BranchTabState extends State<BranchTab> {
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: ListView.builder(
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final item = filtered[index];
-                bool isActive = item["status"] == "Aktif";
-                return Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("Kode: ${item["kode"]}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: corporateGreen)),
-                            Text(item["status"], style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isActive ? Colors.green : Colors.red)),
-                          ],
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? const Center(child: Text("Belum ada data branch", style: TextStyle(fontSize: 12)))
+                    : RefreshIndicator(
+                        onRefresh: _fetchData,
+                        child: ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final item = filtered[index];
+                            return Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text("Kode: ${item.code ?? '-'}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: corporateGreen)),
+                                        Text(item.isActive ? "Aktif" : "Non-Aktif",
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: item.isActive ? Colors.green : Colors.red)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(item.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    Text("Alamat: ${item.address ?? '-'} | Telp: ${item.phone ?? '-'}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                    const Divider(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        actionBtn("Edit", Colors.blue, Icons.edit, () => _showFormBranch(context, item)),
+                                        const SizedBox(width: 6),
+                                        actionBtn("Hapus", Colors.red, Icons.delete, () => _confirmDelete(item)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        const SizedBox(height: 4),
-                        Text(item["nama"], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        Text("Alamat: ${item["alamat"]} | Telp: ${item["telepon"]}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                        const Divider(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            actionBtn("Edit", Colors.blue, Icons.edit, () => _showFormBranch(context, item)),
-                            const SizedBox(width: 6),
-                            actionBtn("Hapus", Colors.red, Icons.delete, () => setState(() => _daftarBranch.remove(item))),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                      ),
           ),
         ],
       ),
     );
   }
 
-  void _showFormBranch(BuildContext context, Map<String, dynamic>? branch) {
-    final kodeCtrl = TextEditingController(text: branch?["kode"] ?? '');
-    final namaCtrl = TextEditingController(text: branch?["nama"] ?? '');
-    final alamatCtrl = TextEditingController(text: branch?["alamat"] ?? '');
-    final telpCtrl = TextEditingController(text: branch?["telepon"] ?? '');
-    bool aktif = branch?["status"] == "Aktif" ?? true;
+  void _confirmDelete(Branch item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Hapus Branch?", style: TextStyle(fontSize: 14)),
+        content: Text("Yakin ingin menghapus ${item.name}?", style: const TextStyle(fontSize: 12)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await BranchBloc.hapusBranch(item.id);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Branch berhasil dihapus')));
+                _fetchData();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFormBranch(BuildContext context, Branch? branch) {
+    final kodeCtrl = TextEditingController(text: branch?.code ?? '');
+    final namaCtrl = TextEditingController(text: branch?.name ?? '');
+    final alamatCtrl = TextEditingController(text: branch?.address ?? '');
+    final telpCtrl = TextEditingController(text: branch?.phone ?? '');
+    bool aktif = branch?.isActive ?? true;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(branch == null ? "Tambah Branch" : "Edit Branch", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
@@ -126,22 +186,31 @@ class _BranchTabState extends State<BranchTab> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal", style: TextStyle(fontSize: 11))),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Batal", style: TextStyle(fontSize: 11))),
             ElevatedButton(
               style: btnStyle(),
-              onPressed: () {
-                setState(() {
+              onPressed: () async {
+                try {
                   if (branch == null) {
-                    _daftarBranch.add({"id": _daftarBranch.length + 1, "kode": kodeCtrl.text, "nama": namaCtrl.text, "alamat": alamatCtrl.text, "telepon": telpCtrl.text, "status": aktif ? "Aktif" : "Non-Aktif"});
+                    await BranchBloc.tambahBranch(
+                      code: kodeCtrl.text, name: namaCtrl.text, address: alamatCtrl.text,
+                      phone: telpCtrl.text, isActive: aktif,
+                    );
                   } else {
-                    branch["kode"] = kodeCtrl.text;
-                    branch["nama"] = namaCtrl.text;
-                    branch["alamat"] = alamatCtrl.text;
-                    branch["telepon"] = telpCtrl.text;
-                    branch["status"] = aktif ? "Aktif" : "Non-Aktif";
+                    await BranchBloc.updateBranch(
+                      id: branch.id, code: kodeCtrl.text, name: namaCtrl.text,
+                      address: alamatCtrl.text, phone: telpCtrl.text, isActive: aktif,
+                    );
                   }
-                });
-                Navigator.pop(context);
+                  Navigator.pop(dialogContext);
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(branch == null ? 'Branch berhasil ditambahkan' : 'Branch berhasil diperbarui')));
+                  _fetchData();
+                } catch (e) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                  );
+                }
               },
               child: const Text("Simpan", style: TextStyle(fontSize: 11)),
             ),

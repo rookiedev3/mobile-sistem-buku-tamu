@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/admin/dashboard_admin_screen.dart';
-import 'package:mobile_flutter/ui/admin/manajemen_pengguna_screen.dart';
+// import 'package:mobile_flutter/ui/owner/dashboard_owner_screen.dart';
+import 'package:mobile_flutter/ui/manager/main_manager_navigator.dart';
+import 'package:mobile_flutter/ui/owner/main_owner_navigator.dart';
+
+
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'dashboard_satpam.dart';
@@ -17,6 +21,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -26,7 +31,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan password wajib diisi')),
+        const SnackBar(
+          content: Text('Email dan password wajib diisi'),
+        ),
       );
       return;
     }
@@ -34,7 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await LoginBloc.login(email: email, password: password);
+      final result = await LoginBloc.login(
+        email: email,
+        password: password,
+      );
 
       await UserInfo().setToken(result.token ?? '');
       await UserInfo().setUserId(result.userID ?? 0);
@@ -42,41 +52,82 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Selamat datang, ${result.userName ?? result.userEmail ?? ''}!')),
+        SnackBar(
+          content: Text(
+            'Selamat datang, ${result.userName ?? result.userEmail ?? ''}!',
+          ),
+        ),
       );
 
       _navigateByRole(result.userRole);
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception: ', ''),
+          ),
+        ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // ← Ini versi Flutter dari DashboardController::index() di web
+  // Navigasi berdasarkan role user
   void _navigateByRole(String? role) {
     switch (role) {
       case 'security':
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardSatpam()),
+          MaterialPageRoute(
+            builder: (_) => const DashboardSatpam(),
+          ),
         );
         break;
+
       case 'admin':
-      Navigator.pushReplacement(context,
-       MaterialPageRoute(builder: (_) => const DashboardAdminScreen()),
-       );
-      // TODO: tambah case lain kalau dashboard role-nya udah dibikin
-      // case 'owner': ...
-      // case 'pic': ...
-      // case 'manager': ...
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DashboardAdminScreen(),
+          ),
+        );
+        break;
+
+      case 'manager':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MainManagerNavigator(),
+          ),
+        );
+        break;
+
+      case 'owner':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MainOwnerNavigator(),
+          ),
+        );
+        break;
+
       default:
-        // Dashboard role ini belum dibuat, sementara balik ke Homepage
+        // Jika role belum tersedia, kembali ke halaman sebelumnya
         Navigator.pop(context);
+        break;
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -87,7 +138,9 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(
+              maxWidth: 420,
+            ),
             padding: const EdgeInsets.all(32.0),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -108,16 +161,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
-                      Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF006B3F)),
+                      Icon(
+                        Icons.arrow_back_ios,
+                        size: 14,
+                        color: Color(0xFF006B3F),
+                      ),
                       SizedBox(width: 4),
                       Text(
                         "Kembali ke Beranda",
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF006B3F),
+                        ),
                       ),
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 20),
+
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -125,22 +188,47 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(0xFF013220),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.lock_outline, color: Colors.white, size: 32),
+                    child: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 24),
+
                 const Text(
                   "Login Pegawai",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF172033),
+                  ),
                 ),
+
                 const SizedBox(height: 6),
+
                 const Text(
                   "Silakan masuk menggunakan akun internal Anda.",
-                  style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF778195),
+                  ),
                 ),
+
                 const SizedBox(height: 24),
-                const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                const Text(
+                  "Email",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
                 const SizedBox(height: 6),
+
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -148,12 +236,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     hintText: "Masukkan email Anda",
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 16),
-                const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                const Text(
+                  "Password",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
                 const SizedBox(height: 6),
+
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -162,26 +263,52 @@ class _LoginScreenState extends State<LoginScreen> {
                     filled: true,
                     fillColor: const Color(0xFFF4F7FC),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 18),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
+
                 const SizedBox(height: 8),
+
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const ForgotPasswordScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       "Lupa Password?",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF006B3F),
+                      ),
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 20),
+
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -189,30 +316,60 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF006B3F),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       elevation: 0,
                     ),
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
                         ? const SizedBox(
-                            width: 20, height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
-                        : const Text("Masuk", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                        : const Text(
+                            "Masuk",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
+
                 const SizedBox(height: 16),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Belum punya akun? ", style: TextStyle(fontSize: 13, color: Color(0xFF778195))),
+                    const Text(
+                      "Belum punya akun? ",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF778195),
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterScreen()));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const RegisterScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
                         "Daftar",
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF006B3F),
+                        ),
                       ),
                     ),
                   ],

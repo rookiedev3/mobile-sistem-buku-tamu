@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class LaporanManagerScreen extends StatefulWidget {
-  const LaporanManagerScreen({Key? key}) : super(key: key);
+class LaporanScreen extends StatefulWidget {
+  const LaporanScreen({Key? key}) : super(key: key);
 
   @override
-  State<LaporanManagerScreen> createState() => _LaporanManagerScreenState();
+  State<LaporanScreen> createState() => _LaporanScreenState();
 }
 
-class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
+class _LaporanScreenState extends State<LaporanScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
   // State Filter Laporan
