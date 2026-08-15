@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dashboard_admin_screen.dart';
-import 'daftar_tamu_screen.dart';
-import 'riwayat_screen.dart';
-import 'manajemen_pengguna_screen.dart';
+// import 'dashboard_admin_screen.dart';
+// import 'daftar_tamu_screen.dart';
+// import 'riwayat_screen.dart';
+// import 'manajemen_pengguna_screen.dart';
 import 'form_tambah_janji_dialog.dart'; // Memanggil pop-up 3 slide yang sudah dibuat sebelumnya
 
 class JanjiTamuScreen extends StatefulWidget {
@@ -16,7 +16,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
   
   // Indeks 3 untuk menu Janji Tamu pada Navbar Bawah (5 Menu)
-  int _currentIndex = 3;
+  // int _currentIndex = 3;
 
   // State Pencarian
   String _searchQuery = '';
@@ -313,51 +313,51 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
       // ===================================================
       // NAVBAR BAWAH (Konsisten 5 Menu)
       // ===================================================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: const Color(0xFF006B3F),
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedFontSize: 10,
+      //   unselectedFontSize: 10,
+      //   onTap: (index) {
+      //     setState(() {
+      //       _currentIndex = index;
+      //     });
 
-          if (index == 0) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
-            );
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DaftarTamuScreen()),
-            );
-          } else if (index == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const RiwayatScreen()),
-            );
-          } else if (index == 3) {
-            // Halaman ini (Janji Tamu)
-          } else if (index == 4) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
-        ],
-      ),
+      //     if (index == 0) {
+      //       Navigator.pushReplacement(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
+      //       );
+      //     } else if (index == 1) {
+      //       Navigator.pushReplacement(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const DaftarTamuScreen()),
+      //       );
+      //     } else if (index == 2) {
+      //       Navigator.pushReplacement(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const RiwayatScreen()),
+      //       );
+      //     } else if (index == 3) {
+      //       // Halaman ini (Janji Tamu)
+      //     } else if (index == 4) {
+      //       Navigator.push(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
+      //       );
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
+      //   ],
+      // ),
     );
   }
 }

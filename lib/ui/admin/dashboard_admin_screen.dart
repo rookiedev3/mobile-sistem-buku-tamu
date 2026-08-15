@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'manajemen_pengguna_screen.dart';
+// import 'manajemen_pengguna_screen.dart';
 import 'form_tambah_janji_dialog.dart'; // Sesuaikan jika foldernya berbeda (misal: 'ui/admin/form_tambah_janji_dialog.dart')
+import 'package:mobile_flutter/ui/homepage_screen.dart';
+
 
 class DashboardAdminScreen extends StatefulWidget {
   const DashboardAdminScreen({Key? key}) : super(key: key);
@@ -11,7 +13,7 @@ class DashboardAdminScreen extends StatefulWidget {
 
 class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
   // Indeks 0 untuk Beranda Admin
-  int _currentIndex = 0;
+  // int _currentIndex = 0;
 
   // State Filter & Pencarian
   String _filterStatus = 'Semua'; // 'Semua' atau 'Hari Ini'
@@ -86,6 +88,45 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
+            //button logout sementara
+         IconButton(
+  icon: const Icon(Icons.logout, color: Colors.white),
+  onPressed: () {
+    // Menampilkan dialog konfirmasi atau langsung redirect
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), // Tutup dialog
+            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            onPressed: () {
+              Navigator.pop(context); // Tutup dialog konfirmasi
+
+              // REDIRECT KE HOMESCREEN DAN HAPUS SEMUA RIWAYAT HALAMAN SEBELUMNYA
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomepageScreen()), // Ganti dengan nama widget HomeScreen Anda
+                (route) => false,
+              );
+            },
+            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+          ),
+        ],
+      ),
+    );
+  },
+),
         ],
       ),
       body: SingleChildScrollView(
@@ -408,43 +449,43 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
       // ===================================================
       // NAVBAR BAWAH (Lengkap 5 Menu Sesuai Rincian)
       // ===================================================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: const Color(0xFF006B3F),
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedFontSize: 11,
+      //   unselectedFontSize: 11,
+      //   onTap: (index) {
+      //     setState(() {
+      //       _currentIndex = index;
+      //     });
 
-          if (index == 0) {
-            // Beranda (Halaman ini)
-          } else if (index == 1) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Daftar Tamu')));
-          } else if (index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Riwayat Kunjungan')));
-          } else if (index == 3) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Janji Tamu')));
-          } else if (index == 4) {
-            // Navigasi ke Manajemen Pengguna
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), label: 'Daftar Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Riwayat'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), label: 'Janji Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined), label: 'Pengguna'),
-        ],
-      ),
+      //     if (index == 0) {
+      //       // Beranda (Halaman ini)
+      //     } else if (index == 1) {
+      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Daftar Tamu')));
+      //     } else if (index == 2) {
+      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Riwayat Kunjungan')));
+      //     } else if (index == 3) {
+      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Janji Tamu')));
+      //     } else if (index == 4) {
+      //       // Navigasi ke Manajemen Pengguna
+      //       Navigator.push(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
+      //       );
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Beranda'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded), label: 'Daftar Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded), label: 'Riwayat'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined), label: 'Janji Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined), label: 'Pengguna'),
+      //   ],
+      // ),
     );
   }
 }

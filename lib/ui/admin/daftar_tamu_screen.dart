@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dashboard_admin_screen.dart';
-import 'manajemen_pengguna_screen.dart';
+// import 'dashboard_admin_screen.dart';
+// import 'manajemen_pengguna_screen.dart';
 
 class DaftarTamuScreen extends StatefulWidget {
   const DaftarTamuScreen({Key? key}) : super(key: key);
@@ -13,7 +13,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
   
   // Indeks 1 untuk menu Daftar Tamu pada Navbar Bawah (5 Menu)
-  int _currentIndex = 1;
+  // int _currentIndex = 1;
 
   // State Filter Kategori
   String _filterKategori = 'Semua Tamu';
@@ -510,47 +510,47 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       // ===================================================
       // NAVBAR BAWAH (Konsisten 5 Menu Sesuai Dashboard Admin)
       // ===================================================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF006B3F),
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: const Color(0xFF006B3F),
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedFontSize: 10,
+      //   unselectedFontSize: 10,
+      //   onTap: (index) {
+      //     setState(() {
+      //       _currentIndex = index;
+      //     });
 
-          if (index == 0) {
-            // Kembali ke Beranda Admin
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
-            );
-          } else if (index == 1) {
-            // Halaman ini (Daftar Tamu)
-          } else if (index == 2) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Riwayat Kunjungan')));
-          } else if (index == 3) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Janji Tamu')));
-          } else if (index == 4) {
-            // Pindah ke Manajemen Pengguna
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
-          BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
-        ],
-      ),
+      //     if (index == 0) {
+      //       // Kembali ke Beranda Admin
+      //       Navigator.pushReplacement(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
+      //       );
+      //     } else if (index == 1) {
+      //       // Halaman ini (Daftar Tamu)
+      //     } else if (index == 2) {
+      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Riwayat Kunjungan')));
+      //     } else if (index == 3) {
+      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Janji Tamu')));
+      //     } else if (index == 4) {
+      //       // Pindah ke Manajemen Pengguna
+      //       Navigator.push(
+      //         context,
+      //         MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
+      //       );
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
+      //   ],
+      // ),
     );
   }
 }
