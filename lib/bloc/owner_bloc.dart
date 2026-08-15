@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/api_url.dart';
+import '../model/lead_pipeline_model.dart';
 import '../model/dashboard_owner_model.dart';
 
 class DashboardOwnerBloc {
@@ -55,4 +56,22 @@ static Future<ActivityLogResponse> fetchActivityLog({
     lastPage: meta['last_page'],
   );
 }
+static Future<LeadPipelineResponse> fetchLeads({
+    required String filter,
+    required String vipStatus,
+    String? keyword,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse(
+      ApiUrl.ownerLeadsPipeline(filter, vipStatus, keyword: keyword, page: page),
+    );
+    final response = await http.get(uri, headers: await _headers());
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat data leads (${response.statusCode})');
+    }
+
+    return LeadPipelineResponse.fromJson(jsonDecode(response.body));
+  }
 }
+

@@ -1,53 +1,9 @@
 import 'package:flutter/material.dart';
-
-// Model Data Lead & Follow Up
-class FollowUpModel {
-  final String status;
-  final String? result;
-  final double estimatedValue;
-  final String createdAt;
-  final String? dueAt;
-
-  FollowUpModel({
-    required this.status,
-    this.result,
-    required this.estimatedValue,
-    required this.createdAt,
-    this.dueAt,
-  });
-}
-
-class LeadModel {
-  final String token;
-  final String guestName;
-  final String jabatan;
-  final String perusahaan;
-  final String? ownerName;
-  final String status; // 'new', 'meeting', 'negotiation', 'deal', 'lost'
-  final double estimatedValue;
-  final String? notes;
-  final String? meetingResult;
-  final List<FollowUpModel> followUps;
-  final String? followUpAt;
-  final String jenisKunjungan; // Mitra, Prospek, Klien, Vendor, Pelamar, Umum
-  final String waktu;
-
-  LeadModel({
-    required this.token,
-    required this.guestName,
-    required this.jabatan,
-    required this.perusahaan,
-    this.ownerName,
-    required this.status,
-    required this.estimatedValue,
-    this.notes,
-    this.meetingResult,
-    required this.followUps,
-    this.followUpAt,
-    required this.jenisKunjungan,
-    required this.waktu,
-  });
-}
+import 'package:intl/intl.dart';
+import '../../bloc/owner_bloc.dart';
+import '../../model/lead_pipeline_model.dart';
+import 'aktivitas_terbaru_screen.dart'; // sesuaikan path kalau berbeda
+// import 'dashboard_owner_screen.dart'; // TODO: sesuaikan nama file & class Dashboard Owner kamu
 
 class LeadScreen extends StatefulWidget {
   const LeadScreen({Key? key}) : super(key: key);
@@ -57,82 +13,47 @@ class LeadScreen extends StatefulWidget {
 }
 
 class _LeadScreenState extends State<LeadScreen> {
-  final Color corporateGreen = const Color(0xFF006B3F);
+  int _currentIndex = 1;
 
-  // State Filter Tab & Dropdown
-  String _selectedTab = 'Semua';
-  String _filterJenis = 'Semua Tipe';
-  final TextEditingController _searchController = TextEditingController();
+  final Map<String, String> _categoryMap = {
+    'Semua': 'all',
+    'Aktif': 'active',
+    'Deal': 'deal',
+    'Terlambat': 'overdue',
+    'Hari Ini': 'today',
+    'Menunggu': 'upcoming',
+    'Lost': 'lost',
+  };
+  String _selectedCategory = 'Semua';
+  String _vipFilter = 'all';
 
-  final List<String> _tabs = ['Semua', 'Aktif', 'Terlambat', 'Hari Ini', 'Mendatang', 'Deal', 'Lost'];
+  late Future<LeadPipelineResponse> _futureLeads;
 
-  final Map<String, Map<String, dynamic>> _leadBadges = {
-    'new': {'label': 'Baru', 'color': Colors.blue},
-    'meeting': {'label': 'Meeting Selesai', 'color': Colors.orange},
-    'negotiation': {'label': 'Negosiasi', 'color': Colors.purple},
-    'deal': {'label': 'Deal / Selesai', 'color': const Color(0xFF006B3F)},
-    'lost': {'label': 'Dibatalkan / Lost', 'color': Colors.red},
+  static const Map<String, Map<String, dynamic>> _leadBadges = {
+    'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
+    'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
+    'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi 🔥'},
+    'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal 🎉'},
+    'lost':        {'bg': Color(0xFFFEE2E2), 'color': Color(0xFFB91C1C), 'label': 'Lost'},
   };
 
-  // Data Dummy Prospek Aktif & Leads
-  final List<LeadModel> _daftarLead = [
-    LeadModel(
-      token: "TRX-001",
-      guestName: "Budi Santoso",
-      jabatan: "Direktur",
-      perusahaan: "PT Maju Sejahtera",
-      ownerName: "Chyntia",
-      status: "negotiation",
-      estimatedValue: 75000000,
-      notes: "Meminta penawaran khusus POS Enterprise.",
-      meetingResult: "Klien tertarik dengan integrasi keuangan otomatis.",
-      jenisKunjungan: "Mitra",
-      waktu: "14 Agu 2026",
-      followUpAt: "2026-08-14T15:00:00Z",
-      followUps: [
-        FollowUpModel(
-          status: "negotiation",
-          result: "Diskusi penawaran harga via telepon.",
-          estimatedValue: 75000000,
-          createdAt: "2026-08-14T10:00:00Z",
-          dueAt: "2026-08-14T15:00:00Z",
-        )
-      ],
-    ),
-    LeadModel(
-      token: "TRX-002",
-      guestName: "Siti Aminah",
-      jabatan: "Consultant",
-      perusahaan: "CV Konsultan Mandiri",
-      ownerName: "Budi",
-      status: "new",
-      estimatedValue: 25000000,
-      notes: "Konsultasi sistem modul inventaris.",
-      meetingResult: "Menunggu ACC anggaran.",
-      jenisKunjungan: "Prospek",
-      waktu: "10 Agu 2026",
-      followUpAt: "2026-08-12T10:00:00Z",
-      followUps: [],
-    ),
-    LeadModel(
-      token: "TRX-003",
-      guestName: "Joko Widodo",
-      jabatan: "Manager Operasional",
-      perusahaan: "PT Inovasi Teknologi",
-      ownerName: "Chyntia",
-      status: "deal",
-      estimatedValue: 120000000,
-      notes: "Demo produk ERP komplit.",
-      meetingResult: "Deal tercapai, MoU ditandatangani.",
-      jenisKunjungan: "Mitra",
-      waktu: "05 Agu 2026",
-      followUpAt: null,
-      followUps: [],
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  String _rupiah(double amount) {
-    return "Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}";
+  void _loadData() {
+    _futureLeads = DashboardOwnerBloc.fetchLeads(
+      filter: _categoryMap[_selectedCategory]!,
+      vipStatus: _vipFilter,
+    );
+  }
+
+  String _rupiah(num? value) {
+    if (value == null) return '-';
+    final formatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    return formatter.format(value);
   }
 
   static const List<String> _bulanIndo = [
@@ -158,20 +79,53 @@ class _LeadScreenState extends State<LeadScreen> {
 
   Widget _summaryItem(String label, String value) {
     return SizedBox(
-      width: 140,
+      width: 150,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label.toUpperCase(),
-              style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
         ],
       ),
     );
   }
 
-  // --- POP-UP DIALOG CATATAN & RIWAYAT ---
+  Widget _buildFollowUpBadge(String? followUpAt, String status) {
+    if (status == 'deal') return const SizedBox.shrink();
+    if (followUpAt == null) {
+      return const Text('Belum dijadwalkan', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)));
+    }
+    final fuDate = DateTime.parse(followUpAt);
+    final today = DateTime.now();
+    final fuDay = DateTime(fuDate.year, fuDate.month, fuDate.day);
+    final todayDay = DateTime(today.year, today.month, today.day);
+    final diff = fuDay.difference(todayDay).inDays;
+
+    Color bg, color;
+    String label;
+    if (diff < 0) {
+      bg = const Color(0xFFFEF2F2);
+      color = const Color(0xFFDC2626);
+      label = '⚠ Terlambat ${diff.abs()} hari';
+    } else if (diff == 0) {
+      bg = const Color(0xFFFEF3C7);
+      color = const Color(0xFFD97706);
+      label = '🔥 Hari Ini';
+    } else {
+      bg = const Color(0xFFE6F4ED);
+      color = const Color(0xFF006B3F);
+      label = diff == 1 ? 'Besok' : '$diff hari mendatang';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
+    );
+  }
+
   void _showCatatanDialog(BuildContext context, LeadModel lead) {
     showDialog(
       context: context,
@@ -183,7 +137,7 @@ class _LeadScreenState extends State<LeadScreen> {
               const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
               const SizedBox(width: 8),
               Expanded(
-                child: Text("Riwayat – ${lead.guestName}",
+                child: Text("Riwayat – ${lead.guestName ?? 'Klien'}",
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -198,7 +152,6 @@ class _LeadScreenState extends State<LeadScreen> {
                   Text("Ditangani oleh: ${lead.ownerName ?? '-'} (PIC)",
                       style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
@@ -219,7 +172,6 @@ class _LeadScreenState extends State<LeadScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-
                   const Text("📝 Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
@@ -234,7 +186,6 @@ class _LeadScreenState extends State<LeadScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-
                   const Text("📌 Hasil Meeting Pertama:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
@@ -249,7 +200,6 @@ class _LeadScreenState extends State<LeadScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-
                   const Text("🔄 Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
@@ -321,292 +271,339 @@ class _LeadScreenState extends State<LeadScreen> {
     );
   }
 
+  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF778195), fontWeight: FontWeight.w500)),
+              Icon(icon, color: color, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Hitung jumlah orang/klien prospek aktif
-    int totalProspekAktifOrang = _daftarLead
-        .where((l) => l.status != 'deal' && l.status != 'lost')
-        .length;
-
-    // Hitung total karyawan yang deal
-    int totalKaryawanDeal = _daftarLead
-        .where((l) => l.status == 'deal')
-        .length;
-
-    // Logika Filter Berdasarkan Tab & Dropdown Jenis
-    List<LeadModel> filteredList = _daftarLead.where((item) {
-      String query = _searchController.text.toLowerCase();
-      bool matchSearch = item.guestName.toLowerCase().contains(query) ||
-          item.perusahaan.toLowerCase().contains(query);
-
-      bool matchJenis = (_filterJenis == 'Semua Tipe') || (item.jenisKunjungan == _filterJenis);
-
-      bool matchTab = true;
-      if (_selectedTab == 'Aktif') {
-        matchTab = item.status != 'deal' && item.status != 'lost';
-      } else if (_selectedTab == 'Terlambat') {
-        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).isBefore(DateTime.now()) && item.status != 'deal';
-      } else if (_selectedTab == 'Hari Ini') {
-        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).day == DateTime.now().day;
-      } else if (_selectedTab == 'Mendatang') {
-        matchTab = item.followUpAt != null && DateTime.parse(item.followUpAt!).isAfter(DateTime.now());
-      } else if (_selectedTab == 'Deal') {
-        matchTab = item.status == 'deal';
-      } else if (_selectedTab == 'Lost') {
-        matchTab = item.status == 'lost';
-      }
-
-      return matchSearch && matchJenis && matchTab;
-    }).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
-        backgroundColor: corporateGreen,
+        backgroundColor: const Color(0xFF006B3F),
         elevation: 0,
-        title: const Text(
-          "Manajemen Lead & Follow-Up",
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        title: const Text("Manajemen Lead & Follow-Up",
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ================= 2 CARD STATISTIK DI ATAS =================
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 3, offset: const Offset(0, 1))],
-                    ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() => _loadData());
+          await _futureLeads;
+        },
+        child: FutureBuilder<LeadPipelineResponse>(
+          future: _futureLeads,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("Prospek Aktif", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            Icon(Icons.trending_up_rounded, size: 14, color: corporateGreen),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text("$totalProspekAktifOrang Orang", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: corporateGreen)),
-                        const SizedBox(height: 2),
-                        const Text("Klien dalam pipeline", style: TextStyle(fontSize: 7, color: Colors.grey)),
+                        const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+                        const SizedBox(height: 8),
+                        Text('${snapshot.error}', textAlign: TextAlign.center),
+                        const SizedBox(height: 12),
+                        ElevatedButton(onPressed: () => setState(() => _loadData()), child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 3, offset: const Offset(0, 1))],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text("Karyawan Deal", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const Icon(Icons.task_alt_rounded, size: 14, color: Colors.blue),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text("$totalKaryawanDeal Orang", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
-                        const SizedBox(height: 2),
-                        const Text("Berhasil konversi", style: TextStyle(fontSize: 7, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+              );
+            }
 
-            // ================= 7 TAB FILTER (TANPA IKON CENTANG) =================
-            SizedBox(
-              height: 28,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _tabs.length,
-                itemBuilder: (context, index) {
-                  String tab = _tabs[index];
-                  bool isSelected = _selectedTab == tab;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6.0),
-                    child: InkWell(
-                      onTap: () => setState(() => _selectedTab = tab),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isSelected ? corporateGreen : Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: isSelected ? corporateGreen : const Color(0xFFE2E8F0)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            tab,
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : const Color(0xFF172033),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
+            final result = snapshot.data!;
+            final leads = result.data;
+            final counts = result.counts;
 
-            // ================= SEARCH BAR & FILTER TIPE TAMU =================
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 32,
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (val) => setState(() {}),
-                      style: const TextStyle(fontSize: 10),
-                      decoration: InputDecoration(
-                        hintText: "Cari nama tamu / perusahaan...",
-                        prefixIcon: const Icon(Icons.search, size: 14, color: Colors.grey),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        filled: true,
-                        fillColor: const Color(0xFFF4F7FC),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
-                        child: Container(
-                          height: 32,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _filterJenis,
-                              isDense: true,
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
-                              items: ['Semua Tipe', 'Mitra', 'Prospek', 'Klien', 'Vendor', 'Pelamar', 'Umum']
-                                  .map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                              onChanged: (val) => setState(() => _filterJenis = val!),
-                            ),
-                          ),
+                        child: _buildStatCard(
+                          title: "Total Prospek Aktif",
+                          value: "${counts['active'] ?? 0}",
+                          icon: Icons.trending_up_rounded,
+                          color: const Color(0xFF1B65E3),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          title: "Total Deal",
+                          value: "${counts['deal'] ?? 0}",
+                          icon: Icons.check_circle_outline_rounded,
+                          color: const Color(0xFF006B3F),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: 20),
 
-            // ================= TABEL DAFTAR LEAD =================
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Daftar Prospek & PIC Penanggung Jawab ($_selectedTab)", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-                  const SizedBox(height: 8),
-
-                  filteredList.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(15.0),
-                          child: Center(child: Text("Tidak ada data lead pada kategori ini.", style: TextStyle(fontSize: 10, color: Colors.grey))),
-                        )
-                      : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            headingRowHeight: 28,
-                            dataRowHeight: 40,
-                            columnSpacing: 10,
-                            columns: const [
-                              DataColumn(label: Text('No', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Token', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Tamu & Jabatan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('PIC / Sales', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Value', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Tanggal Follow Up', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Tahap Pipeline', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text('Catatan', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
-                            ],
-                            rows: List.generate(filteredList.length, (index) {
-                              final item = filteredList[index];
-                              final badge = _leadBadges[item.status] ?? _leadBadges['new']!;
-                              return DataRow(cells: [
-                                DataCell(Text((index + 1).toString(), style: const TextStyle(fontSize: 9))),
-                                DataCell(Text(item.token, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: corporateGreen))),
-                                DataCell(Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(item.guestName, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                                    Text("${item.perusahaan} (${item.jabatan})", style: const TextStyle(fontSize: 8, color: Colors.grey)),
-                                  ],
-                                )),
-                                DataCell(Text(item.ownerName ?? '-', style: const TextStyle(fontSize: 9))),
-                                DataCell(Text(_rupiah(item.estimatedValue), style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: corporateGreen))),
-                                DataCell(Text(item.followUpAt != null ? _formatDate(item.followUpAt!) : '-', style: const TextStyle(fontSize: 9))),
-                                DataCell(Text(badge['label'], style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badge['color']))),
-                                DataCell(ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.blue.shade50,
-                                    foregroundColor: Colors.blue,
-                                    elevation: 0,
-                                    minimumSize: const Size(50, 24),
-                                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                  ),
-                                  onPressed: () => _showCatatanDialog(context, item),
-                                  child: const Text("Catatan", style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold)),
-                                )),
-                              ]);
+                  SizedBox(
+                    height: 38,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _categoryMap.length,
+                      itemBuilder: (context, index) {
+                        final label = _categoryMap.keys.elementAt(index);
+                        final key = _categoryMap[label]!;
+                        final isSelected = _selectedCategory == label;
+                        final count = counts[key] ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(count > 0 ? '$label ($count)' : label),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF006B3F),
+                            backgroundColor: Colors.white,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : const Color(0xFF778195),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: isSelected ? const Color(0xFF006B3F) : const Color(0xFFE2E8F0)),
+                            ),
+                            onSelected: (_) => setState(() {
+                              _selectedCategory = label;
+                              _loadData();
                             }),
                           ),
-                        ),
-                ],
-              ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const Text("Status: ", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF5C6678))),
+                      DropdownButton<String>(
+                        value: _vipFilter,
+                        underline: const SizedBox(),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                        items: const [
+                          DropdownMenuItem(value: 'all', child: Text('Semua Status')),
+                          DropdownMenuItem(value: 'vip', child: Text('⭐ VIP')),
+                          DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setState(() { _vipFilter = value; _loadData(); });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text("Daftar Prospek - $_selectedCategory",
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                  const SizedBox(height: 12),
+
+                  leads.isEmpty
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                          child: const Center(
+                            child: Text("Tidak ada data prospek untuk kategori ini.",
+                                style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: leads.length,
+                          itemBuilder: (context, index) {
+                            final lead = leads[index];
+                            final badge = _leadBadges[lead.status] ?? _leadBadges['new']!;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
+                                            child: Text("No. ${leads.indexOf(lead) + 1 + (result.currentPage - 1) * 10}",
+                                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(lead.visitCode,
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: (badge['bg'] as Color), borderRadius: BorderRadius.circular(6)),
+                                        child: Text(badge['label'] as String,
+                                            style: TextStyle(color: badge['color'] as Color, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+  children: [
+    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+            TextSpan(
+              text: "${lead.guestName ?? '-'}"
+                  "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
             ),
           ],
         ),
       ),
+    ),
+    if (lead.isVip) ...[
+      const SizedBox(width: 4),
+      const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+    ],
+  ],
+),
+const SizedBox(height: 6),
+Row(
+  children: [
+    const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: "Instansi: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+            TextSpan(
+              text: (lead.companyName != null && lead.companyName!.isNotEmpty)
+                  ? lead.companyName!
+                  : '-',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+            ),
+          ],
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 6),
+                                  
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF778195)),
+                                          const SizedBox(width: 6),
+                                          Text("PIC: #${lead.ownerId ?? '-'} ${lead.ownerName ?? ''}",
+                                              style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                        ],
+                                      ),
+                                      Text(_rupiah(lead.estimatedValue),
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF778195)),
+                                      const SizedBox(width: 6),
+                                      const Text("Follow Up: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                      if (lead.followUpAt != null) ...[
+                                        Text(_formatDate(lead.followUpAt!),
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      _buildFollowUpBadge(lead.followUpAt, lead.status),
+                                    ],
+                                  ),
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                                    child: Divider(height: 1, color: Color(0xFFE5E7EB)),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          "Catatan: ${lead.latestNote}",
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      InkWell(
+                                        onTap: () => _showCatatanDialog(context, lead),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(color: const Color(0xFF006B3F).withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                          child: const Text("Lihat Catatan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
 
-      
     );
   }
 }

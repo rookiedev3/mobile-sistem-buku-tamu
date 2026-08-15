@@ -295,7 +295,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF006B3F),
         elevation: 0,
-        title: const Text("Lead & Pipeline Management",
+        title: const Text("Manajemen Lead & Follow Up",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
