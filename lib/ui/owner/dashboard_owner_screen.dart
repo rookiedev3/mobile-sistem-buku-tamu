@@ -309,7 +309,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.bolt_rounded, size: 16, color: corporateGreen),
+                              // Icon(Icons.bolt_rounded, size: 16, color: corporateGreen),
                               const SizedBox(width: 4),
                               const Text("Aktivitas Terbaru", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                             ],
@@ -527,7 +527,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                                         onTap: () => _showDetailCatatan(context, item),
                                         child: Row(
                                           children: const [
-                                            Icon(Icons.speaker_notes, size: 12, color: Colors.blue),
+                                            // Icon(Icons.speaker_notes, size: 12, color: Colors.blue),
                                             SizedBox(width: 2),
                                             Text("Lihat", style: TextStyle(fontSize: 9, color: Colors.blue, decoration: TextDecoration.underline)),
                                           ],

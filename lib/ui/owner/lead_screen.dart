@@ -32,8 +32,8 @@ class _LeadScreenState extends State<LeadScreen> {
   static const Map<String, Map<String, dynamic>> _leadBadges = {
     'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
     'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
-    'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi 🔥'},
-    'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal 🎉'},
+    'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi '},
+    'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal '},
     'lost':        {'bg': Color(0xFFFEE2E2), 'color': Color(0xFFB91C1C), 'label': 'Lost'},
   };
 
@@ -71,7 +71,7 @@ class _LeadScreenState extends State<LeadScreen> {
   }
 
   String _scheduleText(LeadModel lead) {
-    if (lead.status == 'deal') return 'Sudah Deal 🎉';
+    if (lead.status == 'deal') return 'Sudah Deal ';
     if (lead.status == 'lost') return 'Lead Hilang / Lost';
     if (lead.followUpAt != null) return _formatDate(lead.followUpAt!);
     return 'Tidak ada jadwal lanjutan';
@@ -108,11 +108,11 @@ class _LeadScreenState extends State<LeadScreen> {
     if (diff < 0) {
       bg = const Color(0xFFFEF2F2);
       color = const Color(0xFFDC2626);
-      label = '⚠ Terlambat ${diff.abs()} hari';
+      label = ' Terlambat ${diff.abs()} hari';
     } else if (diff == 0) {
       bg = const Color(0xFFFEF3C7);
       color = const Color(0xFFD97706);
-      label = '🔥 Hari Ini';
+      label = 'Hari Ini';
     } else {
       bg = const Color(0xFFE6F4ED);
       color = const Color(0xFF006B3F);
@@ -134,7 +134,6 @@ class _LeadScreenState extends State<LeadScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Row(
             children: [
-              const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text("Riwayat – ${lead.guestName ?? 'Klien'}",
@@ -172,7 +171,7 @@ class _LeadScreenState extends State<LeadScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📝 Catatan Awal Kunjungan:",
+                  const Text(" Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -186,7 +185,7 @@ class _LeadScreenState extends State<LeadScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📌 Hasil Meeting Pertama:",
+                  const Text(" Hasil Meeting Pertama:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -200,7 +199,7 @@ class _LeadScreenState extends State<LeadScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("🔄 Riwayat Update Pipeline:",
+                  const Text(" Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   if (lead.followUps.isEmpty)
@@ -232,7 +231,7 @@ class _LeadScreenState extends State<LeadScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('📅 ${_formatDate(fu.createdAt)}',
+                                Text(' ${_formatDate(fu.createdAt)}',
                                     style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                                 Text('Tahap: ${badge['label']}',
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badge['color'])),
@@ -245,7 +244,7 @@ class _LeadScreenState extends State<LeadScreen> {
                               spacing: 16,
                               runSpacing: 4,
                               children: [
-                                Text('💰 Estimasi Value: ${_rupiah(fu.estimatedValue)}',
+                                Text(' Estimasi Value: ${_rupiah(fu.estimatedValue)}',
                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 if (fu.dueAt != null)
                                   Text('Target Due Date: ${_formatDate(fu.dueAt!)}',
