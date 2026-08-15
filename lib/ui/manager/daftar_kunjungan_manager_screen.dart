@@ -20,6 +20,15 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
   bool _isLoading = true;
   String? _errorMessage;
 
+    // 👇 taruh di sini, di bagian atas class, sejajar dengan field lain
+  final Map<String, Map<String, dynamic>> _leadBadges = {
+    'new': {'label': 'Baru', 'color': Color(0xFF64748B)},
+    'contacted': {'label': 'Dihubungi', 'color': Color(0xFF1B65E3)},
+    'negotiation': {'label': 'Negosiasi', 'color': Color(0xFFF59E0B)},
+    'deal': {'label': 'Deal / Berhasil', 'color': Color(0xFF006B3F)},
+    'lost': {'label': 'Lost', 'color': Color(0xFFDC2626)},
+  };
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +85,7 @@ String _formatWaktu(String? iso) {
 
   
 
-  void _showCatatanDialog(BuildContext context, Kunjungan item) {
+ void _showCatatanDialog(BuildContext context, Kunjungan item) {
   showDialog(
     context: context,
     builder: (context) {
@@ -103,7 +112,7 @@ String _formatWaktu(String? iso) {
                     style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
                 const SizedBox(height: 12),
 
-                // Ringkasan atas: Jenis Kunjungan / Tahap / Estimasi Value
+                // Ringkasan atas: Tahap Pipeline Terakhir / Jadwal Follow-Up / Estimasi Value
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(10),
@@ -116,8 +125,8 @@ String _formatWaktu(String? iso) {
                     spacing: 20,
                     runSpacing: 8,
                     children: [
-                      _summaryItem("Jenis Kunjungan", item.purpose ?? '-'),
-                      _summaryItem("Tahap Pipeline", item.leadStatus ?? '-'),
+                      _summaryItem("Tahap Pipeline Terakhir", _pipelineTerakhirText(item)),
+                      _summaryItem("Jadwal Follow-Up", _jadwalFollowUpText(item)),
                       _summaryItem("Estimasi Value", _formatValue(item.estimatedValue)),
                     ],
                   ),
@@ -187,9 +196,15 @@ String _formatWaktu(String? iso) {
                             children: [
                               Text('📅 ${_formatWaktu(fu.createdAt)}',
                                   style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                              if (fu.status != null)
-                                Text('Tahap: ${fu.status}',
-                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1B65E3))),
+if (fu.status != null)
+  Text(
+    'Tahap: ${(_leadBadges[fu.status] ?? _leadBadges['new']!)['label']}',
+    style: TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+      color: (_leadBadges[fu.status] ?? _leadBadges['new']!)['color'] as Color,
+    ),
+  ),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -202,7 +217,7 @@ String _formatWaktu(String? iso) {
                               Text('💰 ${_formatValue(fu.estimatedValue?.toDouble())}',
                                   style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                               if (fu.dueAt != null)
-                                Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt!)}', 
+                                Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt!)}',
                                     style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
                             ],
                           ),
@@ -223,6 +238,28 @@ String _formatWaktu(String? iso) {
       );
     },
   );
+}
+
+// Helper: ambil tahap pipeline terakhir — pakai status followUp terbaru kalau ada,
+// fallback ke item.leadStatus.
+String _pipelineTerakhirText(Kunjungan item) {
+  String? statusKey;
+  if (item.followUps.isNotEmpty && item.followUps.last.status != null && item.followUps.last.status!.isNotEmpty) {
+    statusKey = item.followUps.last.status;
+  } else {
+    statusKey = item.leadStatus;
+  }
+  return (_leadBadges[statusKey] ?? _leadBadges['new']!)['label'] as String;
+}
+
+// Helper: ambil jadwal follow-up berikutnya — dueAt dari followUp terbaru yang belum lewat,
+// fallback 'Belum dijadwalkan'.
+String _jadwalFollowUpText(Kunjungan item) {
+  if (item.followUps.isNotEmpty) {
+    final last = item.followUps.last;
+    if (last.dueAt != null) return _formatWaktu(last.dueAt!);
+  }
+  return 'Belum dijadwalkan';
 }
 
 Widget _summaryItem(String label, String value) {
@@ -431,41 +468,46 @@ Widget _summaryItem(String label, String value) {
                                   Text(item.visitCode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
                                 ],
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: item.isVip ? Colors.amber.withOpacity(0.15) : Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  statusLabel,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: item.isVip ? Colors.amber[800] : Colors.blue[700],
-                                  ),
-                                ),
-                              ),
+                             Container(
+  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  decoration: BoxDecoration(
+    color: ((_leadBadges[item.leadStatus] ?? _leadBadges['new']!)['color'] as Color).withOpacity(0.1),
+    borderRadius: BorderRadius.circular(6),
+  ),
+  child: Text(
+    "Tahap: ${(_leadBadges[item.leadStatus] ?? _leadBadges['new']!)['label']}",
+    style: TextStyle(
+      color: (_leadBadges[item.leadStatus] ?? _leadBadges['new']!)['color'] as Color,
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+),
                             ],
                           ),
                           const SizedBox(height: 10),
 
                           // Tamu & Jabatan
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  "Tamu: ${item.guestName ?? '-'}"
-                                  "${item.guestPosition != null ? '\n(${item.guestPosition})' : ''}"
-                                  "${item.companyName != null ? ' - ${item.companyName}' : ''}",
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-                                ),
-                              ),
-                            ],
-                          ),
+                         // Tamu & Jabatan
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text(
+        "Tamu: ${item.guestName ?? '-'}"
+        "${item.guestPosition != null ? '\n(${item.guestPosition})' : ''}"
+        "${item.companyName != null ? ' - ${item.companyName}' : ''}",
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+      ),
+    ),
+    if (item.isVip) ...[
+      const SizedBox(width: 4),
+      const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+    ],
+  ],
+),
                           const SizedBox(height: 6),
 
                           // Tanggal & Waktu
@@ -485,7 +527,7 @@ Row(
       children: [
         const Icon(Icons.category_outlined, size: 14, color: Color(0xFF778195)),
         const SizedBox(width: 6),
-        Text("Jenis Kunjungan: ${item.purpose ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+        Text("Jenis Kunjungan: ${item.categoryName ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
       ],
     ),
     Text(_formatValue(item.estimatedValue), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
@@ -522,33 +564,32 @@ Row(
                           ),
 
                           // Tahap Pipeline (lead_status) & Catatan (Pop-up)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1B65E3).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  "Tahap: ${item.leadStatus ?? '-'}",
-                                  style: const TextStyle(color: Color(0xFF1B65E3), fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () => _showCatatanDialog(context, item),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF006B3F).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text("Lihat Catatan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
-                                ),
-                              ),
-                            ],
-                          ),
+// Catatan terakhir & tombol Lihat Catatan (Pop-up)
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Expanded(
+      child: Text(
+        "Catatan: $catatan",
+        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+    const SizedBox(width: 8),
+    InkWell(
+      onTap: () => _showCatatanDialog(context, item),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF006B3F).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text("Lihat Catatan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+      ),
+    ),
+  ],
+),
                         ],
                       ),
                     );

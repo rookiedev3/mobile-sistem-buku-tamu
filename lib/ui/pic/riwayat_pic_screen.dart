@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 
-class RiwayatFOScreen extends StatefulWidget {
-  const RiwayatFOScreen({Key? key}) : super(key: key);
+class RiwayatPICScreen extends StatefulWidget {
+  const RiwayatPICScreen({Key? key}) : super(key: key);
 
   @override
-  State<RiwayatFOScreen> createState() => _RiwayatFOScreenState();
+  State<RiwayatPICScreen> createState() => _RiwayatPICScreenState();
 }
 
-class _RiwayatFOScreenState extends State<RiwayatFOScreen> {
+class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
-  int _currentIndex = 2; // 2: Menu Riwayat di Navbar Bawah
   
   // Controller Pencarian & Filter
   final TextEditingController _searchController = TextEditingController();
@@ -419,32 +418,32 @@ class _RiwayatFOScreenState extends State<RiwayatFOScreen> {
       ),
 
       // ================= NAVBAR BAWAH FRONT OFFICE (3 MENU) =================
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: corporateGreen,
-        unselectedItemColor: const Color(0xFF778195),
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          if (index == 0) {
-            Navigator.pop(context);
-          } else if (index == 1) {
-            Navigator.pop(context);
-          } else if (index == 2) {
-            // Sedang di halaman Riwayat
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 20), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 20), label: 'Lead'),
-          BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
-        ],
-      ),
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   selectedItemColor: corporateGreen,
+      //   unselectedItemColor: const Color(0xFF778195),
+      //   backgroundColor: Colors.white,
+      //   type: BottomNavigationBarType.fixed,
+      //   selectedFontSize: 10,
+      //   unselectedFontSize: 10,
+      //   onTap: (index) {
+      //     setState(() {
+      //       _currentIndex = index;
+      //     });
+      //     if (index == 0) {
+      //       Navigator.pop(context);
+      //     } else if (index == 1) {
+      //       Navigator.pop(context);
+      //     } else if (index == 2) {
+      //       // Sedang di halaman Riwayat
+      //     }
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 20), label: 'Dashboard'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 20), label: 'Lead'),
+      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
+      //   ],
+      // ),
     );
   }
 }

@@ -295,7 +295,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF006B3F),
         elevation: 0,
-        title: const Text("Lead & Pipeline Management",
+        title: const Text("Manajemen Lead & Follow Up",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -599,34 +599,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
           },
         ),
       ),
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   selectedItemColor: const Color(0xFF006B3F),
-      //   unselectedItemColor: const Color(0xFF778195),
-      //   backgroundColor: Colors.white,
-      //   type: BottomNavigationBarType.fixed,
-      //   selectedFontSize: 11,
-      //   unselectedFontSize: 11,
-      //   onTap: (index) {
-      //     setState(() => _currentIndex = index);
-      //     if (index == 0) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardManager()));
-      //     } else if (index == 1) {
-      //       // Berada di Pipeline
-      //     } else if (index == 2) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DaftarKunjunganManagerScreen()));
-      //     } else {
-      //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')));
-      //     }
-      //   },
-      //   items: const [
-      //     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Kunjungan'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Laporan'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.download_rounded), label: 'Eksport'),
-      //   ],
-      // ),
     );
   }
 
