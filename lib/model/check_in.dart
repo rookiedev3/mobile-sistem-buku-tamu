@@ -1,13 +1,15 @@
 class OptionItem {
   final dynamic id;
   final String name;
+  final dynamic branchId;
 
-  OptionItem({required this.id, required this.name});
+  OptionItem({required this.id, required this.name, this.branchId});
 
   factory OptionItem.fromJson(Map<String, dynamic> json) {
     return OptionItem(
       id: json['id'],
       name: json['name'] ?? '',
+      branchId: json['branch_id'],
     );
   }
 }

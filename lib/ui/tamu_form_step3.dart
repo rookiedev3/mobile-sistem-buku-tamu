@@ -63,7 +63,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
             visitId: result.visitId,
             visitCode: result.visitCode,
             queueNumber: result.queueNumber,
-            scheduledAt: step2['scheduled_at'], // 🟢 Optimalisasi: Meneruskan scheduledAt agar tiket tampil instan
+            scheduledAt: step2['scheduled_at'],
           ),
         ),
         (route) => route.isFirst,
@@ -94,10 +94,10 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
       backgroundColor: const Color(0xFFF4F7FC),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 500),
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.all(20.0), // 🟢 Dioptimalkan dari 32 ke 20 agar lebih lega di HP
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -133,19 +133,23 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
                 ),
                 const SizedBox(height: 20),
 
-                // Indikator Tahap (Step 3 dari 4)
-                const Row(
+                // 🟢 Header Indikator Tahap 3 (Bebas Overflow)
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      "Konfirmasi Check-in",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF172033),
+                    const Expanded(
+                      child: Text(
+                        "Konfirmasi Check-in",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF172033),
+                        ),
                       ),
                     ),
-                    Text(
+                    const SizedBox(width: 8),
+                    const Text(
                       "Tahap 3 dari 4",
                       style: TextStyle(
                         fontSize: 13,
@@ -254,6 +258,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
     );
   }
 
+  // 🟢 Penyesuaian Lebar Kolom Label agar Isi Data Memiliki Ruang Lebih Luas
   Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -261,7 +266,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 140,
+            width: 125, // 👈 Disesuaikan dari 140 ke 125 agar nilai teks di sebelah kanan tidak tertekan
             child: Text(
               label,
               style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),

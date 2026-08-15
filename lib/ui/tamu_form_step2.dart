@@ -28,7 +28,9 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
   int? _selectedSumberId;
 
   // List Data Master dari API
-  List<OptionItem> _listStaff = [];
+  List<OptionItem> _allStaff = []; // Master seluruh staff dari API
+  List<OptionItem> _filteredStaff =
+      []; // List staff yang sudah difilter per cabang
   List<OptionItem> _listCabang = [];
   List<OptionItem> _listPurposes = [];
   List<OptionItem> _listProduk = [];
@@ -48,7 +50,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       CheckInMasterData masterData = await CheckInBloc.getFormData();
       if (!mounted) return;
       setState(() {
-        _listStaff = masterData.pics;
+        _allStaff = masterData.pics;
         _listCabang = masterData.branches;
         _listPurposes = masterData.visitPurposes;
         _listProduk = masterData.products;
@@ -97,8 +99,8 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       return;
     }
 
-    // Ambil nama terisolasi untuk ditampilkan di Step 3 (Review/Konfirmasi)
-    String staffName = _listStaff
+    // Ambil nama terisolasi untuk ditampilkan di Step 3
+    String staffName = _allStaff
         .firstWhere(
           (e) => e.id == _selectedStaffId,
           orElse: () => OptionItem(id: 0, name: '-'),
@@ -121,20 +123,20 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
 
     String productName = _selectedProdukId != null
         ? _listProduk
-            .firstWhere(
-              (e) => e.id == _selectedProdukId,
-              orElse: () => OptionItem(id: 0, name: '-'),
-            )
-            .name
+              .firstWhere(
+                (e) => e.id == _selectedProdukId,
+                orElse: () => OptionItem(id: 0, name: '-'),
+              )
+              .name
         : '-';
 
     String sourceName = _selectedSumberId != null
         ? _listSumber
-            .firstWhere(
-              (e) => e.id == _selectedSumberId,
-              orElse: () => OptionItem(id: 0, name: '-'),
-            )
-            .name
+              .firstWhere(
+                (e) => e.id == _selectedSumberId,
+                orElse: () => OptionItem(id: 0, name: '-'),
+              )
+              .name
         : '-';
 
     // Gabungkan data Step 2
@@ -142,12 +144,16 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       'assigned_to': _selectedStaffId,
       'branch_id': _selectedCabangId,
       'purpose_id': _selectedPurposeId,
-      'scheduled_at':
-          _selectedDateTime!.toIso8601String().split('.').first.replaceAll('T', ' '),
+      'scheduled_at': _selectedDateTime!
+          .toIso8601String()
+          .split('.')
+          .first
+          .replaceAll('T', ' '),
       'notes': _detailController.text,
-      'product_interest': _selectedProdukId != null ? [_selectedProdukId!] : <int>[],
+      'product_interest': _selectedProdukId != null
+          ? [_selectedProdukId!]
+          : <int>[],
       'source_id': _selectedSumberId,
-      // Metadata nama untuk tampilan di Step 3
       'staff_name': staffName,
       'branch_name': branchName,
       'purpose_name': purposeName,
@@ -156,14 +162,11 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       'formatted_date': _tanggalController.text,
     };
 
-    // Navigasi ke Step 3 (Konfirmasi & Final Submit)
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TamuFormStep3(
-          step1Data: widget.step1Data,
-          step2Data: step2Data,
-        ),
+        builder: (context) =>
+            TamuFormStep3(step1Data: widget.step1Data, step2Data: step2Data),
       ),
     );
   }
@@ -194,7 +197,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -230,19 +233,23 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Indikator Tahap (Step 2 dari 4)
-                        const Row(
+                        // Header Indikator Tahap 2
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              "Detail Kunjungan Tamu",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF172033),
+                            const Expanded(
+                              child: Text(
+                                "Detail Kunjungan Tamu",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF172033),
+                                ),
                               ),
                             ),
-                            Text(
+                            const SizedBox(width: 8),
+                            const Text(
                               "Tahap 2 dari 4",
                               style: TextStyle(
                                 fontSize: 13,
@@ -262,42 +269,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 24),
 
-                        // 1. Tujuan Bertemu (Staff / PIC)
-                        const Text(
-                          "Tujuan Bertemu (Staff / PIC) *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedStaffId,
-                          hint: const Text(
-                            "Pilih Staff / PIC yang dituju",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listStaff.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedStaffId = val),
-                          validator: (val) =>
-                              val == null ? "Staff/PIC wajib dipilih" : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // 2. Cabang Kantor
+                        // 🟢 1. CABANG KANTOR (DIPINDAH KE ATAS)
                         const Text(
                           "Cabang Kantor *",
                           style: TextStyle(
@@ -307,7 +279,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
-                          initialValue: _selectedCabangId,
+                          value: _selectedCabangId,
                           hint: const Text(
                             "Pilih cabang kantor",
                             style: TextStyle(
@@ -325,10 +297,74 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               ),
                             );
                           }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedCabangId = val),
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCabangId = val;
+                              _selectedStaffId =
+                                  null; // Reset staff terpilih saat cabang berubah
+
+                              // 🟢 Filter staff berdasarkan branch_id yang dipilih
+                              if (val != null) {
+                                _filteredStaff = _allStaff.where((staff) {
+                                  // Jika staff tidak terikat branch_id (null), tampilkan di semua cabang
+                                  // atau cocokkan jika branch_id sama
+                                  return staff.branchId == null ||
+                                      staff.branchId == val;
+                                }).toList();
+                              } else {
+                                _filteredStaff = [];
+                              }
+                            });
+                          },
+                          validator: (val) => val == null
+                              ? "Cabang kantor wajib dipilih"
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 🟢 2. TUJUAN BERTEMU (STAFF / PIC) - TERGANTUNG CABANG
+                        const Text(
+                          "Tujuan Bertemu (Staff / PIC) *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<int>(
+                          isExpanded:
+                              true, // 👈 1. KUNCI PERBAIKAN: Mencegah overflow horizontal
+                          value: _selectedStaffId,
+                          hint: Text(
+                            _selectedCabangId == null
+                                ? "Pilih cabang kantor terlebih dahulu"
+                                : "Pilih Staff / PIC yang dituju",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF778195),
+                            ),
+                            overflow: TextOverflow
+                                .ellipsis, // 👈 2. Potong teks dengan '...' jika layar sangat sempit
+                          ),
+                          decoration: _inputDecoration(),
+                          items: _selectedCabangId == null
+                              ? []
+                              : _filteredStaff.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value:
+                                        int.tryParse(item.id.toString()) ?? 0,
+                                    child: Text(
+                                      item.name,
+                                      style: const TextStyle(fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                          onChanged: _selectedCabangId == null
+                              ? null
+                              : (val) => setState(() => _selectedStaffId = val),
                           validator: (val) =>
-                              val == null ? "Cabang kantor wajib dipilih" : null,
+                              val == null ? "Staff/PIC wajib dipilih" : null,
                         ),
                         const SizedBox(height: 16),
 
@@ -342,7 +378,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
-                          initialValue: _selectedPurposeId,
+                          value: _selectedPurposeId,
                           hint: const Text(
                             "Pilih jenis kunjungan",
                             style: TextStyle(
@@ -362,8 +398,9 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                           }).toList(),
                           onChanged: (val) =>
                               setState(() => _selectedPurposeId = val),
-                          validator: (val) =>
-                              val == null ? "Jenis kunjungan wajib dipilih" : null,
+                          validator: (val) => val == null
+                              ? "Jenis kunjungan wajib dipilih"
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
@@ -377,7 +414,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
-                          initialValue: _selectedProdukId,
+                          value: _selectedProdukId,
                           hint: const Text(
                             "Pilih produk atau layanan",
                             style: TextStyle(
@@ -424,26 +461,38 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               color: Color(0xFF006B3F),
                             ),
                           ),
-                          validator: (val) =>
-                              val == null || val.isEmpty ? "Tanggal kunjungan wajib diisi" : null,
+                          validator: (val) => val == null || val.isEmpty
+                              ? "Tanggal kunjungan wajib diisi"
+                              : null,
                           onTap: () async {
                             DateTime? pickedDate = await showDatePicker(
                               context: context,
                               initialDate: DateTime.now(),
-                              firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 1),
+                              ),
                               lastDate: DateTime(2030),
                             );
                             if (pickedDate != null) {
+                              if (!mounted) return;
+                              TimeOfDay? pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.now(),
+                              );
+
+                              final finalTime = pickedTime ?? TimeOfDay.now();
+                              final selectedDt = DateTime(
+                                pickedDate.year,
+                                pickedDate.month,
+                                pickedDate.day,
+                                finalTime.hour,
+                                finalTime.minute,
+                              );
+
                               setState(() {
-                                _selectedDateTime = DateTime(
-                                  pickedDate.year,
-                                  pickedDate.month,
-                                  pickedDate.day,
-                                  DateTime.now().hour,
-                                  DateTime.now().minute,
-                                );
+                                _selectedDateTime = selectedDt;
                                 _tanggalController.text =
-                                    "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                                    "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year} ${finalTime.hour.toString().padLeft(2, '0')}:${finalTime.minute.toString().padLeft(2, '0')}";
                               });
                             }
                           },
@@ -460,7 +509,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
-                          initialValue: _selectedSumberId,
+                          value: _selectedSumberId,
                           hint: const Text(
                             "Pilih sumber informasi",
                             style: TextStyle(
@@ -503,8 +552,9 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               color: Color(0xFF778195),
                             ),
                           ),
-                          validator: (val) =>
-                              val == null || val.isEmpty ? "Detail kunjungan wajib diisi" : null,
+                          validator: (val) => val == null || val.isEmpty
+                              ? "Detail kunjungan wajib diisi"
+                              : null,
                         ),
                         const SizedBox(height: 28),
 
@@ -544,8 +594,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     return InputDecoration(
       filled: true,
       fillColor: const Color(0xFFF4F7FC),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,

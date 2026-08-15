@@ -238,18 +238,22 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                         ),
                         const SizedBox(height: 20),
 
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              "Check-in Tamu Mandiri",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF172033),
+                            const Expanded(
+                              child: Text(
+                                "Check-in Tamu Mandiri",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF172033),
+                                ),
                               ),
                             ),
-                            Text(
+                            const SizedBox(width: 8),
+                            const Text(
                               "Tahap 1 dari 4",
                               style: TextStyle(
                                 fontSize: 13,
