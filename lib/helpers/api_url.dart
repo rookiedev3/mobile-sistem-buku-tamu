@@ -201,4 +201,110 @@ class ApiUrl {
   static const String checkInStore = '$baseUrl/api/check-in';
 
   static String checkInDetail(int id) => '$baseUrl/api/check-in/$id';
+
+
+
+
+  // ================= PIC (TAMBAHAN BARU) =================
+ 
+  // static const String picDashboard = '$baseUrl/api/pic/dashboard';
+  // static const String picFollowup = '$baseUrl/api/pic/followup';
+  // static const String picRiwayat = '$baseUrl/api/pic/riwayat';
+  // static const String picLeads = '$baseUrl/api/pic/leads';
+  // static String picUpdateStatus(int visitId) => '$baseUrl/api/pic/visits/$visitId/status';
+  // static String picStartMeeting(int visitId) => '$baseUrl/api/pic/visits/$visitId/start-meeting';
+  // static String picCompleteMeeting(int visitId) => '$baseUrl/api/pic/visits/$visitId/complete-meeting';
+  // static String picUpdateFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
+
+  // ================= PIC =================
+  static String picDashboard({
+    String filter = 'all',
+    String vipStatus = 'all',
+    String? keyword,
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/pic/dashboard?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage',
+    );
+    if (keyword != null && keyword.isNotEmpty) {
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    return buffer.toString();
+  }
+
+
+  static String picFollowup({
+    String filter = 'all',
+    String? startDate,
+    String? endDate,
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/pic/followup?filter=$filter&page=$page&per_page=$perPage',
+    );
+    if (startDate != null && startDate.isNotEmpty) {
+      buffer.write('&start_date=$startDate');
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      buffer.write('&end_date=$endDate');
+    }
+    return buffer.toString();
+  }
+
+  static String picRiwayat({
+    String? keyword,
+    String? startDate,
+    String? endDate,
+    String vipStatus = 'all',
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/pic/riwayat?vip_status=$vipStatus&page=$page&per_page=$perPage',
+    );
+    if (keyword != null && keyword.isNotEmpty) {
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    if (startDate != null && startDate.isNotEmpty) {
+      buffer.write('&start_date=$startDate');
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      buffer.write('&end_date=$endDate');
+    }
+    return buffer.toString();
+  }
+//   static String picLeads({String filter = 'active', String vipStatus = 'all', int page = 1, int perPage = 10}) {
+//   return '$baseUrl/api/pic/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage';
+// }
+
+static String picLeadFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
+
+  static String picLeads({
+    String filter = 'active',
+    String vipStatus = 'all',
+    String? startDate,
+    String? endDate,
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/pic/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage',
+    );
+    if (startDate != null && startDate.isNotEmpty) {
+      buffer.write('&start_date=$startDate');
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      buffer.write('&end_date=$endDate');
+    }
+    return buffer.toString();
+  }
+
+  static String picUpdateStatus(int id) => '$baseUrl/api/pic/visits/$id/status';
+  static String picCompleteMeeting(int id) => '$baseUrl/api/pic/visits/$id/complete-meeting';
+  static String picStartMeeting(int id) => '$baseUrl/api/pic/visits/$id/start-meeting';
+  static String picUpdateFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
 }
+
+ 
