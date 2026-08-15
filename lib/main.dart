@@ -13,9 +13,11 @@ import 'ui/admin/daftar_tamu_screen.dart';
 import 'ui/admin/riwayat_screen.dart';
 import 'ui/admin/janji_tamu_screen.dart';
 
-import 'ui/frontoffice/dashboard_fo_screen.dart';
-import 'ui/frontoffice/lead_fo_screen.dart';
-import 'ui/frontoffice/riwayat_fo_screen.dart';
+import 'ui/pic/dashboard_pic_screen.dart';
+import 'ui/pic/lead_pic_screen.dart';
+import 'ui/pic/riwayat_pic_screen.dart';
+import 'ui/pic/main_pic_navigator.dart';
+
 
 import 'ui/owner/dashboard_owner_screen.dart';
 import 'ui/owner/daftar_kunjungan_screen.dart';
@@ -40,7 +42,7 @@ class MainApp extends StatelessWidget {
         primarySwatch: Colors.green,
         fontFamily: 'Plus Jakarta Sans',
       ),
-      home: const MainOwnerNavigator(),
+      home: const HomepageScreen(),
     );
   }
 }
