@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = false; // Variabel state untuk Checkbox "Ingat Saya"
 
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
@@ -203,13 +204,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Judul & Deskripsi (Font diperhalus dan dipercantik)
+                      // Judul & Deskripsi
                       const Center(
                         child: Text(
                           "Login Pegawai",
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w600, // Semi-bold agar tidak kaku
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                             letterSpacing: 0.8,
                           ),
@@ -298,30 +299,67 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
 
-                      // Tombol Lupa Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const ForgotPasswordScreen(),
+                      // Baris Checkbox "Ingat Saya" & Tombol "Lupa Password?"
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Checkbox Ingat Saya
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                  activeColor: const Color(0xFFC7AB6B),
+                                  checkColor: Colors.white,
+                                  side: const BorderSide(color: Colors.white70, width: 1.5),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
                               ),
-                            );
-                          },
-                          child: const Text(
-                            "Lupa Password?",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white70,
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Ingat Saya",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Tombol Lupa Password
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const ForgotPasswordScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              "Lupa Password?",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
 
                       const SizedBox(height: 24),
@@ -332,8 +370,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 48,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                             backgroundColor: const Color(0xFFC7AB6B), // Warna background baru  
-                             foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFFC7AB6B), 
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -396,7 +434,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Tombol "Kembali ke Beranda" dipindah ke paling bawah sendiri
+                      // Tombol Kembali ke Beranda
                       Center(
                         child: GestureDetector(
                           onTap: () => Navigator.pop(context),
