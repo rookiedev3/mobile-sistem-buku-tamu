@@ -86,6 +86,45 @@ class ApiUrl {
     }
     return buffer.toString();
   }
+  // laporan
+   static String managerLaporan() => '$baseUrl/api/manager/laporan';
+
+  static String managerLaporanExportExcel({
+    int? month,
+    int? year,
+    String? category,
+    String? branchId,
+    String? picId,
+  }) {
+    final buffer = StringBuffer('$baseUrl/api/manager/laporan/export-excel?');
+    final params = <String>[];
+    if (month != null) params.add('month=$month');
+    if (year != null) params.add('year=$year');
+    if (category != null && category.isNotEmpty) params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
+    buffer.write(params.join('&'));
+    return buffer.toString();
+  }
+
+  static String managerLaporanExportPdf({
+    int? month,
+    int? year,
+    String? category,
+    String? branchId,
+    String? picId,
+  }) {
+    final buffer = StringBuffer('$baseUrl/api/manager/laporan/export-pdf?');
+    final params = <String>[];
+    if (month != null) params.add('month=$month');
+    if (year != null) params.add('year=$year');
+    if (category != null && category.isNotEmpty) params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
+    buffer.write(params.join('&'));
+    return buffer.toString();
+  }
+
 
   // ================= SECURITY =================
   static String securityDashboard({String? date}) {
