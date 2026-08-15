@@ -2,9 +2,89 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'login_screen.dart';
 import 'tamu_form_step1.dart';
+import 'package:mobile_flutter/helpers/user_info.dart';
+import 'package:mobile_flutter/bloc/me_bloc.dart';
+import 'dashboard_satpam.dart';
+import 'package:mobile_flutter/ui/manager/main_manager_navigator.dart';
+import 'package:mobile_flutter/ui/owner/main_owner_navigator.dart';
+import 'package:mobile_flutter/ui/pic/main_pic_navigator.dart';
+import 'package:mobile_flutter/ui/admin/main_admin_navigator.dart';
 
 class HomepageScreen extends StatelessWidget {
   const HomepageScreen({Key? key}) : super(key: key);
+
+  // ← TAMBAHAN: dipanggil saat tombol "Login Pegawai" ditekan
+  Future<void> _handleTombolLoginPegawai(BuildContext context) async {
+    final rememberMe = await UserInfo().getRememberMe();
+    final token = await UserInfo().getToken();
+
+    // Tidak ada sesi tersimpan → langsung ke LoginScreen seperti biasa
+    if (!rememberMe || token == null || token.isEmpty) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+      return;
+    }
+
+    // Tampilkan loading kecil selagi validasi token ke server
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+
+    try {
+      final user = await MeBloc.getMe(token);
+      if (!context.mounted) return;
+      Navigator.pop(context); // tutup loading dialog
+      _navigateByRole(context, user['role']);
+    } catch (e) {
+      // Token expired/invalid → bersihkan sesi, arahkan ke LoginScreen manual
+      await UserInfo().clearSession();
+      if (!context.mounted) return;
+      Navigator.pop(context); // tutup loading dialog
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
+
+  void _navigateByRole(BuildContext context, String? role) {
+    Widget target;
+    switch (role) {
+      case 'security':
+        target = const DashboardSatpam();
+        break;
+      case 'admin':
+        target = const MainAdminNavigator();
+        break;
+      case 'pic':
+        target = const MainPicNavigator();
+        break;
+      case 'manager':
+        target = const MainManagerNavigator();
+        break;
+      case 'owner':
+        target = const MainOwnerNavigator();
+        break;
+      default:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+        return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => target),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +100,9 @@ class HomepageScreen extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF01281b), // #01281b (0%)
-                  Color(0xFF013220), // #013220 (40%)
-                  Color(0xFF006B3F), // #006B3F (100%)
+                  Color(0xFF01281b),
+                  Color(0xFF013220),
+                  Color(0xFF006B3F),
                 ],
                 stops: [0.0, 0.4, 1.0],
               ),
@@ -36,7 +116,7 @@ class HomepageScreen extends StatelessWidget {
             ),
           ),
 
-          // 3. Card Utama di Tengah
+          // 3. Card Utama di Tengah — SELALU tampil normal, tidak ada pengecekan sesi di sini
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
@@ -57,7 +137,6 @@ class HomepageScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Kotak Logo Perusahaan
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -80,7 +159,6 @@ class HomepageScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
 
-                    // Teks Sapaan / Welcome
                     const Text(
                       "Selamat Datang",
                       style: TextStyle(
@@ -126,31 +204,26 @@ class HomepageScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
 
-                    // Tombol 2: Login Pegawai (Diubah ke ElevatedButton agar warna latar & teks putih konsisten)
+                    // Tombol 2: Login Pegawai — ← DIUBAH: cek sesi dulu sebelum navigasi
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFC7AB6B), // Warna background baru
-                          foregroundColor: Colors.white, // Warna teks putih
+                          backgroundColor: const Color(0xFFC7AB6B),
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                           elevation: 0,
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
-                        },
+                        onPressed: () => _handleTombolLoginPegawai(context), // ← DIUBAH
                         child: const Text(
                           "Login Pegawai",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white, // Teks dipastikan berwarna putih
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -183,12 +256,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
+
       canvas.drawArc(
         rect,
         a['start'] as double,

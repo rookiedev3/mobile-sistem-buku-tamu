@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 import 'package:mobile_flutter/model/pic_model.dart';
 import 'package:mobile_flutter/bloc/pic_bloc.dart';
+import 'package:mobile_flutter/bloc/logout_bloc.dart'; // kalau foldernya "blocs" bukan "bloc"
 
 class DashboardPICScreen extends StatefulWidget {
   const DashboardPICScreen({Key? key}) : super(key: key);
@@ -161,38 +162,34 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     );
   }
 
-  void _konfirmasiLogout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+ void _konfirmasiLogout(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+      content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            elevation: 0,
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomepageScreen()),
-                (route) => false,
-              );
-            },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
-          ),
-        ],
-      ),
-    );
-  }
+          onPressed: () {                     // ← FIX: satu tanda kurung saja
+            Navigator.pop(context);           // ← tutup dialog dulu
+            LogoutBloc.keluarKeHomepage(context);
+          },
+          child: const Text("Keluar", style: TextStyle(fontSize: 10)), // ← FIX: tambahkan child
+        ),
+      ],
+    ),
+  );
+}
 
   void _showCatatanDialog(BuildContext context, String? catatan) {
     showDialog(

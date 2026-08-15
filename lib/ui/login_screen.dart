@@ -25,6 +25,26 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _rememberMe = false; // Variabel state untuk Checkbox "Ingat Saya"
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail(); // ← TAMBAHAN: autofill email kalau sebelumnya "Ingat Saya" dicentang
+  }
+
+  // ← TAMBAHAN: ambil email tersimpan dari UserInfo jika remember_me sebelumnya true
+  Future<void> _loadSavedEmail() async {
+    final remembered = await UserInfo().getRememberMe();
+    if (remembered) {
+      final savedEmail = await UserInfo().getSavedEmail();
+      if (savedEmail != null && mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          _rememberMe = true;
+        });
+      }
+    }
+  }
+
   Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -44,10 +64,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await LoginBloc.login(
         email: email,
         password: password,
+        remember: _rememberMe, // ← TAMBAHAN: kirim flag remember ke bloc
       );
 
       await UserInfo().setToken(result.token ?? '');
       await UserInfo().setUserId(result.userID ?? 0);
+      await UserInfo().setRememberMe(_rememberMe, email: email); // ← TAMBAHAN
 
       if (!mounted) return;
 
@@ -370,7 +392,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 48,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFC7AB6B), 
+                            backgroundColor: const Color(0xFFC7AB6B),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -488,12 +510,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
+
       canvas.drawArc(
         rect,
         a['start'] as double,
