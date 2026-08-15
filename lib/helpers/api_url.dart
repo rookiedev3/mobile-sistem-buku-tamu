@@ -6,6 +6,7 @@ class ApiUrl {
   static const String login = '$baseUrl/api/login';
   static const String logout = '$baseUrl/api/logout';
   static const String me = '$baseUrl/api/me';
+  static const String forgotPassword = '$baseUrl/api/forgot-password';
 
   // ================= PRODUK =================
   static const String listProduk = '$baseUrl/api/products';
