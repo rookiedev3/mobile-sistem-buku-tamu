@@ -82,6 +82,14 @@ static String deleteGuestCategory(int id) => '$baseUrl/api/guest-categories/$id'
   }
   return buffer.toString();
 }
+static String ownerLeadsPipeline(String filter, String vipStatus, {String? keyword, int page = 1}) {
+    final buffer = StringBuffer('$baseUrl/api/owner/leads?filter=$filter&vip_status=$vipStatus&page=$page');
+    if (keyword != null && keyword.isNotEmpty) {
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    return buffer.toString();
+  }
+  
 
   // ================= SECURITY =================
 static String securityDashboard({String? date}) {
