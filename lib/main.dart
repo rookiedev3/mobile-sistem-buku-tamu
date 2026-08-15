@@ -26,6 +26,8 @@ import 'ui/owner/lead_screen.dart';
 import 'ui/owner/laporan_screen.dart';
 import 'ui/owner/main_owner_navigator.dart';
 
+import 'splash_screen.dart'; // Impor file splash screen
+
 void main() {
   runApp(const MainApp());
 }
