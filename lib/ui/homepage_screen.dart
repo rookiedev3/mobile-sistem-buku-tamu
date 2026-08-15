@@ -42,7 +42,7 @@ class HomepageScreen extends StatelessWidget {
               padding: const EdgeInsets.all(24.0),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 420),
-                padding: const EdgeInsets.all(32.0),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 36.0),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -57,31 +57,45 @@ class HomepageScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Ikon / Logo Perusahaan
+                    // Kotak Logo Perusahaan
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF013220),
-                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.business_center, color: Colors.white, size: 40),
+                      child: Image.asset(
+                        'assets/images/logo_perusahaan.jpg',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
 
-                    // Judul
+                    // Teks Sapaan / Welcome
                     const Text(
-                      "Buku Tamu Digital",
+                      "Selamat Datang",
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF172033),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF006B3F),
+                        letterSpacing: 0.8,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     const Text(
                       "Silakan pilih jenis akses masuk Anda di bawah ini.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
+                      style: TextStyle(fontSize: 12.5, color: Color(0xFF778195)),
                     ),
                     const SizedBox(height: 32),
 
@@ -110,18 +124,20 @@ class HomepageScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Tombol 2: Login Pegawai
+                    // Tombol 2: Login Pegawai (Diubah ke ElevatedButton agar warna latar & teks putih konsisten)
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF006B3F)),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFC7AB6B), // Warna background baru
+                          foregroundColor: Colors.white, // Warna teks putih
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          elevation: 0,
                         ),
                         onPressed: () {
                           Navigator.push(
@@ -134,7 +150,7 @@ class HomepageScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF006B3F),
+                            color: Colors.white, // Teks dipastikan berwarna putih
                           ),
                         ),
                       ),
@@ -156,9 +172,8 @@ class BackgroundArcsPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0; // Ketebalan garis tunggal yang pas
+      ..strokeWidth = 2.0;
 
-    // List posisi, ukuran jari-jari (radius), dan sudut lengkung (sweepAngle)
     final arcs = [
       {'x': size.width * 0.15, 'y': size.height * 0.2, 'r': 110.0, 'start': 0.0, 'sweep': math.pi, 'opacity': 0.12},
       {'x': size.width * 0.85, 'y': size.height * 0.3, 'r': 150.0, 'start': math.pi / 2, 'sweep': math.pi * 1.2, 'opacity': 0.08},
@@ -174,7 +189,6 @@ class BackgroundArcsPainter extends CustomPainter {
         radius: a['r'] as double,
       );
       
-      // Menggambar busur setengah lingkaran / arc tunggal
       canvas.drawArc(
         rect,
         a['start'] as double,
