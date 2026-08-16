@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/helpers/user_info.dart';
 import 'app_exception.dart';
 
@@ -88,7 +89,7 @@ class Api {
   Future<dynamic> postMultipart(
     String url,
     Map<String, String> fields, {
-    File? file,
+    XFile? file,
     String fileParamName = 'photo_path',
   }) async {
     var token = await UserInfo().getToken();
@@ -97,27 +98,32 @@ class Api {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(url));
 
-      // Set Header Authorization & Accept
+      // Set Header Authorization & Accept (Menggunakan String biasa)
       request.headers.addAll({
-        HttpHeaders.authorizationHeader: "Bearer $token",
+        "Authorization": "Bearer $token",
         "Accept": "application/json",
       });
 
       // Tambahkan Text Fields
       request.fields.addAll(fields);
 
-      // Tambahkan File Gambar jika ada
+      // Tambahkan File Gambar via Bytes jika ada
       if (file != null) {
+        final bytes = await file.readAsBytes(); // 👈 Membaca data byte memori (Aman untuk Chrome & Mobile)
         request.files.add(
-          await http.MultipartFile.fromPath(fileParamName, file.path),
+          http.MultipartFile.fromBytes(
+            fileParamName,
+            bytes,
+            filename: file.name.isNotEmpty ? file.name : 'upload.jpg',
+          ),
         );
       }
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       responseJson = _returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } catch (e) {
+      throw FetchDataException('No Internet Connection or Upload Error');
     }
     return responseJson;
   }

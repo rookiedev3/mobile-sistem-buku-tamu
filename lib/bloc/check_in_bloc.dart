@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:mobile_flutter/helpers/api.dart';
 import 'package:mobile_flutter/helpers/api_url.dart';
 import 'package:mobile_flutter/model/check_in.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CheckInBloc {
   /// 1. GET /api/check-in/form-data
@@ -81,7 +81,7 @@ class CheckInBloc {
     required String scheduledAt,
     required String notes,
     String? address,
-    File? photoFile,
+    XFile? photoFile,
     List<int>? productInterest,
     int? sourceId,
   }) async {

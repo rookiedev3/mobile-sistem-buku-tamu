@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
@@ -24,7 +24,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
   String? _selectedKategoriId;
   List<OptionItem> _listKategori = [];
-  File? _photoFile;
+  XFile? _photoFile; // 🟢 UBAH: Menggunakan XFile? agar aman untuk Web & Mobile
 
   bool _isLoadingData = true;
   bool _isSubmitting = false;
@@ -70,14 +70,14 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
       if (pickedFile != null) {
         setState(() {
-          _photoFile = File(pickedFile.path);
+          _photoFile = pickedFile; // 🟢 UBAH: Simpan langsung sebagai XFile
         });
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil gambar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
     }
   }
 
@@ -100,7 +100,10 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library, color: Color(0xFF006B3F)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFF006B3F),
+                ),
                 title: const Text('Pilih dari Galeri'),
                 onTap: () {
                   Navigator.pop(context);
@@ -154,7 +157,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
         'guest_category_id': _selectedKategoriId,
         'position': _jabatanController.text,
         'phone': _whatsappController.text,
-        'photo_file': _photoFile,
+        'photo_file': _photoFile, // 🟢 Meneruskan XFile? ke Step 2 & 3
       };
 
       Navigator.push(
@@ -169,10 +172,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
         _isSubmitting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
       );
     }
   }
@@ -223,7 +223,11 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.arrow_back_ios, size: 14, color: Color(0xFF006B3F)),
+                              Icon(
+                                Icons.arrow_back_ios,
+                                size: 14,
+                                color: Color(0xFF006B3F),
+                              ),
                               SizedBox(width: 4),
                               Text(
                                 "Kembali ke Beranda",
@@ -266,7 +270,10 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                         const SizedBox(height: 6),
                         const Text(
                           "Silakan isi data diri dan unggah foto Anda terlebih dahulu.",
-                          style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF778195),
+                          ),
                         ),
                         const SizedBox(height: 24),
 
@@ -282,31 +289,28 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                                     color: const Color(0xFFF4F7FC),
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: const Color(0xFF006B3F).withOpacity(0.3),
+                                      color: const Color(
+                                        0xFF006B3F,
+                                      ).withOpacity(0.3),
                                       width: 2,
                                     ),
-                                    image: _photoFile != null
-                                        ? DecorationImage(
-                                            image: FileImage(_photoFile!),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
                                   ),
-                                  child: _photoFile == null
-                                      ? const Icon(
-                                          Icons.camera_alt_outlined,
-                                          size: 36,
-                                          color: Color(0xFF006B3F),
-                                        )
-                                      : null,
+                                  // 🟢 UBAH: Menampilkan preview gambar XFile dengan FutureBuilder & MemoryImage
+                                  child: ClipOAuth(photoFile: _photoFile),
                                 ),
                               ),
                               const SizedBox(height: 8),
                               TextButton.icon(
                                 onPressed: _showImagePickerModal,
-                                icon: const Icon(Icons.upload, size: 16, color: Color(0xFF006B3F)),
+                                icon: const Icon(
+                                  Icons.upload,
+                                  size: 16,
+                                  color: Color(0xFF006B3F),
+                                ),
                                 label: Text(
-                                  _photoFile == null ? "Unggah Foto Tamu" : "Ubah Foto Tamu",
+                                  _photoFile == null
+                                      ? "Unggah Foto Tamu"
+                                      : "Ubah Foto Tamu",
                                   style: const TextStyle(
                                     color: Color(0xFF006B3F),
                                     fontWeight: FontWeight.bold,
@@ -318,78 +322,142 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Nama Lengkap *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Nama Lengkap *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _namaController,
-                          decoration: _inputDecoration("Masukkan nama lengkap Anda"),
-                          validator: (val) => val == null || val.isEmpty ? "Nama wajib diisi" : null,
+                          decoration: _inputDecoration(
+                            "Masukkan nama lengkap Anda",
+                          ),
+                          validator: (val) => val == null || val.isEmpty
+                              ? "Nama wajib diisi"
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Asal Instansi / Perusahaan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Asal Instansi / Perusahaan *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _instansiController,
                           decoration: _inputDecoration("Contoh: PT Maju Jaya"),
-                          validator: (val) => val == null || val.isEmpty ? "Instansi wajib diisi" : null,
+                          validator: (val) => val == null || val.isEmpty
+                              ? "Instansi wajib diisi"
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Alamat", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Alamat",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _alamatController,
-                          decoration: _inputDecoration("Alamat instansi atau domisili"),
+                          decoration: _inputDecoration(
+                            "Alamat instansi atau domisili",
+                          ),
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Jabatan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Jabatan *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _jabatanController,
-                          decoration: _inputDecoration("Contoh: Manager / Staff / Tamu"),
-                          validator: (val) => val == null || val.isEmpty ? "Jabatan wajib diisi" : null,
+                          decoration: _inputDecoration(
+                            "Contoh: Manager / Staff / Tamu",
+                          ),
+                          validator: (val) => val == null || val.isEmpty
+                              ? "Jabatan wajib diisi"
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Nomor WhatsApp *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Nomor WhatsApp *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _whatsappController,
                           keyboardType: TextInputType.phone,
                           decoration: _inputDecoration("081234567890"),
-                          validator: (val) => val == null || val.isEmpty ? "No WhatsApp wajib diisi" : null,
+                          validator: (val) => val == null || val.isEmpty
+                              ? "No WhatsApp wajib diisi"
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Email *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Email *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
                           decoration: _inputDecoration("email@domain.com"),
                           validator: (val) {
-                            if (val == null || val.isEmpty) return "Email wajib diisi";
-                            if (!val.contains('@')) return "Format email tidak valid";
+                            if (val == null || val.isEmpty)
+                              return "Email wajib diisi";
+                            if (!val.contains('@'))
+                              return "Format email tidak valid";
                             return null;
                           },
                         ),
                         const SizedBox(height: 16),
 
-                        const Text("Kategori Pengunjung *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Kategori Pengunjung *",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
                           initialValue: _selectedKategoriId,
                           hint: const Text(
                             "Pilih kategori pengunjung",
-                            style: TextStyle(fontSize: 14, color: Color(0xFF778195)),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF778195),
+                            ),
                           ),
                           decoration: _inputDecoration(""),
                           items: _listKategori.map((OptionItem item) {
                             return DropdownMenuItem<String>(
                               value: item.id.toString(),
-                              child: Text(item.name, style: const TextStyle(fontSize: 14)),
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                             );
                           }).toList(),
                           onChanged: (String? val) {
@@ -451,6 +519,43 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
       ),
+    );
+  }
+}
+
+/// 🟢 Widget Helper untuk Preview Foto XFile
+class ClipOAuth extends StatelessWidget {
+  final XFile? photoFile;
+
+  const ClipOAuth({super.key, this.photoFile});
+
+  @override
+  Widget build(BuildContext context) {
+    if (photoFile == null) {
+      return const Icon(
+        Icons.camera_alt_outlined,
+        size: 36,
+        color: Color(0xFF006B3F),
+      );
+    }
+
+    return FutureBuilder<Uint8List>(
+      future: photoFile!.readAsBytes(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return ClipOval(
+            child: Image.memory(
+              snapshot.data!,
+              fit: BoxFit.cover,
+              width: 100,
+              height: 100,
+            ),
+          );
+        }
+        return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF006B3F)),
+        );
+      },
     );
   }
 }

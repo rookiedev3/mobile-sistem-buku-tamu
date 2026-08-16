@@ -29,8 +29,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
 
   // List Data Master dari API
   List<OptionItem> _allStaff = []; // Master seluruh staff dari API
-  List<OptionItem> _filteredStaff =
-      []; // List staff yang sudah difilter per cabang
+  List<OptionItem> _filteredStaff = []; // List staff yang sudah difilter per cabang
   List<OptionItem> _listCabang = [];
   List<OptionItem> _listPurposes = [];
   List<OptionItem> _listProduk = [];
@@ -123,20 +122,20 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
 
     String productName = _selectedProdukId != null
         ? _listProduk
-              .firstWhere(
-                (e) => e.id == _selectedProdukId,
-                orElse: () => OptionItem(id: 0, name: '-'),
-              )
-              .name
+            .firstWhere(
+              (e) => e.id == _selectedProdukId,
+              orElse: () => OptionItem(id: 0, name: '-'),
+            )
+            .name
         : '-';
 
     String sourceName = _selectedSumberId != null
         ? _listSumber
-              .firstWhere(
-                (e) => e.id == _selectedSumberId,
-                orElse: () => OptionItem(id: 0, name: '-'),
-              )
-              .name
+            .firstWhere(
+              (e) => e.id == _selectedSumberId,
+              orElse: () => OptionItem(id: 0, name: '-'),
+            )
+            .name
         : '-';
 
     // Gabungkan data Step 2
@@ -188,16 +187,16 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
             )
           : Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(32.0),
+                  padding: const EdgeInsets.all(20.0), // 🟢 Dioptimalkan dari 32 ke 20
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
+                        color: Colors.black.withOpacity(0.04),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -269,7 +268,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 24),
 
-                        // 🟢 1. CABANG KANTOR (DIPINDAH KE ATAS)
+                        // 1. CABANG KANTOR
                         const Text(
                           "Cabang Kantor *",
                           style: TextStyle(
@@ -279,6 +278,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
+                          isExpanded: true, // 🟢 Mencegah overflow
                           value: _selectedCabangId,
                           hint: const Text(
                             "Pilih cabang kantor",
@@ -286,6 +286,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               fontSize: 13,
                               color: Color(0xFF778195),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           decoration: _inputDecoration(),
                           items: _listCabang.map((OptionItem item) {
@@ -294,20 +295,18 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               child: Text(
                                 item.name,
                                 style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
                           onChanged: (val) {
                             setState(() {
                               _selectedCabangId = val;
-                              _selectedStaffId =
-                                  null; // Reset staff terpilih saat cabang berubah
+                              _selectedStaffId = null; // Reset staff terpilih saat cabang berubah
 
-                              // 🟢 Filter staff berdasarkan branch_id yang dipilih
+                              // Filter staff berdasarkan branch_id yang dipilih
                               if (val != null) {
                                 _filteredStaff = _allStaff.where((staff) {
-                                  // Jika staff tidak terikat branch_id (null), tampilkan di semua cabang
-                                  // atau cocokkan jika branch_id sama
                                   return staff.branchId == null ||
                                       staff.branchId == val;
                                 }).toList();
@@ -322,7 +321,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 🟢 2. TUJUAN BERTEMU (STAFF / PIC) - TERGANTUNG CABANG
+                        // 2. TUJUAN BERTEMU (STAFF / PIC)
                         const Text(
                           "Tujuan Bertemu (Staff / PIC) *",
                           style: TextStyle(
@@ -332,8 +331,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
-                          isExpanded:
-                              true, // 👈 1. KUNCI PERBAIKAN: Mencegah overflow horizontal
+                          isExpanded: true, // 🟢 Mencegah overflow
                           value: _selectedStaffId,
                           hint: Text(
                             _selectedCabangId == null
@@ -343,16 +341,14 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               fontSize: 13,
                               color: Color(0xFF778195),
                             ),
-                            overflow: TextOverflow
-                                .ellipsis, // 👈 2. Potong teks dengan '...' jika layar sangat sempit
+                            overflow: TextOverflow.ellipsis,
                           ),
                           decoration: _inputDecoration(),
                           items: _selectedCabangId == null
                               ? []
                               : _filteredStaff.map((OptionItem item) {
                                   return DropdownMenuItem<int>(
-                                    value:
-                                        int.tryParse(item.id.toString()) ?? 0,
+                                    value: int.tryParse(item.id.toString()) ?? 0,
                                     child: Text(
                                       item.name,
                                       style: const TextStyle(fontSize: 14),
@@ -368,7 +364,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 3. Jenis Kunjungan (Visit Purpose)
+                        // 3. JENIS KUNJUNGAN
                         const Text(
                           "Jenis Kunjungan *",
                           style: TextStyle(
@@ -378,6 +374,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
+                          isExpanded: true, // 🟢 Mencegah overflow
                           value: _selectedPurposeId,
                           hint: const Text(
                             "Pilih jenis kunjungan",
@@ -385,6 +382,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               fontSize: 13,
                               color: Color(0xFF778195),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           decoration: _inputDecoration(),
                           items: _listPurposes.map((OptionItem item) {
@@ -393,6 +391,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               child: Text(
                                 item.name,
                                 style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -404,7 +403,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 4. Produk / Layanan yang Diminati
+                        // 4. PRODUK / LAYANAN YANG DIMINATI
                         const Text(
                           "Produk / Layanan yang Diminati",
                           style: TextStyle(
@@ -414,6 +413,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
+                          isExpanded: true, // 🟢 Mencegah overflow
                           value: _selectedProdukId,
                           hint: const Text(
                             "Pilih produk atau layanan",
@@ -421,6 +421,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               fontSize: 13,
                               color: Color(0xFF778195),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           decoration: _inputDecoration(),
                           items: _listProduk.map((OptionItem item) {
@@ -429,6 +430,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               child: Text(
                                 item.name,
                                 style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -437,7 +439,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 5. Tanggal Kunjungan
+                        // 5. TANGGAL KUNJUNGAN
                         const Text(
                           "Tanggal Kunjungan *",
                           style: TextStyle(
@@ -499,7 +501,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 6. Sumber Mengetahui IT Solution
+                        // 6. SUMBER MENGETAHUI IT SOLUTION
                         const Text(
                           "Sumber Mengetahui IT Solution",
                           style: TextStyle(
@@ -509,6 +511,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<int>(
+                          isExpanded: true, // 🟢 Mencegah overflow
                           value: _selectedSumberId,
                           hint: const Text(
                             "Pilih sumber informasi",
@@ -516,6 +519,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               fontSize: 13,
                               color: Color(0xFF778195),
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           decoration: _inputDecoration(),
                           items: _listSumber.map((OptionItem item) {
@@ -524,6 +528,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                               child: Text(
                                 item.name,
                                 style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             );
                           }).toList(),
@@ -532,7 +537,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
                         ),
                         const SizedBox(height: 16),
 
-                        // 7. Detail Kunjungan (Notes)
+                        // 7. DETAIL KUNJUNGAN (NOTES)
                         const Text(
                           "Detail Kunjungan *",
                           style: TextStyle(

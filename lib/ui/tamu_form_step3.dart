@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
 import 'package:mobile_flutter/model/check_in.dart';
 import 'tamu_form_step4.dart';
@@ -39,7 +40,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
         position: step1['position'] ?? '',
         phone: step1['phone'] ?? '',
         address: step1['address'],
-        photoFile: step1['photo_file'] as File?,
+        photoFile: step1['photo_file'] as XFile?,
         assignedTo: step2['assigned_to'] ?? 0,
         branchId: step2['branch_id'] ?? 0,
         purposeId: step2['purpose_id'] ?? 0,
@@ -88,7 +89,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
   Widget build(BuildContext context) {
     final step1 = widget.step1Data ?? {};
     final step2 = widget.step2Data ?? {};
-    final photoFile = step1['photo_file'] as File?;
+    final photoFile = step1['photo_file'] as XFile?;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
@@ -97,13 +98,13 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 500),
-            padding: const EdgeInsets.all(20.0), // 🟢 Dioptimalkan dari 32 ke 20 agar lebih lega di HP
+            padding: const EdgeInsets.all(20.0),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withOpacity(0.04),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
@@ -133,7 +134,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
                 ),
                 const SizedBox(height: 20),
 
-                // 🟢 Header Indikator Tahap 3 (Bebas Overflow)
+                // Header Indikator Tahap 3
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -166,19 +167,35 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- RINGKASAN FOTO & IDENTITAS ---
+                // RINGKASAN FOTO & IDENTITAS (Memperbaiki FutureBuilder)
                 if (photoFile != null)
                   Center(
-                    child: Container(
-                      width: 90,
-                      height: 90,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        image: DecorationImage(
-                          image: FileImage(photoFile),
-                          fit: BoxFit.cover,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: FutureBuilder<Uint8List>(
+                        future: photoFile.readAsBytes(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            return ClipOval(
+                              child: Image.memory(
+                                snapshot.data!,
+                                width: 90,
+                                height: 90,
+                                fit: BoxFit.cover,
+                              ),
+                            );
+                          }
+                          return const SizedBox(
+                            width: 90,
+                            height: 90,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF006B3F),
+                                strokeWidth: 2,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -258,7 +275,6 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
     );
   }
 
-  // 🟢 Penyesuaian Lebar Kolom Label agar Isi Data Memiliki Ruang Lebih Luas
   Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -266,7 +282,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 125, // 👈 Disesuaikan dari 140 ke 125 agar nilai teks di sebelah kanan tidak tertekan
+            width: 125,
             child: Text(
               label,
               style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
