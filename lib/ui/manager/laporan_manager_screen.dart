@@ -18,8 +18,18 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
   String _selectedBulan = 'Agustus';
   String _selectedTahun = '2026';
   String _selectedKategori = 'Semua Kategori'; // VIP / Reguler
-  String _selectedCabang = 'Semua Cabang';
-  String _selectedPic = 'Semua PIC';
+
+  // Cabang & PIC sekarang disimpan sebagai ID (string), bukan nama,
+  // karena LaporanBloc.fetch/export butuh branch_id & pic_id (angka).
+  // '' berarti "Semua Cabang" / "Semua PIC".
+  String _selectedCabangId = '';
+  String _selectedPicId = '';
+
+  // Pagination: halaman aktif (1-based) & jumlah baris per halaman.
+  // perPage harus salah satu dari whitelist di PicApiController@laporan:
+  // [10, 15, 25, 50, 100].
+  int _currentPage = 1;
+  final int _perPage = 15;
 
   final List<String> _bulanList = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -28,8 +38,10 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
   final List<String> _tahunList = ['2025', '2026', '2027'];
   final List<String> _kategoriList = ['Semua Kategori', 'VIP', 'Reguler'];
 
-  List<String> _cabangList = ['Semua Cabang'];
-  List<String> _picList = ['Semua PIC'];
+  // Daftar opsi cabang/PIC (id + nama), diisi dari options.branches &
+  // options.pic_users hasil response API.
+  List<OptionItem> _cabangList = [];
+  List<OptionItem> _picList = [];
 
   // Samain dengan $leadBadges di web (leads.status -> badge)
   static const Map<String, Map<String, dynamic>> _leadBadges = {
@@ -64,12 +76,27 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
         category: _selectedKategori == 'Semua Kategori'
             ? ''
             : _selectedKategori.toLowerCase(),
+        branchId: _selectedCabangId,
+        picId: _selectedPicId,
+        page: _currentPage,
+        perPage: _perPage,
       );
 
       setState(() {
         _laporanResponse = result;
-        _cabangList = ['Semua Cabang', ...result.branches.map((b) => b.name)];
-        _picList = ['Semua PIC', ...result.picUsers.map((p) => p.name)];
+        _cabangList = result.branches;
+        _picList = result.picUsers;
+
+        // Kalau cabang/PIC yang lagi dipilih ternyata sudah tidak ada di
+        // daftar opsi terbaru (mis. ganti bulan), reset ke "Semua".
+        if (_selectedCabangId.isNotEmpty &&
+            !_cabangList.any((b) => b.id.toString() == _selectedCabangId)) {
+          _selectedCabangId = '';
+        }
+        if (_selectedPicId.isNotEmpty &&
+            !_picList.any((p) => p.id.toString() == _selectedPicId)) {
+          _selectedPicId = '';
+        }
       });
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
@@ -84,8 +111,9 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
       _selectedBulan = 'Agustus';
       _selectedTahun = '2026';
       _selectedKategori = 'Semua Kategori';
-      _selectedCabang = 'Semua Cabang';
-      _selectedPic = 'Semua PIC';
+      _selectedCabangId = '';
+      _selectedPicId = '';
+      _currentPage = 1;
     });
     _fetchLaporan();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -95,6 +123,7 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
 
   // Aksi Tampilkan Preview -> ambil ulang data dari API sesuai filter aktif
   void _tampilkanPreview() {
+    _currentPage = 1;
     _fetchLaporan();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Menampilkan laporan periode $_selectedBulan $_selectedTahun..."), backgroundColor: corporateGreen, duration: const Duration(milliseconds: 800)),
@@ -110,11 +139,13 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
         month: bulanIndex,
         year: int.parse(_selectedTahun),
         category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+        branchId: _selectedCabangId,
+        picId: _selectedPicId,
       );
       newTab.location.href = fileUrl; // baru arahkan setelah URL didapat -> auto download
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
+          const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
         );
       }
     } catch (e) {
@@ -136,11 +167,13 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
         month: bulanIndex,
         year: int.parse(_selectedTahun),
         category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+        branchId: _selectedCabangId,
+        picId: _selectedPicId,
       );
       newTab.location.href = fileUrl;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
+          const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
         );
       }
     } catch (e) {
@@ -221,21 +254,19 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allData = _laporanResponse?.data ?? <LaporanItem>[];
+    // Data halaman aktif langsung dari API — kategori/cabang/PIC sudah
+    // difilter di backend lewat LaporanBloc.fetch(), jadi tidak perlu
+    // difilter ulang di client (dulu ini bug: filter ulang dari data yang
+    // sudah kepotong pagination, hasilnya salah).
+    final List<LaporanItem> laporanRows = _laporanResponse?.data ?? <LaporanItem>[];
 
-    // Filter tambahan di client (kategori VIP/Reguler, cabang, PIC)
-    final List<LaporanItem> filteredLaporan = allData.where((item) {
-      final matchKategori = _selectedKategori == 'Semua Kategori' ||
-          item.kategoriLabel == _selectedKategori;
-      final matchCabang = _selectedCabang == 'Semua Cabang' ||
-          item.branchName == _selectedCabang;
-      final matchPic = _selectedPic == 'Semua PIC' || item.picName == _selectedPic;
-      return matchKategori && matchCabang && matchPic;
-    }).toList();
-
-    final int totalKunjungan = filteredLaporan.length;
-    final int totalDeal = filteredLaporan.where((i) => i.status == 'Deal').length;
-    final int totalVip = filteredLaporan.where((i) => i.isVip).length;
+    // 4 card statistik WAJIB pakai summary dari backend (dihitung dari
+    // seluruh data bulan itu, bukan cuma halaman aktif). Sebelumnya
+    // totalKunjungan/totalDeal/totalVip salah karena dihitung dari
+    // filteredLaporan (cuma 1 halaman).
+    final int totalKunjungan = _laporanResponse?.summary.totalKunjungan ?? 0;
+    final int totalDeal = _laporanResponse?.summary.totalDeal ?? 0;
+    final int totalVip = _laporanResponse?.summary.totalVip ?? 0;
     final double avgDurasi = _laporanResponse?.summary.avgDuration ?? 0;
 
     return Scaffold(
@@ -309,7 +340,10 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                                 onChanged: _isLoading
                                     ? null
                                     : (val) {
-                                        setState(() => _selectedBulan = val!);
+                                        setState(() {
+                                          _selectedBulan = val!;
+                                          _currentPage = 1;
+                                        });
                                         _fetchLaporan();
                                       },
                               ),
@@ -331,7 +365,10 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                                 onChanged: _isLoading
                                     ? null
                                     : (val) {
-                                        setState(() => _selectedTahun = val!);
+                                        setState(() {
+                                          _selectedTahun = val!;
+                                          _currentPage = 1;
+                                        });
                                         _fetchLaporan();
                                       },
                               ),
@@ -356,7 +393,15 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                                 isDense: true,
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
                                 items: _kategoriList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                                onChanged: (val) => setState(() => _selectedKategori = val!),
+                                onChanged: _isLoading
+                                    ? null
+                                    : (val) {
+                                        setState(() {
+                                          _selectedKategori = val!;
+                                          _currentPage = 1;
+                                        });
+                                        _fetchLaporan();
+                                      },
                               ),
                             ),
                           ),
@@ -369,11 +414,24 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                             decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: _selectedCabang,
+                                value: _selectedCabangId,
                                 isDense: true,
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
-                                items: _cabangList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                                onChanged: _isLoading ? null : (val) => setState(() => _selectedCabang = val!),
+                                items: [
+                                  const DropdownMenuItem(value: '', child: Text('Semua Cabang')),
+                                  ..._cabangList.map(
+                                    (b) => DropdownMenuItem(value: b.id.toString(), child: Text(b.name)),
+                                  ),
+                                ],
+                                onChanged: _isLoading
+                                    ? null
+                                    : (val) {
+                                        setState(() {
+                                          _selectedCabangId = val ?? '';
+                                          _currentPage = 1;
+                                        });
+                                        _fetchLaporan();
+                                      },
                               ),
                             ),
                           ),
@@ -392,11 +450,24 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                             decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
-                                value: _selectedPic,
+                                value: _selectedPicId,
                                 isDense: true,
                                 style: const TextStyle(fontSize: 10, color: Color(0xFF172033)),
-                                items: _picList.map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
-                                onChanged: _isLoading ? null : (val) => setState(() => _selectedPic = val!),
+                                items: [
+                                  const DropdownMenuItem(value: '', child: Text('Semua PIC')),
+                                  ..._picList.map(
+                                    (p) => DropdownMenuItem(value: p.id.toString(), child: Text(p.name)),
+                                  ),
+                                ],
+                                onChanged: _isLoading
+                                    ? null
+                                    : (val) {
+                                        setState(() {
+                                          _selectedPicId = val ?? '';
+                                          _currentPage = 1;
+                                        });
+                                        _fetchLaporan();
+                                      },
                               ),
                             ),
                           ),
@@ -474,6 +545,15 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                         Text("$_selectedBulan $_selectedTahun", style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: corporateGreen)),
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    // Info halaman aktif, karena tabel di bawah hanya
+                    // menampilkan 1 halaman (meta.current_page dari
+                    // meta.last_page), bukan seluruh data bulan itu.
+                    if (_laporanResponse != null)
+                      Text(
+                        "Menampilkan halaman ${_laporanResponse!.currentPage} dari ${_laporanResponse!.lastPage} (total ${_laporanResponse!.total} kunjungan)",
+                        style: const TextStyle(fontSize: 8.5, color: Colors.grey),
+                      ),
                     const SizedBox(height: 8),
 
                     if (_isLoading)
@@ -492,7 +572,7 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                           ],
                         ),
                       )
-                    else if (filteredLaporan.isEmpty)
+                    else if (laporanRows.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(15.0),
                         child: Center(child: Text("Tidak ada data laporan untuk filter ini.", style: TextStyle(fontSize: 10, color: Colors.grey))),
@@ -514,10 +594,19 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                             DataColumn(label: Text('Catatan Hasil', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                             DataColumn(label: Text('Status', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))),
                           ],
-                          rows: List.generate(filteredLaporan.length, (index) {
-                            final item = filteredLaporan[index];
+                          rows: List.generate(laporanRows.length, (index) {
+                            final item = laporanRows[index];
+                            // Nomor urut mengikuti halaman aktif. PENTING:
+                            // pakai perPage ASLI dari response backend
+                            // (_laporanResponse.perPage), bukan _perPage
+                            // yang cuma nilai yang KITA KIRIM ke backend —
+                            // dulu bug-nya karena dua nilai ini bisa beda
+                            // kalau backend override/pakai default lain.
+                            final nomor = _laporanResponse != null
+                                ? ((_laporanResponse!.currentPage - 1) * _laporanResponse!.perPage) + index + 1
+                                : index + 1;
                             return DataRow(cells: [
-                              DataCell(Text((index + 1).toString(), style: const TextStyle(fontSize: 9))),
+                              DataCell(Text(nomor.toString(), style: const TextStyle(fontSize: 9))),
                               DataCell(Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -531,7 +620,27 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(item.guestName ?? '-', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(item.guestName ?? '-', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                      if (item.isVip) ...[
+                                        const SizedBox(width: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFBEB),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: const Color(0xFFFDE68A)),
+                                          ),
+                                          child: const Text(
+                                            'VIP',
+                                            style: TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                   Text(item.guestPhone ?? '-', style: const TextStyle(fontSize: 8, color: Colors.grey)),
                                   if (item.companyName != null && item.companyName!.isNotEmpty)
                                     Text(item.companyName!, style: const TextStyle(fontSize: 8, color: Colors.grey, fontStyle: FontStyle.italic)),
@@ -569,6 +678,40 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                               DataCell(_buildStatusChip(item)),
                             ]);
                           }),
+                        ),
+                      ),
+
+                    // Navigasi halaman sederhana, karena tabel sekarang
+                    // menampilkan data per halaman dari backend.
+                    if (_laporanResponse != null && _laporanResponse!.lastPage > 1)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left, size: 18),
+                              onPressed: _isLoading || _currentPage <= 1
+                                  ? null
+                                  : () {
+                                      setState(() => _currentPage -= 1);
+                                      _fetchLaporan();
+                                    },
+                            ),
+                            Text(
+                              "${_laporanResponse!.currentPage} / ${_laporanResponse!.lastPage}",
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right, size: 18),
+                              onPressed: _isLoading || _currentPage >= _laporanResponse!.lastPage
+                                  ? null
+                                  : () {
+                                      setState(() => _currentPage += 1);
+                                      _fetchLaporan();
+                                    },
+                            ),
+                          ],
                         ),
                       ),
                   ],
