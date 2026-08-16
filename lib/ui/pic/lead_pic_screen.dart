@@ -131,6 +131,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
     }
   }
 
+  // Deal & Lost = pipeline sudah final, gak bisa diupdate lagi.
   bool _isFollowUpLocked(String status) => status == 'deal' || status == 'lost';
 
   bool _isZeroOrEmptyDate(String? raw) {
@@ -655,6 +656,8 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                           labelColor: Colors.white,
                           unselectedLabelColor: const Color(0xFF778195),
                           labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          // NOTE: gak boleh `const` lagi karena isinya sekarang
+                          // dinamis (ikut _counts yang berubah tiap fetch).
                           tabs: [
                             Tab(text: "Semua(${_counts['all'] ?? 0})"),
                             Tab(text: "Aktif(${_counts['active'] ?? 0})"),
@@ -749,6 +752,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
 
   Widget _leadCard(PicLeadModel item) {
     final overdueDays = _overdueDays(item.followUpAt, item.status);
+    final isLocked = _isFollowUpLocked(item.status ?? '');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -832,12 +836,17 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                 ),
               ),
               const SizedBox(width: 6),
+              // Deal/Lost = pipeline sudah final -> tombol update dikunci,
+              // gak perlu nunggu backend nolak dulu buat kasih tau user.
               ElevatedButton.icon(
-                onPressed: () => _showUpdateTahapanDialog(context, item),
-                icon: const Icon(Icons.update, size: 12, color: Colors.white),
-                label: const Text("Update Tahapan", style: TextStyle(fontSize: 10, color: Colors.white)),
+                onPressed: isLocked ? null : () => _showUpdateTahapanDialog(context, item),
+                icon: Icon(Icons.update, size: 12, color: isLocked ? Colors.grey[400] : Colors.white),
+                label: Text(
+                  isLocked ? "Sudah Final" : "Update Tahapan",
+                  style: TextStyle(fontSize: 10, color: isLocked ? Colors.grey[400] : Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: corporateGreen,
+                  backgroundColor: isLocked ? Colors.grey[300] : corporateGreen,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
