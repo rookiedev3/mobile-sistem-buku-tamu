@@ -12,6 +12,7 @@ class DashboardSatpam extends StatefulWidget {
 class _DashboardSatpamState extends State<DashboardSatpam> {
   List<Visit> _daftarTamu = [];
   bool _isLoading = true;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -19,41 +20,87 @@ class _DashboardSatpamState extends State<DashboardSatpam> {
     _fetchData();
   }
 
-  Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
-    try {
-      final result = await SecurityBloc.dashboard();
-      setState(() => _daftarTamu = result.data ?? []);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data: ${e.toString().replaceAll('Exception: ', '')}')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+Future<void> _fetchData() async {
+  setState(() => _isLoading = true);
+  try {
+    final result = await SecurityBloc.dashboard(
+      date: _formatDateForApi(_selectedDate), // "2026-08-16"
+    );
+    setState(() => _daftarTamu = result.data ?? []);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Gagal memuat data: ${e.toString().replaceAll('Exception: ', '')}')),
+    );
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
+String _formatDateForApi(DateTime d) {
+  return '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+}
+
+  Future<void> _pilihTanggal() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(now.year - 2), // batas paling lama, sesuaikan kalau perlu
+      lastDate: now, // 🔒 blok tanggal ke depan — user hanya bisa lihat ke belakang
+      helpText: 'Pilih Tanggal',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(primary: Color(0xFF006B3F)),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+      _fetchData();
     }
   }
 
-  // Tentukan status tampilan dari check_in_at/check_out_at, bukan dari string 'status' mentah
-Map<String, dynamic> _statusInfo(Visit v) {
-  if (v.checkOutAt != null) {
-    return {"label": "Selesai", "badgeColor": Colors.grey.withOpacity(0.1), "textColor": Colors.grey[700]};
+  String _formatTanggal(DateTime d) {
+    const namaBulan = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${d.day} ${namaBulan[d.month - 1]} ${d.year}';
   }
-  if (v.checkInAt != null) {
-    return {"label": "Sedang Meeting", "badgeColor": Colors.green.withOpacity(0.1), "textColor": Colors.green[700]};
-  }
-  return {"label": "Sedang Menunggu", "badgeColor": Colors.orange.withOpacity(0.1), "textColor": Colors.orange[800]};
-}
 
-String _formatJam(String? isoTime) {
-  if (isoTime == null) return '-';
-  try {
-    final dt = DateTime.parse(isoTime).toLocal();
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
-  } catch (_) {
-    return '-';
+  bool get _isToday {
+    final now = DateTime.now();
+    return _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
   }
-}
+
+  // Tentukan status tampilan dari check_in_at/check_out_at, bukan dari string 'status' mentah
+  Map<String, dynamic> _statusInfo(Visit v) {
+    if (v.checkOutAt != null) {
+      return {"label": "Selesai", "badgeColor": Colors.grey.withOpacity(0.1), "textColor": Colors.grey[700]};
+    }
+    if (v.checkInAt != null) {
+      return {"label": "Sedang Meeting", "badgeColor": Colors.green.withOpacity(0.1), "textColor": Colors.green[700]};
+    }
+    return {"label": "Sedang Menunggu", "badgeColor": Colors.orange.withOpacity(0.1), "textColor": Colors.orange[800]};
+  }
+
+  String _formatJam(String? isoTime) {
+    if (isoTime == null) return '-';
+    try {
+      final dt = DateTime.parse(isoTime).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
+    } catch (_) {
+      return '-';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,42 +131,60 @@ String _formatJam(String? isoTime) {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                    // Selector tanggal
+                    InkWell(
+                      onTap: _pilihTanggal,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 18, color: Color(0xFF006B3F)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isToday ? "Hari Ini" : "Tanggal Dipilih",
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF778195)),
+                                  ),
+                                  Text(
+                                    _formatTanggal(_selectedDate),
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!_isToday)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() => _selectedDate = DateTime.now());
+                                  _fetchData();
+                                },
+                                child: const Text("Kembali ke Hari Ini", style: TextStyle(fontSize: 11, color: Color(0xFF006B3F))),
+                              ),
+                            const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF778195)),
+                          ],
+                        ),
                       ),
-                      // child: Row(
-                      //   children: [
-                      //     Container(
-                      //       padding: const EdgeInsets.all(10),
-                      //       decoration: BoxDecoration(color: const Color(0xFF006B3F).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                      //       // child: const Icon(Icons.security, color: Color(0xFF006B3F), size: 26),
-                      //     ),
-                      //     const SizedBox(width: 14),
-                      //     const Expanded(
-                      //       child: Column(
-                      //         crossAxisAlignment: CrossAxisAlignment.start,
-                      //         children: [
-                      //           Text("Selamat Bertugas ", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-                      //           SizedBox(height: 2),
-                      //           Text("Pos Penjagaan", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-                      //         ],
-                      //       ),
-                      //     ),
-                      //   ],
-                      // ),
                     ),
                     const SizedBox(height: 20),
-                    const Text("Daftar Tamu Masuk Hari Ini", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                    Text(
+                      _isToday ? "Daftar Tamu Masuk Hari Ini" : "Daftar Tamu Masuk (${_formatTanggal(_selectedDate)})",
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                    ),
                     const SizedBox(height: 10),
                     if (_daftarTamu.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 40),
-                        child: Center(child: Text('Belum ada tamu hari ini', style: TextStyle(color: Color(0xFF778195)))),
+                        child: Center(child: Text('Belum ada tamu pada tanggal ini', style: TextStyle(color: Color(0xFF778195)))),
                       )
                     else
                       ListView.builder(
@@ -152,10 +217,10 @@ String _formatJam(String? isoTime) {
                                           child: Icon(Icons.person, color: Color(0xFF778195), size: 18),
                                         ),
                                         const SizedBox(width: 10),
-Text(
-  tamu.guest?.name ?? '-',   // asumsi Guest juga punya field 'name', cek modelnya
-  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-),
+                                        Text(
+                                          tamu.guest?.name ?? '-',
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                        ),
                                       ],
                                     ),
                                     Container(
@@ -169,10 +234,10 @@ Text(
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-Text(
-  "Bertemu: ${tamu.assignedUser?['name'] ?? '-'}",  // ← akses Map pakai ['name'], bukan .name
-  style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
-),
+                                Text(
+                                  "Bertemu: ${tamu.assignedUser?['name'] ?? '-'}",
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                                ),
                                 const SizedBox(height: 10),
                                 const Divider(height: 1, color: Color(0xFFF4F7FC)),
                                 const SizedBox(height: 8),
