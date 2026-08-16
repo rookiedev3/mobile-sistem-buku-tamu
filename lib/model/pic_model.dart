@@ -19,6 +19,16 @@ int _asInt(dynamic v, [int fallback = 0]) {
   return fallback;
 }
 
+/// Cek apakah string tanggal dari backend valid (bukan null, kosong, atau
+/// placeholder MySQL zero-date "0000-00-00 00:00:00"). Kolom datetime yang
+/// belum diisi kadang dikirim MySQL sebagai zero-date, bukan null — kalau
+/// tidak difilter, ini yang bikin UI menampilkan "0000" di layar.
+bool _isValidDateString(String? v) {
+  if (v == null || v.isEmpty) return false;
+  if (v.startsWith('0000')) return false;
+  return DateTime.tryParse(v) != null;
+}
+
 /// Model untuk satu entri follow_ups, dipakai di dalam PicVisitModel &
 /// PicLeadModel (field `follow_ups` di mapVisit()/mapLead() backend).
 class FollowUpItem {
@@ -132,8 +142,9 @@ class PicVisitModel {
     );
   }
 
-  /// Waktu yang dipakai untuk ditampilkan: scheduled_at kalau ada, kalau
-  /// tidak check_in_at.
+  /// [DEPRECATED] Waktu mentah tanpa format & tanpa filter zero-date.
+  /// Dipertahankan supaya tidak merusak kode lama yang mungkin masih
+  /// memanggilnya, tapi UI seharusnya pakai [formattedTime].
   String get displayTime => scheduledAt ?? checkInAt ?? '-';
 
   // ------------------------- getter turunan (UI) -------------------------
@@ -167,6 +178,40 @@ class PicVisitModel {
   /// follow_up_at diparse jadi DateTime untuk keperluan date picker di UI.
   DateTime? get followUpDate =>
       followUpAt != null ? DateTime.tryParse(followUpAt!) : null;
+
+  /// True kalau visit masih berstatus "Terjadwal" — artinya tamu belum
+  /// check-in sama sekali. Sama persis dengan kondisi
+  /// `$statusLower === 'terjadwal'` di pic/partials/_dashboard_panel.blade.php.
+  bool get isScheduled => statusLower == 'terjadwal';
+
+  /// True kalau tombol konfirmasi (✓/✕) boleh tampil — yaitu saat visit
+  /// sudah check-in tapi PIC belum konfirmasi kehadiran. Sama persis dengan
+  /// kondisi `in_array($statusLower, ['pending', 'waiting', 'menunggu'])`
+  /// di Blade. SENGAJA tidak pakai check_in_at karena kolom itu ternyata
+  /// tidak dipakai sebagai penanda "sudah check-in" di backend — status-lah
+  /// satu-satunya sumber kebenaran di sini.
+  bool get canConfirm => ['pending', 'waiting', 'menunggu'].contains(statusLower);
+
+  /// Waktu kunjungan yang sudah diformat rapi untuk UI, dan aman dari
+  /// zero-date MySQL ("0000-00-00 00:00:00") yang sebelumnya bikin
+  /// tampilan waktu jadi "0000". Prioritas: check_in_at, lalu scheduled_at.
+  String get formattedTime {
+    final raw = _isValidDateString(checkInAt)
+        ? checkInAt
+        : (_isValidDateString(scheduledAt) ? scheduledAt : null);
+    if (raw == null) return '-';
+
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return '-';
+
+    const bulan = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+    final jam = dt.hour.toString().padLeft(2, '0');
+    final menit = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} ${bulan[dt.month]} ${dt.year}, $jam:$menit WIB';
+  }
 }
 
 /// Cocok dengan payload PicApiController::mapLead()
@@ -184,6 +229,7 @@ class PicLeadModel {
   final String? notes;
   final String? meetingResult;
   final List<FollowUpItem> followUps;
+    final String? guestPhone; // ← tambahan
 
   PicLeadModel({
     required this.id,
@@ -199,6 +245,8 @@ class PicLeadModel {
     this.notes,
     this.meetingResult,
     this.followUps = const [],
+        this.guestPhone,
+
   });
 
   factory PicLeadModel.fromJson(Map<String, dynamic> json) {
@@ -214,6 +262,7 @@ class PicLeadModel {
       estimatedValue: _asNum(json['estimated_value']),
       followUpAt: json['follow_up_at'],
       notes: json['notes'],
+      guestPhone: json['guest_phone'] ?? json['phone'], // sesuaikan key aslinya
       meetingResult: json['meeting_result'],
       followUps: (json['follow_ups'] as List? ?? [])
           .map((f) => FollowUpItem.fromJson(f))
