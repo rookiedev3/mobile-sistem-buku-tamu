@@ -266,62 +266,73 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                 )
               else
                 ...riwayatPipeline.map((riwayat) {
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDFDFD),
-                      borderRadius: BorderRadius.circular(8),
-                      border: const Border(
-                        top: BorderSide(color: Color(0xFFE2E8F0)),
-                        right: BorderSide(color: Color(0xFFE2E8F0)),
-                        bottom: BorderSide(color: Color(0xFFE2E8F0)),
-                        left: BorderSide(color: Color(0xFF006B3F), width: 4),
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 8),
+    clipBehavior: Clip.antiAlias,
+    decoration: BoxDecoration(
+      color: const Color(0xFFFDFDFD),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: const Color(0xFFE2E8F0)), // ← border seragam, aman dipakai bareng borderRadius
+    ),
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: 4,
+            color: const Color(0xFF006B3F), // ← strip hijau kiri, terpisah dari border
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          "📅 ${riwayat["tanggal"] ?? '-'}",
+                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                "📅 ${riwayat["tanggal"] ?? '-'}",
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                              ),
-                            ),
-                            Text(
-                              "Tahap: ${riwayat["tahap"] ?? '-'}",
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
+                      Text(
+                        "Tahap: ${riwayat["tahap"] ?? '-'}",
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    riwayat["catatan"] ?? 'Tidak ada detail catatan pada pembaruan ini.',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 12,
+                    children: [
+                      Text(
+                        "💰 ${_formatRupiah(riwayat["estimasiValue"])}",
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
+                      ),
+                      if (riwayat["dueDate"] != null)
                         Text(
-                          riwayat["catatan"] ?? 'Tidak ada detail catatan pada pembaruan ini.',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF334155)),
+                          "Target: ${riwayat["dueDate"]}",
+                          style: const TextStyle(fontSize: 10, color: Color(0xFF475569)),
                         ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 12,
-                          children: [
-                            Text(
-                              "💰 ${_formatRupiah(riwayat["estimasiValue"])}",
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
-                            ),
-                            if (riwayat["dueDate"] != null)
-                              Text(
-                                "Target: ${riwayat["dueDate"]}",
-                                style: const TextStyle(fontSize: 10, color: Color(0xFF475569)),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}).toList(),
             ],
           ),
         ),
