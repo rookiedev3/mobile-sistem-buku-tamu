@@ -92,26 +92,26 @@ String _formatJam(String? isoTime) {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(color: const Color(0xFF006B3F).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                            child: const Icon(Icons.security, color: Color(0xFF006B3F), size: 26),
-                          ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Selamat Bertugas, Danru", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
-                                SizedBox(height: 2),
-                                Text("Pos Penjagaan", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      // child: Row(
+                      //   children: [
+                      //     Container(
+                      //       padding: const EdgeInsets.all(10),
+                      //       decoration: BoxDecoration(color: const Color(0xFF006B3F).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                      //       // child: const Icon(Icons.security, color: Color(0xFF006B3F), size: 26),
+                      //     ),
+                      //     const SizedBox(width: 14),
+                      //     const Expanded(
+                      //       child: Column(
+                      //         crossAxisAlignment: CrossAxisAlignment.start,
+                      //         children: [
+                      //           Text("Selamat Bertugas ", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
+                      //           SizedBox(height: 2),
+                      //           Text("Pos Penjagaan", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                      //         ],
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
                     ),
                     const SizedBox(height: 20),
                     const Text("Daftar Tamu Masuk Hari Ini", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033))),

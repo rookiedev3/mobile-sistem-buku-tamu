@@ -2,9 +2,89 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'login_screen.dart';
 import 'tamu_form_step1.dart';
+import 'package:mobile_flutter/helpers/user_info.dart';
+import 'package:mobile_flutter/bloc/me_bloc.dart';
+import 'dashboard_satpam.dart';
+import 'package:mobile_flutter/ui/manager/main_manager_navigator.dart';
+import 'package:mobile_flutter/ui/owner/main_owner_navigator.dart';
+import 'package:mobile_flutter/ui/pic/main_pic_navigator.dart';
+import 'package:mobile_flutter/ui/admin/main_admin_navigator.dart';
 
 class HomepageScreen extends StatelessWidget {
   const HomepageScreen({Key? key}) : super(key: key);
+
+  // ← TAMBAHAN: dipanggil saat tombol "Login Pegawai" ditekan
+  Future<void> _handleTombolLoginPegawai(BuildContext context) async {
+    final rememberMe = await UserInfo().getRememberMe();
+    final token = await UserInfo().getToken();
+
+    // Tidak ada sesi tersimpan → langsung ke LoginScreen seperti biasa
+    if (!rememberMe || token == null || token.isEmpty) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+      return;
+    }
+
+    // Tampilkan loading kecil selagi validasi token ke server
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+    );
+
+    try {
+      final user = await MeBloc.getMe(token);
+      if (!context.mounted) return;
+      Navigator.pop(context); // tutup loading dialog
+      _navigateByRole(context, user['role']);
+    } catch (e) {
+      // Token expired/invalid → bersihkan sesi, arahkan ke LoginScreen manual
+      await UserInfo().clearSession();
+      if (!context.mounted) return;
+      Navigator.pop(context); // tutup loading dialog
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
+
+  void _navigateByRole(BuildContext context, String? role) {
+    Widget target;
+    switch (role) {
+      case 'security':
+        target = const DashboardSatpam();
+        break;
+      case 'admin':
+        target = const MainAdminNavigator();
+        break;
+      case 'pic':
+        target = const MainPicNavigator();
+        break;
+      case 'manager':
+        target = const MainManagerNavigator();
+        break;
+      case 'owner':
+        target = const MainOwnerNavigator();
+        break;
+      default:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+        return;
+    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => target),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,9 +100,9 @@ class HomepageScreen extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF01281b), // #01281b (0%)
-                  Color(0xFF013220), // #013220 (40%)
-                  Color(0xFF006B3F), // #006B3F (100%)
+                  Color(0xFF01281b),
+                  Color(0xFF013220),
+                  Color(0xFF006B3F),
                 ],
                 stops: [0.0, 0.4, 1.0],
               ),
@@ -36,13 +116,13 @@ class HomepageScreen extends StatelessWidget {
             ),
           ),
 
-          // 3. Card Utama di Tengah
+          // 3. Card Utama di Tengah — SELALU tampil normal, tidak ada pengecekan sesi di sini
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 420),
-                padding: const EdgeInsets.all(32.0),
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 36.0),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -57,31 +137,43 @@ class HomepageScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Ikon / Logo Perusahaan
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF013220),
-                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.business_center, color: Colors.white, size: 40),
+                      child: Image.asset(
+                        'assets/images/logo_perusahaan.jpg',
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
 
-                    // Judul
                     const Text(
-                      "Buku Tamu Digital",
+                      "Selamat Datang",
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF172033),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF006B3F),
+                        letterSpacing: 0.8,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     const Text(
                       "Silakan pilih jenis akses masuk Anda di bawah ini.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
+                      style: TextStyle(fontSize: 12.5, color: Color(0xFF778195)),
                     ),
                     const SizedBox(height: 32),
 
@@ -110,31 +202,28 @@ class HomepageScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
-                    // Tombol 2: Login Pegawai
+                    // Tombol 2: Login Pegawai — ← DIUBAH: cek sesi dulu sebelum navigasi
                     SizedBox(
                       width: double.infinity,
                       height: 48,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF006B3F)),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFC7AB6B),
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
+                          elevation: 0,
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          );
-                        },
+                        onPressed: () => _handleTombolLoginPegawai(context), // ← DIUBAH
                         child: const Text(
                           "Login Pegawai",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF006B3F),
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -156,9 +245,8 @@ class BackgroundArcsPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0; // Ketebalan garis tunggal yang pas
+      ..strokeWidth = 2.0;
 
-    // List posisi, ukuran jari-jari (radius), dan sudut lengkung (sweepAngle)
     final arcs = [
       {'x': size.width * 0.15, 'y': size.height * 0.2, 'r': 110.0, 'start': 0.0, 'sweep': math.pi, 'opacity': 0.12},
       {'x': size.width * 0.85, 'y': size.height * 0.3, 'r': 150.0, 'start': math.pi / 2, 'sweep': math.pi * 1.2, 'opacity': 0.08},
@@ -168,13 +256,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
-      // Menggambar busur setengah lingkaran / arc tunggal
+
       canvas.drawArc(
         rect,
         a['start'] as double,

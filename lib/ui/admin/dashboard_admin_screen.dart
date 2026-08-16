@@ -396,7 +396,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                                         item["status"] = "Menunggu";
                                       });
                                     },
-                                    icon: const Icon(Icons.check_circle_outline, size: 13, color: Colors.green),
+                                    // icon: const Icon(Icons.check_circle_outline, size: 13, color: Colors.green),
                                     label: const Text("Check-In", style: TextStyle(fontSize: 11, color: Colors.green)),
                                     style: OutlinedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -412,7 +412,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                                         item["status"] = "Dibatalkan";
                                       });
                                     },
-                                    icon: const Icon(Icons.cancel_outlined, size: 13, color: Colors.red),
+                                    // icon: const Icon(Icons.cancel_outlined, size: 13, color: Colors.red),
                                     label: const Text("Batalkan", style: TextStyle(fontSize: 11, color: Colors.red)),
                                     style: OutlinedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

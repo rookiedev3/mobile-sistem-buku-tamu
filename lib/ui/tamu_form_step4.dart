@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
-import 'homepage_screen.dart'; // Sesuaikan path jika lokasi file berbeda
+import 'homepage_screen.dart';
 
 class TamuFormStep4 extends StatefulWidget {
   final int? visitId;
@@ -72,199 +73,213 @@ class _TamuFormStep4State extends State<TamuFormStep4> {
 
   @override
   Widget build(BuildContext context) {
-    final String displayCode = widget.visitCode ?? _visitDetail?['visit_code'] ?? "-";
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FC),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 450),
-            padding: const EdgeInsets.all(24.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+      body: Stack(
+        children: [
+          // 1. Background Gradasi Hijau Korporat
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF01281b),
+                  Color(0xFF013220),
+                  Color(0xFF006B3F),
+                ],
+                stops: [0.0, 0.4, 1.0],
+              ),
             ),
-            child: _isLoading
-                ? const Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(color: Color(0xFF006B3F)),
-                      SizedBox(height: 16),
-                      Text(
-                        "Memuat tiket kunjungan...",
-                        style: TextStyle(fontSize: 13, color: Color(0xFF778195)),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Icon Check-in Berhasil
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF006B3F).withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check_circle_rounded,
-                          color: Color(0xFF006B3F),
-                          size: 64,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+          ),
 
-                      const Text(
-                        "Check-in Berhasil!",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF172033),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Terima kasih telah mengisi buku tamu. Jadwal pertemuan Anda telah dicatat dalam sistem.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Color(0xFF778195), height: 1.4),
-                      ),
-                      const SizedBox(height: 24),
+          // 2. Motif Setengah Lingkaran Background
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BackgroundArcsPainter(),
+            ),
+          ),
 
-                      // 🟢 Kartu Kode Visit (Tanpa Nomor Antrean)
-                      Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF006B3F).withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF006B3F).withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
+          // 3. Konten Tampilan Penuh
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              "KODE VISIT",
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF778195),
-                                letterSpacing: 1.2,
+                            // Ikon Sukses
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_circle_rounded,
+                                color: Color(0xFFC7AB6B),
+                                size: 64,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              displayCode,
-                              style: const TextStyle(
+                            const SizedBox(height: 20),
+
+                            const Text(
+                              "Check-in Berhasil!",
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF006B3F),
+                                color: Colors.white,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Kartu Detail Jadwal Pertemuan
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4F7FC),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFF006B3F).withValues(alpha: 0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Jadwal Pertemuan Terkonfirmasi:",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF006B3F),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today, size: 16, color: Color(0xFF778195)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    "Tanggal: ${_getFormattedDate()}",
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF172033),
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time, size: 16, color: Color(0xFF778195)),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    "Jam: ${_getFormattedTime()}",
-                                    style: const TextStyle(
+                            const Text(
+                              "Terima kasih telah mengisi buku tamu. Jadwal pertemuan Anda telah dicatat dalam sistem.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 13, color: Colors.white70, height: 1.4),
+                            ),
+                            const SizedBox(height: 24),
+
+                            // Kotak Informasi Jadwal Pertemuan (Nomor Antrean & Kode Visit Dihapus)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Jadwal Pertemuan Terkonfirmasi",
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: Color(0xFF172033),
+                                      color: Color(0xFF006B3F),
                                     ),
                                   ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today, size: 16, color: Color(0xFF778195)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "Tanggal: ${_getFormattedDate()}",
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF172033),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.access_time, size: 16, color: Color(0xFF778195)),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        "Jam: ${_getFormattedTime()}",
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF172033),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Tombol Selesai (Background #C7AB6B, Teks Putih)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFC7AB6B),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  elevation: 0,
                                 ),
-                              ],
+                                onPressed: () {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const HomepageScreen(),
+                                    ),
+                                    (route) => false,
+                                  );
+                                },
+                                child: const Text(
+                                  "Selesai",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Tombol Selesai
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF006B3F),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HomepageScreen(),
-                              ),
-                              (route) => false,
-                            );
-                          },
-                          child: const Text(
-                            "Selesai",
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
+}
+
+// Custom Painter untuk Menggambar Setengah Lingkaran (Arc Tunggal) yang Elegan
+class BackgroundArcsPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final arcs = [
+      {'x': size.width * 0.15, 'y': size.height * 0.2, 'r': 110.0, 'start': 0.0, 'sweep': math.pi, 'opacity': 0.12},
+      {'x': size.width * 0.85, 'y': size.height * 0.3, 'r': 150.0, 'start': math.pi / 2, 'sweep': math.pi * 1.2, 'opacity': 0.08},
+      {'x': size.width * 0.75, 'y': size.height * 0.8, 'r': 180.0, 'start': math.pi, 'sweep': math.pi, 'opacity': 0.1},
+      {'x': size.width * 0.25, 'y': size.height * 0.75, 'r': 130.0, 'start': math.pi * 1.5, 'sweep': math.pi * 1.1, 'opacity': 0.14},
+    ];
+
+    for (var a in arcs) {
+      paint.color = Colors.white.withOpacity(a['opacity'] as double);
+      
+      final rect = Rect.fromCircle(
+        center: Offset(a['x'] as double, a['y'] as double),
+        radius: a['r'] as double,
+      );
+      
+      canvas.drawArc(
+        rect,
+        a['start'] as double,
+        a['sweep'] as double,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

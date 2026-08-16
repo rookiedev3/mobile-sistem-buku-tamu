@@ -33,8 +33,8 @@ class _PipelineScreenState extends State<PipelineScreen> {
   static const Map<String, Map<String, dynamic>> _leadBadges = {
     'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
     'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
-    'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi 🔥'},
-    'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal 🎉'},
+    'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi '},
+    'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal '},
     'lost':        {'bg': Color(0xFFFEE2E2), 'color': Color(0xFFB91C1C), 'label': 'Lost'},
   };
 
@@ -270,11 +270,11 @@ class _PipelineScreenState extends State<PipelineScreen> {
     if (diff < 0) {
       bg = const Color(0xFFFEF2F2);
       color = const Color(0xFFDC2626);
-      label = '⚠ Terlambat ${diff.abs()} hari';
+      label = ' Terlambat ${diff.abs()} hari';
     } else if (diff == 0) {
       bg = const Color(0xFFFEF3C7);
       color = const Color(0xFFD97706);
-      label = '🔥 Hari Ini';
+      label = ' Hari Ini';
     } else {
       bg = const Color(0xFFE6F4ED);
       color = const Color(0xFF006B3F);
