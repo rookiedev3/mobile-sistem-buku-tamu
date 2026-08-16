@@ -516,11 +516,29 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                     onTap: (isLocked || isSaving)
                         ? null
                         : () async {
+                            // 🔒 firstDate = hari ini → tanggal kebelakang (masa lalu)
+                            // otomatis di-block/disable di kalender.
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+
+                            // Kalau followUp yang lagi tersimpan sudah lewat
+                            // (lead overdue), jangan pakai tanggal itu sebagai
+                            // initialDate — nanti crash karena initialDate wajib
+                            // >= firstDate. Fallback ke hari ini.
+                            DateTime initial = today;
+                            final existing = _followUpInputValue(item.followUpAt);
+                            if (existing.isNotEmpty) {
+                              final parsed = DateTime.tryParse(existing);
+                              if (parsed != null && !parsed.isBefore(today)) {
+                                initial = parsed;
+                              }
+                            }
+
                             DateTime? pickedDate = await showDatePicker(
                               context: dialogContext,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2025),
-                              lastDate: DateTime(2030),
+                              initialDate: initial,
+                              firstDate: today,
+                              lastDate: DateTime(now.year + 2),
                               builder: (context, child) {
                                 return Theme(
                                   data: Theme.of(context).copyWith(

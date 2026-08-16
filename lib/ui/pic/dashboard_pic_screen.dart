@@ -23,6 +23,11 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   int _totalVip = 0;
   int _totalReguler = 0;
 
+  // === PAGINATION STATE ===
+  final Map<int, int> _currentPagePerTab = {0: 1, 1: 1, 2: 1};
+  final Map<int, bool> _hasMorePerTab = {0: true, 1: true, 2: true};
+  final Map<int, bool> _loadingMorePerTab = {0: false, 1: false, 2: false};
+
   static const List<String> _tabFilters = ['all', 'today', 'upcoming'];
 
   @override
@@ -58,8 +63,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   }
 
   // Jumlah item yang sudah ke-fetch untuk tab tertentu.
-  // Catatan: ini cuma mencerminkan data yang lagi di-load di memori
-  // (halaman pertama), bukan total asli dari backend kalau ada pagination.
+  // Catatan: sekarang ini bisa lebih dari 1 halaman kalau user sudah scroll
+  // & trigger _loadMoreTab beberapa kali (bukan cuma halaman pertama lagi).
   int _countFor(int tabIndex) => _dataPerTab[tabIndex]?.length ?? 0;
 
   Future<void> _loadTab(int tabIndex) async {
@@ -67,12 +72,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     setState(() {
       _loadingPerTab[tabIndex] = true;
       _errorPerTab[tabIndex] = null;
+      _currentPagePerTab[tabIndex] = 1;
     });
 
     try {
+      // PicBloc.dashboard() mengembalikan PicDashboardResponse (lihat pic_model.dart):
+      // punya visits, currentPage, lastPage, vipCount, regularCount langsung —
+      // tidak perlu wrapper tambahan.
       final result = await PicBloc.dashboard(
         filter: _tabFilters[tabIndex],
         vipStatus: _vipStatusParam,
+        page: 1,
       );
 
       if (!mounted) return;
@@ -80,6 +90,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
         _dataPerTab[tabIndex] = result.visits;
         _totalVip = result.vipCount;
         _totalReguler = result.regularCount;
+        _hasMorePerTab[tabIndex] = result.currentPage < result.lastPage;
+        _currentPagePerTab[tabIndex] = result.currentPage;
         _loadingPerTab[tabIndex] = false;
       });
     } catch (e) {
@@ -88,6 +100,39 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
         _errorPerTab[tabIndex] = e is ApiException ? e.message : 'Gagal memuat data. Periksa koneksi Anda.';
         _loadingPerTab[tabIndex] = false;
       });
+    }
+  }
+
+  Future<void> _loadMoreTab(int tabIndex) async {
+    final hasMore = _hasMorePerTab[tabIndex] ?? false;
+    final alreadyLoadingMore = _loadingMorePerTab[tabIndex] ?? false;
+    final stillLoadingFirstPage = _loadingPerTab[tabIndex] ?? false;
+    if (!hasMore || alreadyLoadingMore || stillLoadingFirstPage) return;
+
+    setState(() => _loadingMorePerTab[tabIndex] = true);
+
+    try {
+      final nextPage = (_currentPagePerTab[tabIndex] ?? 1) + 1;
+      final result = await PicBloc.dashboard(
+        filter: _tabFilters[tabIndex],
+        vipStatus: _vipStatusParam,
+        page: nextPage,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _dataPerTab[tabIndex] = [...(_dataPerTab[tabIndex] ?? []), ...result.visits];
+        _hasMorePerTab[tabIndex] = result.currentPage < result.lastPage;
+        _currentPagePerTab[tabIndex] = result.currentPage;
+        _loadingMorePerTab[tabIndex] = false;
+        // Catatan: vipCount/regularCount sengaja tidak di-overwrite di sini,
+        // biar angka ringkasan tetap sama walau lagi load more (bukan reload data statistik).
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingMorePerTab[tabIndex] = false);
+      // Gagal load more gak nge-block tampilan yang udah ada, cukup kasih tau lewat snackbar.
+      _showError(e);
     }
   }
 
@@ -388,11 +433,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                     onTap: isDateOptional
                         ? null // disabled → gak bakal ke-trigger, tapi jaga-jaga
                         : () async {
+                            // 🔒 firstDate = hari ini → tanggal kebelakang (masa lalu)
+                            // otomatis di-block/disable di kalender, follow-up
+                            // cuma bisa dijadwalkan hari ini atau ke depan.
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+
                             DateTime? pickedDate = await showDatePicker(
                               context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime(2025),
-                              lastDate: DateTime(2030),
+                              initialDate: today,
+                              firstDate: today,
+                              lastDate: DateTime(now.year + 2),
                               initialEntryMode: DatePickerEntryMode.calendarOnly,
                               builder: (context, child) {
                                 return Theme(
@@ -715,6 +766,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     final loading = _loadingPerTab[tabIndex] ?? false;
     final error = _errorPerTab[tabIndex];
     final data = _dataPerTab[tabIndex] ?? [];
+    final hasMore = _hasMorePerTab[tabIndex] ?? false;
+    final loadingMore = _loadingMorePerTab[tabIndex] ?? false;
 
     if (loading) {
       return const Center(child: CircularProgressIndicator());
@@ -741,9 +794,35 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       );
     }
 
-    return ListView.builder(
-      itemCount: data.length,
-      itemBuilder: (context, index) => _buildTamuCard(data[index]),
+    // === PAGINATION: auto load-more begitu user scroll mendekati bawah list ===
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.pixels >= notification.metrics.maxScrollExtent - 150) {
+          _loadMoreTab(tabIndex);
+        }
+        return false;
+      },
+      child: ListView.builder(
+        itemCount: data.length + (hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= data.length) {
+            // Item terakhir = indikator loading utk halaman berikutnya.
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: loadingMore
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            );
+          }
+          return _buildTamuCard(data[index]);
+        },
+      ),
     );
   }
 
