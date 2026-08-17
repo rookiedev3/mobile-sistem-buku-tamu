@@ -1,5 +1,6 @@
-import 'dart:typed_data'; 
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 import 'dart:math' as math;
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
 import 'package:mobile_flutter/model/check_in.dart';
@@ -185,34 +186,48 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.08), // Latar belakang putih transparan tipis
+                          color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.15), // Border tipis elegan
+                            color: Colors.white.withOpacity(0.15),
                             width: 1,
                           ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Ringkasan Foto Tamu
+                            // Ringkasan Foto Tamu (Mendukung Web & Mobile via XFile)
                             if (photoFile != null)
                               Center(
-                                child: Container(
-                                  width: 80,
-                                  height: 80,
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: const Color(0xFFC7AB6B),
-                                      width: 2,
-                                    ),
-                                    image: DecorationImage(
-                                      image: FileImage(photoFile),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
+                                child: FutureBuilder<Uint8List>(
+                                  future: photoFile.readAsBytes(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasData && snapshot.data != null) {
+                                      return Container(
+                                        width: 80,
+                                        height: 80,
+                                        margin: const EdgeInsets.only(bottom: 16),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: const Color(0xFFC7AB6B),
+                                            width: 2,
+                                          ),
+                                          image: DecorationImage(
+                                            image: MemoryImage(snapshot.data!),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox(
+                                      width: 80,
+                                      height: 80,
+                                      child: Center(
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
 
@@ -315,7 +330,7 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
 
                       const SizedBox(height: 16),
 
-                      // Tombol "Kembali ke Tahap 2" di Paling Bawah Sendiri
+                      // Tombol "Kembali ke Tahap 2"
                       Center(
                         child: GestureDetector(
                           onTap: () => Navigator.pop(context),
@@ -392,7 +407,6 @@ class _TamuFormStep3State extends State<TamuFormStep3> {
   }
 }
 
-// Custom Painter untuk Menggambar Setengah Lingkaran (Arc Tunggal) yang Elegan
 class BackgroundArcsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -409,12 +423,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
+
       canvas.drawArc(
         rect,
         a['start'] as double,

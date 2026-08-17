@@ -37,8 +37,10 @@ class ApiUrl {
   // ================= GUEST CATEGORIES (TAMBAHAN BARU) =================
   static const String listGuestCategory = '$baseUrl/api/guest-categories';
   static const String createGuestCategory = '$baseUrl/api/guest-categories';
-  static String updateGuestCategory(int id) => '$baseUrl/api/guest-categories/$id';
-  static String deleteGuestCategory(int id) => '$baseUrl/api/guest-categories/$id';
+  static String updateGuestCategory(int id) =>
+      '$baseUrl/api/guest-categories/$id';
+  static String deleteGuestCategory(int id) =>
+      '$baseUrl/api/guest-categories/$id';
 
   // ================= USER MANAGEMENT =================
   static String users({String? status}) {
@@ -54,13 +56,21 @@ class ApiUrl {
   // ================= MANAGER =================
   static String managerDashboard(String date, String vipStatus) =>
       '$baseUrl/api/manager/dashboard?date=$date&vip_status=$vipStatus';
-  static String managerLeadsPipeline(String filter, String vipStatus, {String? keyword, int page = 1}) {
-    final buffer = StringBuffer('$baseUrl/api/manager/leads?filter=$filter&vip_status=$vipStatus&page=$page');
+  static String managerLeadsPipeline(
+    String filter,
+    String vipStatus, {
+    String? keyword,
+    int page = 1,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/manager/leads?filter=$filter&vip_status=$vipStatus&page=$page',
+    );
     if (keyword != null && keyword.isNotEmpty) {
       buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
     }
     return buffer.toString();
   }
+
   static String managerKunjungan({
     String? startDate,
     String? endDate,
@@ -68,7 +78,9 @@ class ApiUrl {
     String? keyword,
     int page = 1,
   }) {
-    final buffer = StringBuffer('$baseUrl/api/manager/kunjungan?vip_status=$vipStatus&page=$page');
+    final buffer = StringBuffer(
+      '$baseUrl/api/manager/kunjungan?vip_status=$vipStatus&page=$page',
+    );
     if (startDate != null && startDate.isNotEmpty) {
       buffer.write('&start_date=$startDate');
     }
@@ -80,15 +92,24 @@ class ApiUrl {
     }
     return buffer.toString();
   }
-  static String ownerLeadsPipeline(String filter, String vipStatus, {String? keyword, int page = 1}) {
-    final buffer = StringBuffer('$baseUrl/api/owner/leads?filter=$filter&vip_status=$vipStatus&page=$page');
+
+  static String ownerLeadsPipeline(
+    String filter,
+    String vipStatus, {
+    String? keyword,
+    int page = 1,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/owner/leads?filter=$filter&vip_status=$vipStatus&page=$page',
+    );
     if (keyword != null && keyword.isNotEmpty) {
       buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
     }
     return buffer.toString();
   }
+
   // laporan
-   static String managerLaporan() => '$baseUrl/api/manager/laporan';
+  static String managerLaporan() => '$baseUrl/api/manager/laporan';
 
   static String managerLaporanExportExcel({
     int? month,
@@ -101,8 +122,10 @@ class ApiUrl {
     final params = <String>[];
     if (month != null) params.add('month=$month');
     if (year != null) params.add('year=$year');
-    if (category != null && category.isNotEmpty) params.add('category=$category');
-    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (category != null && category.isNotEmpty)
+      params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty)
+      params.add('branch_id=$branchId');
     if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
     buffer.write(params.join('&'));
     return buffer.toString();
@@ -119,25 +142,30 @@ class ApiUrl {
     final params = <String>[];
     if (month != null) params.add('month=$month');
     if (year != null) params.add('year=$year');
-    if (category != null && category.isNotEmpty) params.add('category=$category');
-    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (category != null && category.isNotEmpty)
+      params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty)
+      params.add('branch_id=$branchId');
     if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
     buffer.write(params.join('&'));
     return buffer.toString();
   }
 
-
   // ================= SECURITY =================
   static String securityDashboard({String? date}) {
-    return '$baseUrl/api/security/dashboard' + (date != null ? '?date=$date' : '');
+    return '$baseUrl/api/security/dashboard' +
+        (date != null ? '?date=$date' : '');
   }
+
   static String securityCheckIn(int id) => '$baseUrl/api/security/check-in/$id';
-  static String securityCheckOut(int id) => '$baseUrl/api/security/check-out/$id';
+  static String securityCheckOut(int id) =>
+      '$baseUrl/api/security/check-out/$id';
 
   // ================= OWNER =================
   static String ownerDashboard() {
     return '$baseUrl/api/owner/dashboard';
   }
+
   static String ownerLaporan() => '$baseUrl/api/owner/laporan';
 
   static String ownerLaporanExportExcel({
@@ -151,8 +179,10 @@ class ApiUrl {
     final params = <String>[];
     if (month != null) params.add('month=$month');
     if (year != null) params.add('year=$year');
-    if (category != null && category.isNotEmpty) params.add('category=$category');
-    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (category != null && category.isNotEmpty)
+      params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty)
+      params.add('branch_id=$branchId');
     if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
     buffer.write(params.join('&'));
     return buffer.toString();
@@ -169,15 +199,23 @@ class ApiUrl {
     final params = <String>[];
     if (month != null) params.add('month=$month');
     if (year != null) params.add('year=$year');
-    if (category != null && category.isNotEmpty) params.add('category=$category');
-    if (branchId != null && branchId.isNotEmpty) params.add('branch_id=$branchId');
+    if (category != null && category.isNotEmpty)
+      params.add('category=$category');
+    if (branchId != null && branchId.isNotEmpty)
+      params.add('branch_id=$branchId');
     if (picId != null && picId.isNotEmpty) params.add('pic_id=$picId');
     buffer.write(params.join('&'));
     return buffer.toString();
   }
 
-  static String ownerActivityLog({String? keyword, int page = 1, int perPage = 10}) {
-    final buffer = StringBuffer('$baseUrl/api/owner/activity-log?page=$page&per_page=$perPage');
+  static String ownerActivityLog({
+    String? keyword,
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/owner/activity-log?page=$page&per_page=$perPage',
+    );
     if (keyword != null && keyword.isNotEmpty) {
       buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
     }
@@ -189,6 +227,7 @@ class ApiUrl {
     final y = year ?? DateTime.now().year;
     return '$baseUrl/api/owner/produk-diminati?month=$m&year=$y';
   }
+
   static String ownerKategoriTamu({int? month, int? year}) {
     final m = month ?? DateTime.now().month;
     final y = year ?? DateTime.now().year;
@@ -197,16 +236,14 @@ class ApiUrl {
 
   // ================= CHECK-IN (TAMBAHAN BARU) =================
   static const String checkInFormData = '$baseUrl/api/check-in/form-data';
-  static const String checkInValidateStep1 = '$baseUrl/api/check-in/validate-step1';
+  static const String checkInValidateStep1 =
+      '$baseUrl/api/check-in/validate-step1';
   static const String checkInStore = '$baseUrl/api/check-in';
 
   static String checkInDetail(int id) => '$baseUrl/api/check-in/$id';
 
-
-
-
   // ================= PIC (TAMBAHAN BARU) =================
- 
+
   // static const String picDashboard = '$baseUrl/api/pic/dashboard';
   // static const String picFollowup = '$baseUrl/api/pic/followup';
   // static const String picRiwayat = '$baseUrl/api/pic/riwayat';
@@ -232,7 +269,6 @@ class ApiUrl {
     }
     return buffer.toString();
   }
-
 
   static String picFollowup({
     String filter = 'all',
@@ -275,11 +311,12 @@ class ApiUrl {
     }
     return buffer.toString();
   }
-//   static String picLeads({String filter = 'active', String vipStatus = 'all', int page = 1, int perPage = 10}) {
-//   return '$baseUrl/api/pic/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage';
-// }
+  //   static String picLeads({String filter = 'active', String vipStatus = 'all', int page = 1, int perPage = 10}) {
+  //   return '$baseUrl/api/pic/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage';
+  // }
 
-static String picLeadFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
+  static String picLeadFollowUp(int leadId) =>
+      '$baseUrl/api/pic/leads/$leadId/follow-up';
 
   static String picLeads({
     String filter = 'active',
@@ -302,9 +339,69 @@ static String picLeadFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/fol
   }
 
   static String picUpdateStatus(int id) => '$baseUrl/api/pic/visits/$id/status';
-  static String picCompleteMeeting(int id) => '$baseUrl/api/pic/visits/$id/complete-meeting';
-  static String picStartMeeting(int id) => '$baseUrl/api/pic/visits/$id/start-meeting';
-  static String picUpdateFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
-}
+  static String picCompleteMeeting(int id) =>
+      '$baseUrl/api/pic/visits/$id/complete-meeting';
+  static String picStartMeeting(int id) =>
+      '$baseUrl/api/pic/visits/$id/start-meeting';
+  static String picUpdateFollowUp(int leadId) =>
+      '$baseUrl/api/pic/leads/$leadId/follow-up';
 
- 
+  // ================= ADMIN (FRONT OFFICE) =================
+  static const String adminMasterData = '$baseUrl/api/admin/master-data';
+
+  static String adminDashboard({
+    String dateFilter = 'all',
+    String? keyword,
+    int page = 1,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/admin/dashboard?date_filter=$dateFilter&page=$page',
+    );
+    if (keyword != null && keyword.isNotEmpty) {
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    }
+    return buffer.toString();
+  }
+
+  static String adminCheckIn(int id) => '$baseUrl/api/admin/check-in/$id';
+  static String adminCheckOut(int id) => '$baseUrl/api/admin/check-out/$id';
+  static String adminCancel(int id) => '$baseUrl/api/admin/cancel/$id';
+  static const String adminStoreManual = '$baseUrl/api/admin/store-manual';
+
+  static String adminHistory({String? date, String? keyword, int page = 1}) {
+    final buffer = StringBuffer('$baseUrl/api/admin/history?page=$page');
+    if (date != null && date.isNotEmpty) buffer.write('&date=$date');
+    if (keyword != null && keyword.isNotEmpty)
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    return buffer.toString();
+  }
+
+  static String adminAppointments({String? keyword, int page = 1}) {
+    final buffer = StringBuffer('$baseUrl/api/admin/appointments?page=$page');
+    if (keyword != null && keyword.isNotEmpty)
+      buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
+    return buffer.toString();
+  }
+
+  static const String adminStoreAppointment = '$baseUrl/api/admin/appointments';
+  static String adminUpdateAppointmentStatus(int id) =>
+      '$baseUrl/api/admin/appointments/$id/status';
+
+  static String adminGuest({String? vipStatus, String? keyword, int page = 1}) {
+    String query = 'page=$page';
+    if (vipStatus != null && vipStatus.isNotEmpty) query += '&vip=$vipStatus';
+    if (keyword != null && keyword.isNotEmpty) query += '&keyword=$keyword';
+
+    return '$baseUrl/api/admin/guest?$query';
+  }
+
+  static String get adminStoreGuest => '$baseUrl/api/admin/guest';
+
+  static String adminToggleVip(int id) => '$baseUrl/api/admin/guests/$id/vip';
+
+  static const String adminNotifications = '$baseUrl/api/admin/notifications';
+  static const String adminMarkAllNotificationsRead =
+      '$baseUrl/api/admin/notifications/read-all';
+  static String adminMarkNotificationRead(int id) =>
+      '$baseUrl/api/admin/notifications/$id/read';
+}

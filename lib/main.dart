@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
+import 'package:mobile_flutter/services/notification_service.dart';
 
 import 'ui/manager/dashboard_manager.dart';
 import 'ui/manager/daftar_kunjungan_manager_screen.dart';
@@ -28,7 +29,9 @@ import 'ui/owner/main_owner_navigator.dart';
 
 import 'splash_screen.dart'; // Impor file splash screen
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
   runApp(const MainApp());
 }
 

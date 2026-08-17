@@ -17,6 +17,7 @@ dependencies:
   intl: ^0.20.3
   image_picker: ^1.2.3
   url_launcher: ^6.3.0
+  flutter_local_notifications: ^17.0.0
   
 dev_dependencies:
   flutter_test:

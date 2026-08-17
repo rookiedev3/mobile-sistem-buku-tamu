@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'dashboard_admin_screen.dart';
-import 'daftar_tamu_screen.dart';
-import 'manajemen_pengguna_screen.dart';
+import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
 
 class RiwayatScreen extends StatefulWidget {
-  const RiwayatScreen({Key? key}) : super(key: key);
+  const RiwayatScreen({super.key});
 
   @override
   State<RiwayatScreen> createState() => _RiwayatScreenState();
@@ -12,68 +10,145 @@ class RiwayatScreen extends StatefulWidget {
 
 class _RiwayatScreenState extends State<RiwayatScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
-  
-  // Indeks 2 untuk menu Riwayat Kunjungan pada Navbar Bawah (5 Menu)
-  int _currentIndex = 2;
 
-  // State Pencarian & Filter Tanggal
-  String _searchQuery = '';
+  // State Management Data API Database
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<dynamic> _daftarRiwayat = [];
+
+  // Controller Search (Langsung diinisialisasi agar tidak null)
+  final TextEditingController _searchController = TextEditingController();
   String? _selectedDateFilter; // Format: "YYYY-MM-DD"
 
-  // Data Simulasi Arsip Riwayat Kunjungan
-  final List<Map<String, dynamic>> _daftarRiwayat = [
-    {
-      "id": 1,
-      "token": "TRX-8801",
-      "waktu": "09:30 - 10:15 WIB",
-      "tanggal": "2026-08-13",
-      "nama": "Andi Pratama",
-      "jabatan": "Direktur PT Maju",
-      "jenis": "Meeting Bisnis",
-      "tujuan": "Bapak Manager (Sleman)",
-      "statusAkhir": "Deal",
-      "instansi": "PT Maju Bersama",
-      "wa": "081234567890",
-      "checkIn": "13 Agu 2026, 09:30 WIB",
-      "checkOut": "13 Agu 2026, 10:15 WIB",
-      "foto": "https://via.placeholder.com/150",
-    },
-    {
-      "id": 2,
-      "token": "TRX-8802",
-      "waktu": "11:00 - 11:45 WIB",
-      "tanggal": "2026-08-13",
-      "nama": "Siti Aminah",
-      "jabatan": "Consultant",
-      "jenis": "Konsultasi",
-      "tujuan": "Rian Sales (Magelang)",
-      "statusAkhir": "Dibatalkan",
-      "instansi": "Konsultan Mandiri",
-      "wa": "089876543210",
-      "checkIn": "13 Agu 2026, 11:00 WIB",
-      "checkOut": "13 Agu 2026, 11:15 WIB",
-      "foto": "https://via.placeholder.com/150",
-    },
-    {
-      "id": 3,
-      "token": "TRX-8795",
-      "waktu": "14:00 - 15:00 WIB",
-      "tanggal": "2026-08-12",
-      "nama": "Budi Santoso",
-      "jabatan": "Project Manager",
-      "jenis": "Maintenance",
-      "tujuan": "Ahmad (IT Support)",
-      "statusAkhir": "Selesai",
-      "instansi": "PT Global Tech",
-      "wa": "085678123456",
-      "checkIn": "12 Agu 2026, 14:00 WIB",
-      "checkOut": "12 Agu 2026, 15:00 WIB",
-      "foto": "https://via.placeholder.com/150",
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchRiwayatData();
+  }
 
-  // Pop-up Detail Arsip Kunjungan
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Helper untuk format tanggal & jam (D-M-Y HH:mm WIB)
+  String _formatDateTime(String? rawDateTime) {
+    if (rawDateTime == null || rawDateTime.isEmpty) return '-';
+    try {
+      final dt = DateTime.parse(rawDateTime).toLocal();
+      final day = dt.day.toString().padLeft(2, '0');
+      final month = dt.month.toString().padLeft(2, '0');
+      final year = dt.year;
+      final hour = dt.hour.toString().padLeft(2, '0');
+      final minute = dt.minute.toString().padLeft(2, '0');
+
+      return '$day-$month-$year $hour:$minute WIB';
+    } catch (_) {
+      return rawDateTime;
+    }
+  }
+
+  /// Helper penentuan warna status dinamis
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'selesai':
+      case 'completed':
+      case 'deal':
+        return Colors.green;
+      case 'dibatalkan':
+      case 'cancelled':
+        return Colors.red;
+      case 'menunggu':
+      case 'proses':
+        return Colors.orange;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  /// Memuat Data Riwayat dari Database Backend
+  Future<void> _fetchRiwayatData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final String keywordQuery = _searchController.text.trim();
+
+      // Memanggil API dengan dateFilter = 'all' untuk pencarian lengkap
+      final dynamic data = await DashboardAdminBloc.getDashboard(
+        dateFilter: 'all',
+        keyword: keywordQuery,
+      );
+
+      // Defensive JSON Parsing
+      List<dynamic> visitList = [];
+
+      if (data is Map) {
+        final Map<String, dynamic> rootMap =
+            (data.containsKey('data') && data['data'] is Map)
+                ? Map<String, dynamic>.from(data['data'])
+                : Map<String, dynamic>.from(data);
+
+        final dynamic visitsData = rootMap['visits'];
+
+        if (visitsData is Map && visitsData.containsKey('data')) {
+          visitList = visitsData['data'] is List ? visitsData['data'] : [];
+        } else if (visitsData is List) {
+          visitList = visitsData;
+        } else if (rootMap['data'] is List) {
+          visitList = rootMap['data'];
+        }
+      } else if (data is List) {
+        visitList = List<dynamic>.from(data);
+      }
+
+      // Filter Tanggal Lokal (Client-Side Filtering)
+      if (_selectedDateFilter != null && _selectedDateFilter!.isNotEmpty) {
+        visitList = visitList.where((item) {
+          if (item is! Map) return false;
+          final scheduledAt = item['scheduled_at']?.toString() ??
+              item['created_at']?.toString() ??
+              '';
+          return scheduledAt.startsWith(_selectedDateFilter!);
+        }).toList();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _daftarRiwayat = visitList;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Pop-up Detail Arsip Kunjungan Dinamis
   void _showDetailRiwayatDialog(BuildContext context, Map<String, dynamic> item) {
+    final Map<String, dynamic>? guest = item['guest'] is Map ? Map<String, dynamic>.from(item['guest']) : null;
+    final Map<String, dynamic>? purpose = item['purpose'] is Map ? Map<String, dynamic>.from(item['purpose']) : null;
+    final Map<String, dynamic>? assignedUser = item['assigned_user'] is Map ? Map<String, dynamic>.from(item['assigned_user']) : null;
+
+    final String visitCode = item['visit_code']?.toString() ?? '-';
+    final String currentStatus = item['status']?.toString() ?? '-';
+    final String guestName = guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
+    final String companyName = guest?['company_name']?.toString() ?? '-';
+    final String occupation = guest?['occupation']?.toString() ?? guest?['jabatan']?.toString() ?? '-';
+    final String phoneNumber = guest?['phone_number']?.toString() ?? guest?['phone']?.toString() ?? '-';
+    final String purposeName = purpose?['name']?.toString() ?? '-';
+    final String picName = assignedUser?['name']?.toString() ?? '-';
+    final String checkInTime = _formatDateTime(item['check_in_at']?.toString() ?? item['created_at']?.toString());
+    final String checkOutTime = _formatDateTime(item['check_out_at']?.toString());
+
     showDialog(
       context: context,
       builder: (context) {
@@ -99,31 +174,31 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                 ),
                 const Divider(height: 12),
                 
-                // Foto Dokumen Wajah
+                // Icon Avatar
                 Center(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      width: 90,
-                      height: 90,
+                      width: 80,
+                      height: 80,
                       color: Colors.grey[200],
-                      child: const Icon(Icons.person_rounded, size: 50, color: Colors.grey),
+                      child: const Icon(Icons.person_rounded, size: 45, color: Colors.grey),
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Informasi Lengkap
-                _buildDetailRow("No. Token", item["token"]),
-                _buildDetailRow("Status Kelanjutan", item["statusAkhir"]),
-                _buildDetailRow("Nama Lengkap", item["nama"]),
-                _buildDetailRow("Asal Instansi", item["instansi"]),
-                _buildDetailRow("Jabatan", item["jabatan"]),
-                _buildDetailRow("No. WhatsApp", item["wa"]),
-                _buildDetailRow("Jenis Kunjungan", item["jenis"]),
-                _buildDetailRow("Tujuan PIC", item["tujuan"]),
-                _buildDetailRow("Waktu Check-In", item["checkIn"]),
-                _buildDetailRow("Waktu Check-Out", item["checkOut"]),
+                // Baris Informasi Lengkap
+                _buildDetailRow("No. Token", visitCode),
+                _buildDetailRow("Status Kelanjutan", currentStatus),
+                _buildDetailRow("Nama Lengkap", guestName),
+                _buildDetailRow("Asal Instansi", companyName),
+                _buildDetailRow("Jabatan", occupation),
+                _buildDetailRow("No. WhatsApp", phoneNumber),
+                _buildDetailRow("Jenis Kunjungan", purposeName),
+                _buildDetailRow("Tujuan PIC", picName),
+                _buildDetailRow("Waktu Check-In", checkInTime),
+                _buildDetailRow("Waktu Check-Out", checkOutTime),
 
                 const SizedBox(height: 16),
                 SizedBox(
@@ -164,18 +239,6 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter data berdasarkan Search Bar (Nama/Instansi/PIC) dan Tanggal
-    List<Map<String, dynamic>> filteredList = _daftarRiwayat.where((item) {
-      bool matchesSearch = item['nama'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item['instansi'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item['tujuan'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item['token'].toLowerCase().contains(_searchQuery.toLowerCase());
-
-      bool matchesDate = _selectedDateFilter == null || item['tanggal'] == _selectedDateFilter;
-
-      return matchesSearch && matchesDate;
-    }).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
@@ -186,254 +249,252 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Arsip Data Kunjungan",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-            const SizedBox(height: 2),
-            const Text(
-              "Cari dan tinjau riwayat seluruh tamu yang telah berkunjung",
-              style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
-            ),
-            const SizedBox(height: 14),
-
-            // Search Bar (Nama Tamu / Instansi / PIC)
-            TextField(
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
-                });
-              },
-              style: const TextStyle(fontSize: 12),
-              decoration: InputDecoration(
-                hintText: "Cari nama tamu, instansi, atau PIC...",
-                hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-                prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF778195)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                filled: true,
-                fillColor: Colors.white,
+      body: RefreshIndicator(
+        onRefresh: _fetchRiwayatData,
+        color: corporateGreen,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Arsip Data Kunjungan",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 2),
+              const Text(
+                "Cari dan tinjau riwayat seluruh tamu yang telah berkunjung",
+                style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
+              ),
+              const SizedBox(height: 14),
 
-            // Filter Tanggal & Tombol Reset
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2025),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _selectedDateFilter = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF006B3F)),
-                          const SizedBox(width: 8),
-                          Text(
-                            _selectedDateFilter == null ? "Filter Tanggal..." : "Tanggal: $_selectedDateFilter",
-                            style: TextStyle(fontSize: 11, color: _selectedDateFilter == null ? const Color(0xFF9CA3AF) : const Color(0xFF172033), fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
+              // Search Bar dengan Controller yang Terproteksi
+              TextField(
+                controller: _searchController,
+                onSubmitted: (_) => _fetchRiwayatData(),
+                style: const TextStyle(fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: "Cari nama tamu, instansi, atau PIC...",
+                  hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                  prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF778195)),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.arrow_forward, size: 16, color: Color(0xFF006B3F)),
+                    onPressed: _fetchRiwayatData,
                   ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-                if (_selectedDateFilter != null) ...[
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _selectedDateFilter = null;
-                      });
-                    },
-                    child: const Text("Reset", style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 10),
 
-            // List Arsip Riwayat
-            filteredList.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text("Tidak ada arsip riwayat kunjungan yang ditemukan.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredList[index];
-                      bool isDeal = item["statusAkhir"] == "Deal" || item["statusAkhir"] == "Selesai";
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
+              // Filter Tanggal & Reset Button
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
+                        DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2024),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedDateFilter =
+                                "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                          });
+                          _fetchRiwayatData();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                  child: Text("No. ${item["id"]} • ${item["token"]}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isDeal ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    item["statusAkhir"],
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDeal ? Colors.green[700] : Colors.red[700],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(item["nama"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
-                            Text(item["jabatan"], style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF006B3F)),
-                                const SizedBox(width: 4),
-                                Text("Waktu: ${item["waktu"]} (${item["tanggal"]})", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                const Icon(Icons.assignment_outlined, size: 12, color: Color(0xFF778195)),
-                                const SizedBox(width: 4),
-                                Text("Jenis: ${item["jenis"]}", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Row(
-                              children: [
-                                const Icon(Icons.person_outline_rounded, size: 12, color: Color(0xFF006B3F)),
-                                const SizedBox(width: 4),
-                                Text("Tujuan PIC: ${item["tujuan"]}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
-                              ],
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 6.0),
-                              child: Divider(height: 1, color: Color(0xFFE5E7EB)),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _showDetailRiwayatDialog(context, item),
-                                  icon: const Icon(Icons.visibility_outlined, size: 12, color: Color(0xFF006B3F)),
-                                  label: const Text("Detail", style: TextStyle(fontSize: 10, color: Color(0xFF006B3F))),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    side: BorderSide(color: corporateGreen),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                    minimumSize: const Size(40, 24),
-                                  ),
-                                ),
-                              ],
+                            const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF006B3F)),
+                            const SizedBox(width: 8),
+                            Text(
+                              _selectedDateFilter == null ? "Filter Tanggal..." : "Tanggal: $_selectedDateFilter",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _selectedDateFilter == null ? const Color(0xFF9CA3AF) : const Color(0xFF172033),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-          ],
+                  if (_selectedDateFilter != null) ...[
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDateFilter = null;
+                        });
+                        _fetchRiwayatData();
+                      },
+                      child: const Text("Reset", style: TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Dynamic List State Handling
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.all(40.0),
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFF006B3F))),
+                )
+              else if (_errorMessage != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+                )
+              else if (_daftarRiwayat.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Text("Tidak ada arsip riwayat kunjungan yang ditemukan.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
+                  ),
+                )
+              else
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _daftarRiwayat.length,
+                  itemBuilder: (context, index) {
+                    final dynamic itemRaw = _daftarRiwayat[index];
+                    if (itemRaw is! Map) return const SizedBox.shrink();
+
+                    final Map<String, dynamic> item = Map<String, dynamic>.from(itemRaw);
+
+                    final String visitCode = item['visit_code']?.toString() ?? '-';
+                    final Map<String, dynamic>? guest = item['guest'] is Map ? Map<String, dynamic>.from(item['guest']) : null;
+                    final String guestName = guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
+                    final String companyName = guest?['company_name']?.toString() ?? '-';
+                    final String occupation = guest?['occupation']?.toString() ?? guest?['jabatan']?.toString() ?? '-';
+
+                    final Map<String, dynamic>? purpose = item['purpose'] is Map ? Map<String, dynamic>.from(item['purpose']) : null;
+                    final String purposeName = purpose?['name']?.toString() ?? '-';
+
+                    final Map<String, dynamic>? assignedUser = item['assigned_user'] is Map ? Map<String, dynamic>.from(item['assigned_user']) : null;
+                    final String picName = assignedUser?['name']?.toString() ?? '-';
+
+                    final String scheduledAtFormatted = _formatDateTime(item['scheduled_at']?.toString() ?? item['created_at']?.toString());
+                    final String currentStatus = item['status']?.toString() ?? 'Selesai';
+                    final Color statusColor = _getStatusColor(currentStatus);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2))],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
+                                child: Text("No. ${index + 1} • $visitCode", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  currentStatus,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
+                          Text("$occupation • $companyName", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF006B3F)),
+                              const SizedBox(width: 4),
+                              Text("Waktu: $scheduledAtFormatted", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.assignment_outlined, size: 12, color: Color(0xFF778195)),
+                              const SizedBox(width: 4),
+                              Text("Jenis: $purposeName", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.person_outline_rounded, size: 12, color: Color(0xFF006B3F)),
+                              const SizedBox(width: 4),
+                              Text("Tujuan PIC: $picName", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
+                            ],
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6.0),
+                            child: Divider(height: 1, color: Color(0xFFE5E7EB)),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => _showDetailRiwayatDialog(context, item),
+                                icon: const Icon(Icons.visibility_outlined, size: 12, color: Color(0xFF006B3F)),
+                                label: const Text("Detail", style: TextStyle(fontSize: 10, color: Color(0xFF006B3F))),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  side: BorderSide(color: corporateGreen),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  minimumSize: const Size(40, 24),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
-
-      // ===================================================
-      // NAVBAR BAWAH (Konsisten 5 Menu)
-      // ===================================================
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   selectedItemColor: const Color(0xFF006B3F),
-      //   unselectedItemColor: const Color(0xFF778195),
-      //   backgroundColor: Colors.white,
-      //   type: BottomNavigationBarType.fixed,
-      //   selectedFontSize: 10,
-      //   unselectedFontSize: 10,
-      //   onTap: (index) {
-      //     setState(() {
-      //       _currentIndex = index;
-      //     });
-
-      //     if (index == 0) {
-      //       Navigator.pushReplacement(
-      //         context,
-      //         MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
-      //       );
-      //     } else if (index == 1) {
-      //       Navigator.pushReplacement(
-      //         context,
-      //         MaterialPageRoute(builder: (context) => const DaftarTamuScreen()),
-      //       );
-      //     } else if (index == 2) {
-      //       // Halaman ini (Riwayat)
-      //     } else if (index == 3) {
-      //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Navigasi ke Janji Tamu')));
-      //     } else if (index == 4) {
-      //       Navigator.push(
-      //         context,
-      //         MaterialPageRoute(builder: (context) => const ManajemenPenggunaScreen()),
-      //       );
-      //     }
-      //   },
-      //   items: const [
-      //     BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
-      //   ],
-      // ),
     );
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Import halaman khusus Admin sesuai path Anda
 import 'dashboard_admin_screen.dart';
 import 'daftar_tamu_screen.dart';
 import 'janji_tamu_screen.dart';
@@ -8,22 +7,21 @@ import 'riwayat_screen.dart';
 import 'manajemen_pengguna_screen.dart';
 
 class MainAdminNavigator extends StatefulWidget {
-  const MainAdminNavigator({Key? key}) : super(key: key);
+  const MainAdminNavigator({super.key});
 
   @override
   State<MainAdminNavigator> createState() => _MainAdminNavigatorState();
 }
 
 class _MainAdminNavigatorState extends State<MainAdminNavigator> {
-  int _currentIndex = 0; // Indeks awal (0: Dashboard Admin)
+  int _currentIndex = 0;
 
-  // Daftar list halaman Admin yang terhubung ke 5 menu navbar bawah
-  final List<Widget> _pages = [
-    const DashboardAdminScreen(),
-    const DaftarTamuScreen(),
-    const JanjiTamuScreen(),
-    const RiwayatScreen(),
-    const ManajemenPenggunaScreen(),
+  final List<Widget> _pages = const [
+    DashboardAdminScreen(),
+    DaftarTamuScreen(),
+    JanjiTamuScreen(),
+    RiwayatScreen(),
+    ManajemenPenggunaScreen(),
   ];
 
   @override
@@ -31,13 +29,10 @@ class _MainAdminNavigatorState extends State<MainAdminNavigator> {
     const Color corporateGreen = Color(0xFF006B3F);
 
     return Scaffold(
-      // Menampilkan halaman sesuai indeks aktif dan menjaga state-nya tetap utuh
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-
-      // 5 Navbar Bawah khusus Role Admin
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: corporateGreen,
@@ -53,23 +48,23 @@ class _MainAdminNavigatorState extends State<MainAdminNavigator> {
         },
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded, size: 16),
+            icon: Icon(Icons.dashboard_rounded, size: 18),
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_rounded, size: 16),
+            icon: Icon(Icons.assignment_rounded, size: 18),
             label: 'Daftar Tamu',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month_rounded, size: 16),
+            icon: Icon(Icons.calendar_month_rounded, size: 18),
             label: 'Janji Tamu',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_rounded, size: 16),
+            icon: Icon(Icons.history_rounded, size: 18),
             label: 'Riwayat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.manage_accounts_rounded, size: 16),
+            icon: Icon(Icons.manage_accounts_rounded, size: 18),
             label: 'Pengguna',
           ),
         ],

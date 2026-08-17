@@ -16,21 +16,20 @@ class TamuFormStep2 extends StatefulWidget {
 class _TamuFormStep2State extends State<TamuFormStep2> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controller untuk Detail & Tanggal Kunjungan
+  // Controller untuk Detail & Tanggal/Waktu Kunjungan
   final _detailController = TextEditingController();
   final _tanggalController = TextEditingController();
   DateTime? _selectedDateTime;
 
   // Selected Values (ID)
-  int? _selectedStaffId;
   int? _selectedCabangId;
+  int? _selectedStaffId;
   int? _selectedPurposeId;
   int? _selectedProdukId;
   int? _selectedSumberId;
 
   // List Data Master dari API
-  List<OptionItem> _allStaff = []; // Master seluruh staff dari API
-  List<OptionItem> _filteredStaff = []; // List staff yang sudah difilter per cabang
+  List<OptionItem> _listStaff = [];
   List<OptionItem> _listCabang = [];
   List<OptionItem> _listPurposes = [];
   List<OptionItem> _listProduk = [];
@@ -50,7 +49,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       CheckInMasterData masterData = await CheckInBloc.getFormData();
       if (!mounted) return;
       setState(() {
-        _allStaff = masterData.pics;
+        _listStaff = masterData.pics;
         _listCabang = masterData.branches;
         _listPurposes = masterData.visitPurposes;
         _listProduk = masterData.products;
@@ -71,14 +70,20 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     }
   }
 
+  /// Getter penyaringan daftar Staff/PIC berdasarkan cabang yang dipilih
+  List<OptionItem> get _filteredStaff {
+    if (_selectedCabangId == null) return [];
+    return _listStaff.where((item) => item.branchId == _selectedCabangId).toList();
+  }
+
   /// Validasi & Pindah ke Step 3 (Konfirmasi)
   void _processNextStep() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    if (_selectedStaffId == null ||
-        _selectedCabangId == null ||
+    if (_selectedCabangId == null ||
+        _selectedStaffId == null ||
         _selectedPurposeId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -92,7 +97,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     if (_selectedDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Silakan pilih tanggal kunjungan!'),
+          content: Text('Silakan pilih tanggal dan jam kunjungan!'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -100,16 +105,16 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     }
 
     // Ambil nama terisolasi untuk ditampilkan di Step 3
-    String staffName = _allStaff
+    String branchName = _listCabang
         .firstWhere(
-          (e) => e.id == _selectedStaffId,
+          (e) => e.id == _selectedCabangId,
           orElse: () => OptionItem(id: 0, name: '-'),
         )
         .name;
 
-    String branchName = _listCabang
+    String staffName = _listStaff
         .firstWhere(
-          (e) => e.id == _selectedCabangId,
+          (e) => e.id == _selectedStaffId,
           orElse: () => OptionItem(id: 0, name: '-'),
         )
         .name;
@@ -144,15 +149,10 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
       'assigned_to': _selectedStaffId,
       'branch_id': _selectedCabangId,
       'purpose_id': _selectedPurposeId,
-      'scheduled_at': _selectedDateTime!
-          .toIso8601String()
-          .split('.')
-          .first
-          .replaceAll('T', ' '),
+      'scheduled_at':
+          _selectedDateTime!.toIso8601String().split('.').first.replaceAll('T', ' '),
       'notes': _detailController.text,
-      'product_interest': _selectedProdukId != null
-          ? [_selectedProdukId!]
-          : <int>[],
+      'product_interest': _selectedProdukId != null ? [_selectedProdukId!] : <int>[],
       'source_id': _selectedSumberId,
       'staff_name': staffName,
       'branch_name': branchName,
@@ -165,8 +165,10 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            TamuFormStep3(step1Data: widget.step1Data, step2Data: step2Data),
+        builder: (context) => TamuFormStep3(
+          step1Data: widget.step1Data,
+          step2Data: step2Data,
+        ),
       ),
     );
   }
@@ -181,337 +183,284 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FC),
-      body: _isLoadingData
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF006B3F)),
-            )
-          : Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  padding: const EdgeInsets.all(32.0),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Tombol Kembali ke Tahap 1
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
+      body: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF01281b),
+                  Color(0xFF013220),
+                  Color(0xFF006B3F),
+                ],
+                stops: [0.0, 0.4, 1.0],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BackgroundArcsPainter(),
+            ),
+          ),
+          _isLoadingData
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : SafeArea(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 450),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.arrow_back_ios,
-                                size: 14,
-                                color: Color(0xFF006B3F),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      "Detail Kunjungan Tamu",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      "Tahap 2 / 4",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                "Kembali ke Tahap 1",
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF006B3F),
+                              const SizedBox(height: 4),
+                              const Text(
+                                "Silakan lengkapi informasi tujuan dan keperluan kunjungan Anda.",
+                                style: TextStyle(fontSize: 12, color: Colors.white70),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // 1. Dropdown Cabang Kantor
+                              const Text("Cabang Kantor *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<int>(
+                                value: _selectedCabangId,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                hint: const Text("Pilih cabang kantor", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+                                decoration: _inputDecoration(),
+                                items: _listCabang.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() {
+                                    _selectedCabangId = val;
+                                    _selectedStaffId = null;
+                                  });
+                                },
+                                validator: (val) => val == null ? "Cabang kantor wajib dipilih" : null,
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              // 2. Dropdown Staff / PIC
+                              const Text("Tujuan Bertemu (Staff / PIC) *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<int>(
+                                key: ValueKey(_selectedCabangId),
+                                value: _selectedStaffId,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                hint: Text(
+                                  _selectedCabangId == null
+                                      ? "Pilih cabang kantor terlebih dahulu"
+                                      : (_filteredStaff.isEmpty ? "Tidak ada PIC di cabang ini" : "Pilih Staff / PIC yang dituju"),
+                                  style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
                                 ),
+                                decoration: _inputDecoration(),
+                                items: _filteredStaff.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                onChanged: (_selectedCabangId == null || _filteredStaff.isEmpty)
+                                    ? null
+                                    : (val) => setState(() => _selectedStaffId = val),
+                                validator: (val) => val == null ? "Staff/PIC wajib dipilih" : null,
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
 
-                        // Indikator Tahap (Step 2 dari 4)
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Detail Kunjungan Tamu",
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF172033),
+                              const SizedBox(height: 10),
+
+                              // 3. Jenis Kunjungan
+                              const Text("Jenis Kunjungan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<int>(
+                                value: _selectedPurposeId,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                hint: const Text("Pilih jenis kunjungan", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+                                decoration: _inputDecoration(),
+                                items: _listPurposes.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedPurposeId = val),
+                                validator: (val) => val == null ? "Jenis kunjungan wajib dipilih" : null,
                               ),
-                            ),
-                            Text(
-                              "Tahap 2 dari 4",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF006B3F),
+
+                              const SizedBox(height: 10),
+
+                              // 4. Produk / Layanan yang Diminati
+                              const Text("Produk / Layanan yang Diminati", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<int>(
+                                value: _selectedProdukId,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                hint: const Text("Pilih produk atau layanan", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+                                decoration: _inputDecoration(),
+                                items: _listProduk.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedProdukId = val),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          "Silakan lengkapi informasi tujuan dan keperluan kunjungan Anda.",
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF778195),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
 
-                        // 1. Tujuan Bertemu (Staff / PIC)
-                        const Text(
-                          "Tujuan Bertemu (Staff / PIC) *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedStaffId,
-                          hint: const Text(
-                            "Pilih Staff / PIC yang dituju",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listStaff.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
+                              const SizedBox(height: 10),
+
+                              // 5. Tanggal & Jam Kunjungan (Pilih Tanggal + Pilih Jam)
+                              const Text("Tanggal & Jam Kunjungan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              TextFormField(
+                                controller: _tanggalController,
+                                readOnly: true,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                decoration: _inputDecoration().copyWith(
+                                  hintText: "Pilih tanggal & jam kunjungan",
+                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                                  suffixIcon: const Icon(
+                                    Icons.access_time_rounded,
+                                    size: 18,
+                                    color: Color(0xFF778195),
+                                  ),
+                                ),
+                                validator: (val) => val == null || val.isEmpty ? "Tanggal & jam kunjungan wajib diisi" : null,
+                                onTap: () async {
+                                  // 1. Pilih Tanggal
+                                  DateTime? pickedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                                    lastDate: DateTime(2030),
+                                    builder: (context, child) {
+                                      return Dialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Container(
+                                          constraints: const BoxConstraints(maxWidth: 340, maxHeight: 480),
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                  );
+
+                                  if (pickedDate == null || !mounted) return;
+
+                                  // 2. Pilih Jam setelah tanggal dipilih
+                                  TimeOfDay? pickedTime = await showTimePicker(
+                                    context: context,
+                                    initialTime: TimeOfDay.now(),
+                                  );
+
+                                  if (pickedTime != null && mounted) {
+                                    setState(() {
+                                      _selectedDateTime = DateTime(
+                                        pickedDate.year,
+                                        pickedDate.month,
+                                        pickedDate.day,
+                                        pickedTime.hour,
+                                        pickedTime.minute,
+                                      );
+
+                                      final String formattedDate =
+                                          "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                                      final String formattedTime =
+                                          "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+
+                                      _tanggalController.text = "$formattedDate $formattedTime";
+                                    });
+                                  }
+                                },
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedStaffId = val),
-                          validator: (val) =>
-                              val == null ? "Staff/PIC wajib dipilih" : null,
-                        ),
-                        const SizedBox(height: 16),
 
-                        // 2. Cabang Kantor
-                        const Text(
-                          "Cabang Kantor *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedCabangId,
-                          hint: const Text(
-                            "Pilih cabang kantor",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listCabang.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
+                              const SizedBox(height: 10),
+
+                              // 6. Sumber Mengetahui
+                              const Text("Sumber Mengetahui IT Solution", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<int>(
+                                value: _selectedSumberId,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                hint: const Text("Pilih sumber informasi", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+                                decoration: _inputDecoration(),
+                                items: _listSumber.map((OptionItem item) {
+                                  return DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedSumberId = val),
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedCabangId = val),
-                          validator: (val) =>
-                              val == null ? "Cabang kantor wajib dipilih" : null,
-                        ),
-                        const SizedBox(height: 16),
 
-                        // 3. Jenis Kunjungan (Visit Purpose)
-                        const Text(
-                          "Jenis Kunjungan *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedPurposeId,
-                          hint: const Text(
-                            "Pilih jenis kunjungan",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listPurposes.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
+                              const SizedBox(height: 10),
+
+                              // 7. Detail Kunjungan (Notes)
+                              const Text("Detail Kunjungan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                              const SizedBox(height: 4),
+                              TextFormField(
+                                controller: _detailController,
+                                maxLines: 3,
+                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                                decoration: _inputDecoration().copyWith(
+                                  hintText: "Tuliskan keterangan detail keperluan Anda...",
+                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+                                ),
+                                validator: (val) => val == null || val.isEmpty ? "Detail kunjungan wajib diisi" : null,
                               ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedPurposeId = val),
-                          validator: (val) =>
-                              val == null ? "Jenis kunjungan wajib dipilih" : null,
-                        ),
-                        const SizedBox(height: 16),
 
-                        // 4. Produk / Layanan yang Diminati
-                        const Text(
-                          "Produk / Layanan yang Diminati",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedProdukId,
-                          hint: const Text(
-                            "Pilih produk atau layanan",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listProduk.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedProdukId = val),
-                        ),
-                        const SizedBox(height: 16),
+                              const SizedBox(height: 20),
 
-                        // 5. Tanggal Kunjungan
-                        const Text(
-                          "Tanggal Kunjungan *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _tanggalController,
-                          readOnly: true,
-                          decoration: _inputDecoration().copyWith(
-                            hintText: "Pilih tanggal kunjungan",
-                            hintStyle: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                            suffixIcon: const Icon(
-                              Icons.calendar_today,
-                              size: 18,
-                              color: Color(0xFF006B3F),
-                            ),
-                          ),
-                          validator: (val) =>
-                              val == null || val.isEmpty ? "Tanggal kunjungan wajib diisi" : null,
-                          onTap: () async {
-                            DateTime? pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                              lastDate: DateTime(2030),
-                            );
-                            if (pickedDate != null) {
-                              setState(() {
-                                _selectedDateTime = DateTime(
-                                  pickedDate.year,
-                                  pickedDate.month,
-                                  pickedDate.day,
-                                  DateTime.now().hour,
-                                  DateTime.now().minute,
-                                );
-                                _tanggalController.text =
-                                    "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // 6. Sumber Mengetahui IT Solution
-                        const Text(
-                          "Sumber Mengetahui IT Solution",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        DropdownButtonFormField<int>(
-                          initialValue: _selectedSumberId,
-                          hint: const Text(
-                            "Pilih sumber informasi",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          decoration: _inputDecoration(),
-                          items: _listSumber.map((OptionItem item) {
-                            return DropdownMenuItem<int>(
-                              value: int.tryParse(item.id.toString()) ?? 0,
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) =>
-                              setState(() => _selectedSumberId = val),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // 7. Detail Kunjungan (Notes)
-                        const Text(
-                          "Detail Kunjungan *",
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextFormField(
-                          controller: _detailController,
-                          maxLines: 3,
-                          decoration: _inputDecoration().copyWith(
-                            hintText:
-                                "Tuliskan keterangan detail keperluan Anda...",
-                            hintStyle: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          validator: (val) =>
-                              val == null || val.isEmpty ? "Detail kunjungan wajib diisi" : null,
-                        ),
-                        const SizedBox(height: 28),
-
-                              // Tombol Lanjut ke Tahap 3
                               SizedBox(
                                 width: double.infinity,
                                 height: 48,
@@ -537,7 +486,6 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
 
                               const SizedBox(height: 16),
 
-                              // Tombol "Kembali ke Tahap 1" di Paling Bawah Sendiri
                               Center(
                                 child: GestureDetector(
                                   onTap: () => Navigator.pop(context),
@@ -573,9 +521,13 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
   InputDecoration _inputDecoration() {
     return InputDecoration(
       filled: true,
-      fillColor: const Color(0xFFF4F7FC),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      errorStyle: const TextStyle(
+        color: Colors.redAccent,
+        fontWeight: FontWeight.bold,
+        fontSize: 11,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
@@ -584,7 +536,6 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
   }
 }
 
-// Custom Painter untuk Menggambar Setengah Lingkaran (Arc Tunggal) yang Elegan
 class BackgroundArcsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -601,12 +552,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
+
       canvas.drawArc(
         rect,
         a['start'] as double,

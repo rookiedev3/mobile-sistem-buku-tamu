@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:image_picker/image_picker.dart';
@@ -25,7 +24,9 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
   String? _selectedKategoriId;
   List<OptionItem> _listKategori = [];
-  XFile? _photoFile; // 🟢 UBAH: Menggunakan XFile? agar aman untuk Web & Mobile
+  
+  // Menggunakan XFile? menggantikan File? (kompatibel Web & Mobile)
+  XFile? _photoFile;
 
   bool _isLoadingData = true;
   bool _isSubmitting = false;
@@ -71,14 +72,15 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
       if (pickedFile != null) {
         setState(() {
-          _photoFile = pickedFile; // 🟢 UBAH: Simpan langsung sebagai XFile
+          // Menyimpan objek XFile secara langsung tanpa wrapper File()
+          _photoFile = pickedFile;
         });
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengambil gambar: $e')),
+      );
     }
   }
 
@@ -101,10 +103,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                 },
               ),
               ListTile(
-                leading: const Icon(
-                  Icons.photo_library,
-                  color: Color(0xFF006B3F),
-                ),
+                leading: const Icon(Icons.photo_library, color: Color(0xFF006B3F)),
                 title: const Text('Pilih dari Galeri'),
                 onTap: () {
                   Navigator.pop(context);
@@ -158,7 +157,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
         'guest_category_id': _selectedKategoriId,
         'position': _jabatanController.text,
         'phone': _whatsappController.text,
-        'photo_file': _photoFile, // 🟢 Meneruskan XFile? ke Step 2 & 3
+        'photo_file': _photoFile, // XFile dikirim ke step 2
       };
 
       Navigator.push(
@@ -173,7 +172,10 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
         _isSubmitting = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -336,7 +338,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
                               const SizedBox(height: 10),
 
-                              // Email (Dengan warna error merah menyala)
+                              // Email
                               const Text("Email *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                               const SizedBox(height: 4),
                               TextFormField(
@@ -383,7 +385,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
                               const SizedBox(height: 10),
 
-                              // Foto Tamu (Tanpa Bintang di Paling Bawah)
+                              // Foto Tamu
                               const Text("Foto Tamu", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                               const SizedBox(height: 4),
                               GestureDetector(
@@ -455,7 +457,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
 
                               const SizedBox(height: 16),
 
-                              // Tombol "Kembali ke Beranda" di Paling Bawah Sendiri
+                              // Tombol Kembali ke Beranda
                               Center(
                                 child: GestureDetector(
                                   onTap: () => Navigator.pop(context),
@@ -503,7 +505,6 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
   }
 }
 
-// Custom Painter untuk Menggambar Setengah Lingkaran (Arc Tunggal) yang Elegan
 class BackgroundArcsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -520,12 +521,12 @@ class BackgroundArcsPainter extends CustomPainter {
 
     for (var a in arcs) {
       paint.color = Colors.white.withOpacity(a['opacity'] as double);
-      
+
       final rect = Rect.fromCircle(
         center: Offset(a['x'] as double, a['y'] as double),
         radius: a['r'] as double,
       );
-      
+
       canvas.drawArc(
         rect,
         a['start'] as double,
