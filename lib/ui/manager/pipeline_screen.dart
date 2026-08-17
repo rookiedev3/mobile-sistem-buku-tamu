@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-// import 'dashboard_manager.dart';
-// import 'daftar_kunjungan_manager_screen.dart';
 import '../../bloc/pipeline_bloc.dart';
 import '../../model/lead_pipeline_model.dart';
 
@@ -13,9 +11,8 @@ class PipelineScreen extends StatefulWidget {
 }
 
 class _PipelineScreenState extends State<PipelineScreen> {
+  int _currentPage = 1; // state halaman aktif untuk pagination
 
-  // Label tampilan -> value filter backend
-  // REVISI: ditambah tab "Semua" di posisi paling depan, menyamakan dengan tab di web
   final Map<String, String> _categoryMap = {
     'Semua': 'all',
     'Aktif': 'active',
@@ -44,10 +41,13 @@ class _PipelineScreenState extends State<PipelineScreen> {
     _loadData();
   }
 
-  void _loadData() {
+  // Bisa terima parameter page opsional — dipakai tombol next/prev.
+  void _loadData({int? page}) {
+    if (page != null) _currentPage = page;
     _futurePipeline = PipelineBloc.list(
       filter: _categoryMap[_selectedCategory]!,
       vipStatus: _vipFilter,
+      page: _currentPage,
     );
   }
 
@@ -83,9 +83,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                   Text("Ditangani oleh: ${lead.ownerName ?? '-'} (PIC)",
                       style: const TextStyle(fontSize: 11, color: Color(0xFF778195), fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-
-                  // REVISI: ringkasan status/jadwal/estimasi value di bagian atas, menyamakan
-                  // dengan box "Tahap Pipeline Terakhir / Jadwal / Estimasi Value" di web.
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
@@ -106,9 +103,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-
-                  // REVISI: dipecah jadi dua blok terpisah seperti di web,
-                  // "Catatan Awal Kunjungan" (notes) dan "Hasil Meeting Pertama" (meetingResult)
                   const Text("📝 Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
@@ -123,7 +117,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-
                   const Text("📌 Hasil Meeting Pertama:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
@@ -138,7 +131,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-
                   const Text("🔄 Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
@@ -180,7 +172,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                             const SizedBox(height: 6),
                             Text(fu.result ?? '-', style: const TextStyle(fontSize: 12)),
                             const SizedBox(height: 6),
-                            // REVISI: tambah estimasi value per update, menyamakan dengan web
                             Wrap(
                               spacing: 16,
                               runSpacing: 4,
@@ -211,9 +202,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
     );
   }
 
-  // REVISI: format manual tanpa bergantung pada DateFormat(locale: 'id_ID'),
-  // karena kalau initializeDateFormatting('id_ID') belum dipanggil di main(),
-  // DateFormat akan throw dan fallback ke string ISO mentah (itu yang kejadian sebelumnya).
   static const List<String> _bulanIndo = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
@@ -228,10 +216,8 @@ class _PipelineScreenState extends State<PipelineScreen> {
     }
   }
 
-  // Alias supaya pemanggilan lama (_formatFullDate) tetap jalan tanpa perlu ganti semua pemanggil.
   String _formatFullDate(String raw) => _formatDate(raw);
 
-  // REVISI: menyamakan logika $scheduleText di web (riwayat.blade.php / leads.blade.php)
   String _scheduleText(LeadModel lead) {
     if (lead.status == 'deal') return 'Sudah Deal 🎉';
     if (lead.status == 'lost') return 'Lead Hilang / Lost';
@@ -301,7 +287,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() => _loadData());
+          setState(() => _loadData(page: 1));
           await _futurePipeline;
         },
         child: FutureBuilder<LeadPipelineResponse>(
@@ -323,7 +309,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         const SizedBox(height: 8),
                         Text('${snapshot.error}', textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        ElevatedButton(onPressed: () => setState(() => _loadData()), child: const Text('Coba Lagi')),
+                        ElevatedButton(onPressed: () => setState(() => _loadData(page: 1)), child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -395,7 +381,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   onSelected: (_) => setState(() {
                                     _selectedCategory = label;
-                                    _loadData();
+                                    _loadData(page: 1); // reset ke halaman 1 saat ganti kategori
                                   }),
                                 ),
                               );
@@ -422,7 +408,10 @@ class _PipelineScreenState extends State<PipelineScreen> {
                           DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
                         ],
                         onChanged: (value) {
-                          if (value != null) setState(() { _vipFilter = value; _loadData(); });
+                          if (value != null) setState(() {
+                            _vipFilter = value;
+                            _loadData(page: 1); // reset ke halaman 1 saat ganti filter VIP
+                          });
                         },
                       ),
                     ],
@@ -469,7 +458,8 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                            child: Text("No. ${result.data.indexOf(lead) + 1 + (result.currentPage - 1) * 10}",
+                                            // nomor urut dihitung dari halaman aktif, sama seperti pola web
+                                            child: Text("No. ${index + 1 + (result.currentPage - 1) * 10}",
                                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
                                           ),
                                           const SizedBox(width: 8),
@@ -512,7 +502,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   const SizedBox(height: 6),
 
-                                  // REVISI: tambah baris nama instansi (company_name), meniru web
                                   if (lead.companyName != null && lead.companyName!.isNotEmpty) ...[
                                     Row(
                                       children: [
@@ -546,7 +535,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   const SizedBox(height: 6),
 
-                                  // REVISI: tanggal follow-up lengkap ("15 Agustus 2026") + badge relatif di sampingnya
                                   Row(
                                     children: [
                                       const Icon(Icons.calendar_today_rounded, size: 14, color: Color(0xFF778195)),
@@ -593,6 +581,34 @@ class _PipelineScreenState extends State<PipelineScreen> {
                             );
                           },
                         ),
+
+                  // Kontrol navigasi halaman — cuma muncul kalau ada data & lebih dari 1 halaman
+                  if (leads.isNotEmpty && result.lastPage > 1) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          color: const Color(0xFF006B3F),
+                          onPressed: result.currentPage > 1
+                              ? () => setState(() => _loadData(page: result.currentPage - 1))
+                              : null,
+                        ),
+                        Text(
+                          ' ${result.currentPage} / ${result.lastPage}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          color: const Color(0xFF006B3F),
+                          onPressed: result.currentPage < result.lastPage
+                              ? () => setState(() => _loadData(page: result.currentPage + 1))
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             );
