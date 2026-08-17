@@ -80,8 +80,16 @@ class ApiUrl {
     }
     return buffer.toString();
   }
-  static String ownerLeadsPipeline(String filter, String vipStatus, {String? keyword, int page = 1}) {
-    final buffer = StringBuffer('$baseUrl/api/owner/leads?filter=$filter&vip_status=$vipStatus&page=$page');
+  static String ownerLeadsPipeline(
+    String filter,
+    String vipStatus, {
+    String? keyword,
+    int page = 1,
+    int perPage = 2, // ⬅️ BARU
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/owner/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage',
+    );
     if (keyword != null && keyword.isNotEmpty) {
       buffer.write('&keyword=${Uri.encodeQueryComponent(keyword)}');
     }

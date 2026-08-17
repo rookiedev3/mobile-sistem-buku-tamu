@@ -14,6 +14,7 @@ class LeadScreen extends StatefulWidget {
 
 class _LeadScreenState extends State<LeadScreen> {
   int _currentIndex = 1;
+  int _currentPage = 1; // ⬅️ BARU: state halaman aktif untuk pagination
 
   final Map<String, String> _categoryMap = {
     'Semua': 'all',
@@ -43,10 +44,13 @@ class _LeadScreenState extends State<LeadScreen> {
     _loadData();
   }
 
-  void _loadData() {
+  // ⬅️ DIUBAH: sekarang bisa terima parameter page opsional.
+  void _loadData({int? page}) {
+    if (page != null) _currentPage = page;
     _futureLeads = DashboardOwnerBloc.fetchLeads(
       filter: _categoryMap[_selectedCategory]!,
       vipStatus: _vipFilter,
+      page: _currentPage,
     );
   }
 
@@ -399,6 +403,7 @@ class _LeadScreenState extends State<LeadScreen> {
                             ),
                             onSelected: (_) => setState(() {
                               _selectedCategory = label;
+                              _currentPage = 1; // ⬅️ BARU: reset ke halaman 1 saat ganti kategori
                               _loadData();
                             }),
                           ),
@@ -422,7 +427,11 @@ class _LeadScreenState extends State<LeadScreen> {
                           DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
                         ],
                         onChanged: (value) {
-                          if (value != null) setState(() { _vipFilter = value; _loadData(); });
+                          if (value != null) setState(() {
+                            _vipFilter = value;
+                            _currentPage = 1; // ⬅️ BARU: reset ke halaman 1 saat ganti filter VIP
+                            _loadData();
+                          });
                         },
                       ),
                     ],
@@ -487,55 +496,55 @@ class _LeadScreenState extends State<LeadScreen> {
                                   ),
                                   const SizedBox(height: 10),
                                   Row(
-  children: [
-    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
-    const SizedBox(width: 6),
-    Expanded(
-      child: Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-            TextSpan(
-              text: "${lead.guestName ?? '-'}"
-                  "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-          ],
-        ),
-      ),
-    ),
-    if (lead.isVip) ...[
-      const SizedBox(width: 4),
-      const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-    ],
-  ],
-),
-const SizedBox(height: 6),
-Row(
-  children: [
-    const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
-    const SizedBox(width: 6),
-    Expanded(
-      child: Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: "Instansi: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-            TextSpan(
-              text: (lead.companyName != null && lead.companyName!.isNotEmpty)
-                  ? lead.companyName!
-                  : '-',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-          ],
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  ],
-),
-const SizedBox(height: 6),
-                                  
+                                    children: [
+                                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                              TextSpan(
+                                                text: "${lead.guestName ?? '-'}"
+                                                    "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (lead.isVip) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              const TextSpan(text: "Instansi: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                              TextSpan(
+                                                text: (lead.companyName != null && lead.companyName!.isNotEmpty)
+                                                    ? lead.companyName!
+                                                    : '-',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -596,13 +605,40 @@ const SizedBox(height: 6),
                             );
                           },
                         ),
+
+                  // ⬅️ BARU: kontrol navigasi halaman, cuma muncul kalau ada data & lebih dari 1 halaman
+                  if (leads.isNotEmpty && result.lastPage > 1) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          color: const Color(0xFF006B3F),
+                          onPressed: result.currentPage > 1
+                              ? () => setState(() => _loadData(page: result.currentPage - 1))
+                              : null,
+                        ),
+                        Text(
+                          ' ${result.currentPage} / ${result.lastPage}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          color: const Color(0xFF006B3F),
+                          onPressed: result.currentPage < result.lastPage
+                              ? () => setState(() => _loadData(page: result.currentPage + 1))
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             );
           },
         ),
       ),
-
     );
   }
 }
