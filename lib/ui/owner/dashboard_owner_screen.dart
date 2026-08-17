@@ -21,6 +21,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _filterStatus = 'Semua Status';
   String _filterPic = 'Semua PIC';
+  bool _filterLeadOnly = false; // toggle: hanya tampilkan yang jadi Lead
 
   late Future<DashboardOwnerResponse> _futureDashboard;
 
@@ -42,6 +43,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
       _searchController.clear();
       _filterStatus = 'Semua Status';
       _filterPic = 'Semua PIC';
+      _filterLeadOnly = false;
       _loadData();
     });
   }
@@ -102,6 +104,12 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
       default:
         return {'bg': const Color(0xFFF8FAFC), 'color': const Color(0xFF94A3B8), 'label': 'Bukan Lead'};
     }
+  }
+
+  // Cek apakah status lead termasuk "sudah jadi lead" (bukan 'Bukan Lead')
+  bool _isLead(String? status) {
+    final s = (status ?? '').toLowerCase().trim();
+    return ['new', 'contacted', 'negotiation', 'deal', 'lost'].contains(s);
   }
 
   void _showDetailCatatan(BuildContext context, VisitOwnerItem item) {
@@ -234,7 +242,8 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
 
             final filteredTabel = data.visits.where((item) {
               final matchPic = _filterPic == 'Semua PIC' || item.pic == _filterPic;
-              return matchPic;
+              final matchLead = !_filterLeadOnly || _isLead(item.statusLead);
+              return matchPic && matchLead;
             }).toList();
 
             return SingleChildScrollView(
@@ -276,17 +285,16 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                         color: Colors.green,
                         onTap: () => setState(() { _filterStatus = 'Meeting Selesai'; _loadData(); }),
                       ),
-                      _buildCardStatistik(
-                        title: "Menjadi Lead",
-                        value: "${summary.menjadiLeadHariIni} Lead",
-                        icon: Icons.trending_up_rounded,
-                        color: Colors.purple,
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Menampilkan filter Lead aktif."), duration: Duration(milliseconds: 700)),
-                          );
-                        },
-                      ),
+_buildCardStatistik(
+  title: "Menjadi Lead",
+  value: "${summary.menjadiLeadHariIni} Lead",
+  icon: Icons.trending_up_rounded,
+  color: Colors.purple,
+  onTap: () => setState(() {
+    _filterLeadOnly = true;
+    _loadData();
+  }),
+),
                       _buildCardStatistik(
                         title: "Produk Diminati",
                         value: data.topProduct.name ?? '-',
