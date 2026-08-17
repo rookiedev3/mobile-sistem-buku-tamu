@@ -1,8 +1,14 @@
 // laporan_model.dart
 // Model untuk response GET /api/v1/owner/laporan
-// Mengikuti struktur yang dikembalikan OwnerApiController@laporan setelah
-// diperbaiki (pakai mapVisitLaporan()):
+// Mengikuti struktur yang dikembalikan PicApiController@laporan:
 // { success, data: [...], meta: {...}, summary: {...}, options: { branches, pic_users }, filters: {...} }
+//
+// Bagian pagination (data/current_page/last_page/total) sekarang pakai
+// PaginatedResponse<T> generik dari paginated_response.dart, biar tidak
+// nulis ulang logic yang sama di tiap model paginated lain (riwayat,
+// followup, leads, dst).
+
+import 'paginated_response.dart';
 
 class OptionItem {
   final int id;
@@ -57,14 +63,10 @@ class LaporanItem {
   final String? potentialLevel;
   final String? meetingResult;
   final String? status;
-  // final String? potentialLevel;   // dari visits.potensi_level — sudah benar
-  // final String? meetingResult;
-  final String? notes;            // 🆕 dari visits.notes, dipakai untuk "Catatan Hasil"
-  // final String? status;           // status kunjungan mentah (completed/cancelled/pending, dst)
-  final String? leadStatus;       // 🆕 dari leads.status (new/contacted/negotiation/deal/lost)
-  final bool isCompleted;         // 🆕 flag kunjungan sudah selesai atau belum
+  final String? notes;            // dari visits.notes, dipakai untuk "Catatan Hasil"
+  final String? leadStatus;       // dari leads.status (new/contacted/negotiation/deal/lost)
+  final bool isCompleted;         // flag kunjungan sudah selesai atau belum
   final String? companyName;
-
 
   LaporanItem({
     required this.id,
@@ -87,7 +89,6 @@ class LaporanItem {
     this.leadStatus,
     this.isCompleted = false,
     this.companyName,
-
   });
 
   factory LaporanItem.fromJson(Map<String, dynamic> json) => LaporanItem(
@@ -121,35 +122,33 @@ class LaporanItem {
 }
 
 class LaporanResponse {
-  final List<LaporanItem> data;
-  final int currentPage;
-  final int lastPage;
-  final int total;
+  final PaginatedResponse<LaporanItem> paginated;
   final LaporanSummary summary;
   final List<OptionItem> branches;
   final List<OptionItem> picUsers;
 
   LaporanResponse({
-    required this.data,
-    required this.currentPage,
-    required this.lastPage,
-    required this.total,
+    required this.paginated,
     required this.summary,
     required this.branches,
     required this.picUsers,
   });
 
+  // Shortcut biar kode yang sudah manggil _laporanResponse.data /
+  // .currentPage / .lastPage / .total (di LaporanManagerScreen) tidak
+  // perlu diubah sama sekali.
+  List<LaporanItem> get data => paginated.data;
+  int get currentPage => paginated.currentPage;
+  int get lastPage => paginated.lastPage;
+  int get total => paginated.total;
+  int get perPage => paginated.perPage;
+  bool get hasMore => paginated.hasMore;
+
   factory LaporanResponse.fromJson(Map<String, dynamic> json) {
-    final meta = (json['meta'] as Map<String, dynamic>?) ?? {};
     final options = (json['options'] as Map<String, dynamic>?) ?? {};
 
     return LaporanResponse(
-      data: ((json['data'] as List?) ?? [])
-          .map((e) => LaporanItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      currentPage: meta['current_page'] ?? 1,
-      lastPage: meta['last_page'] ?? 1,
-      total: meta['total'] ?? 0,
+      paginated: PaginatedResponse.fromJson(json, LaporanItem.fromJson),
       summary: LaporanSummary.fromJson((json['summary'] as Map<String, dynamic>?) ?? {}),
       branches: ((options['branches'] as List?) ?? [])
           .map((e) => OptionItem.fromJson(e as Map<String, dynamic>))

@@ -14,19 +14,21 @@ class LaporanBloc {
   /// GET /api/v1/owner/laporan
   /// category: '', 'vip', atau 'reguler'
   /// branchId / picId: kosongkan string untuk "Semua"
+  /// page: nomor halaman (1-based), perPage: harus salah satu dari
+  /// [10, 15, 25, 50, 100] sesuai whitelist di PicApiController@laporan.
   static Future<LaporanResponse> fetch({
     required int month,
     required int year,
     String category = '',
     String branchId = '',
     String picId = '',
+    int page = 1,
     int perPage = 15,
   }) async {
-    // SESUAIKAN: ganti ApiUrl.ownerLaporan() sesuai nama method yang kamu
-    // tambahkan di api_url.dart (ikuti pola ownerLeadsPipeline/ownerDashboard).
     final queryParams = <String, String>{
       'month': month.toString(),
       'year': year.toString(),
+      'page': page.toString(),
       'per_page': perPage.toString(),
     };
     if (category.isNotEmpty) queryParams['category'] = category;
