@@ -11,6 +11,7 @@ class VisitOwnerItem {
   final String? catatan;
   final String statusKunjungan;
   final String? statusLead;
+    final bool isVip;
 
   VisitOwnerItem({
     required this.id,
@@ -25,6 +26,7 @@ class VisitOwnerItem {
     this.catatan,
     required this.statusKunjungan,
     this.statusLead,
+        this.isVip = false,
   });
 
   factory VisitOwnerItem.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,7 @@ class VisitOwnerItem {
       catatan: json['catatan'],
       statusKunjungan: json['status_kunjungan'] ?? '-',
       statusLead: json['status_lead'],
+          isVip: json['is_vip'] == true, // ← TAMBAHAN: baca boolean is_vip dari backend
     );
   }
 }
