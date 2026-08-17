@@ -17,16 +17,19 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
   String _filterKategori = 'Semua Kategori'; // Semua / VIP / Reguler
 
+  // Jumlah item per halaman untuk dashboard PIC.
+  // Ganti ke nilai lain (mis. 10) kalau sudah tidak butuh testing pagination.
+  static const int _perPage = 10;
+
   final Map<int, List<PicVisitModel>> _dataPerTab = {0: [], 1: [], 2: []};
   final Map<int, bool> _loadingPerTab = {0: true, 1: true, 2: true};
   final Map<int, String?> _errorPerTab = {0: null, 1: null, 2: null};
   int _totalVip = 0;
   int _totalReguler = 0;
 
-  // === PAGINATION STATE ===
+  // === PAGINATION STATE (page-based — bukan infinite scroll lagi) ===
   final Map<int, int> _currentPagePerTab = {0: 1, 1: 1, 2: 1};
-  final Map<int, bool> _hasMorePerTab = {0: true, 1: true, 2: true};
-  final Map<int, bool> _loadingMorePerTab = {0: false, 1: false, 2: false};
+  final Map<int, int> _lastPagePerTab = {0: 1, 1: 1, 2: 1};
 
   static const List<String> _tabFilters = ['all', 'today', 'upcoming'];
 
@@ -62,36 +65,41 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     return 'all';
   }
 
-  // Jumlah item yang sudah ke-fetch untuk tab tertentu.
-  // Catatan: sekarang ini bisa lebih dari 1 halaman kalau user sudah scroll
-  // & trigger _loadMoreTab beberapa kali (bukan cuma halaman pertama lagi).
+  // Jumlah item di HALAMAN AKTIF saat ini untuk tab tertentu (bukan total,
+  // karena data sekarang di-replace per halaman, bukan ditumpuk/append lagi).
   int _countFor(int tabIndex) => _dataPerTab[tabIndex]?.length ?? 0;
 
-  Future<void> _loadTab(int tabIndex) async {
+  // page default 1 → dipakai buat load awal, ganti filter/tab, dan pull-to-refresh.
+  // Untuk pindah halaman manual (tombol prev/next), panggil lewat _gotoPage().
+  Future<void> _loadTab(int tabIndex, {int page = 1}) async {
     if (!mounted) return;
     setState(() {
       _loadingPerTab[tabIndex] = true;
       _errorPerTab[tabIndex] = null;
-      _currentPagePerTab[tabIndex] = 1;
     });
 
     try {
       // PicBloc.dashboard() mengembalikan PicDashboardResponse (lihat pic_model.dart):
       // punya visits, currentPage, lastPage, vipCount, regularCount langsung —
       // tidak perlu wrapper tambahan.
+      // perPage WAJIB dikirim eksplisit: PicBloc.dashboard() punya default
+      // perPage = 10 sendiri, jadi kalau tidak di-set di sini, request yang
+      // dikirim selalu membawa per_page=10 dan default per_page=1 di backend
+      // (Laravel) tidak pernah kepakai.
       final result = await PicBloc.dashboard(
         filter: _tabFilters[tabIndex],
         vipStatus: _vipStatusParam,
-        page: 1,
+        page: page,
+        perPage: _perPage,
       );
 
       if (!mounted) return;
       setState(() {
-        _dataPerTab[tabIndex] = result.visits;
+        _dataPerTab[tabIndex] = result.visits; // replace isi halaman, bukan append lagi
         _totalVip = result.vipCount;
         _totalReguler = result.regularCount;
-        _hasMorePerTab[tabIndex] = result.currentPage < result.lastPage;
         _currentPagePerTab[tabIndex] = result.currentPage;
+        _lastPagePerTab[tabIndex] = result.lastPage;
         _loadingPerTab[tabIndex] = false;
       });
     } catch (e) {
@@ -103,59 +111,33 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     }
   }
 
-  Future<void> _loadMoreTab(int tabIndex) async {
-    final hasMore = _hasMorePerTab[tabIndex] ?? false;
-    final alreadyLoadingMore = _loadingMorePerTab[tabIndex] ?? false;
-    final stillLoadingFirstPage = _loadingPerTab[tabIndex] ?? false;
-    if (!hasMore || alreadyLoadingMore || stillLoadingFirstPage) return;
-
-    setState(() => _loadingMorePerTab[tabIndex] = true);
-
-    try {
-      final nextPage = (_currentPagePerTab[tabIndex] ?? 1) + 1;
-      final result = await PicBloc.dashboard(
-        filter: _tabFilters[tabIndex],
-        vipStatus: _vipStatusParam,
-        page: nextPage,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _dataPerTab[tabIndex] = [...(_dataPerTab[tabIndex] ?? []), ...result.visits];
-        _hasMorePerTab[tabIndex] = result.currentPage < result.lastPage;
-        _currentPagePerTab[tabIndex] = result.currentPage;
-        _loadingMorePerTab[tabIndex] = false;
-        // Catatan: vipCount/regularCount sengaja tidak di-overwrite di sini,
-        // biar angka ringkasan tetap sama walau lagi load more (bukan reload data statistik).
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingMorePerTab[tabIndex] = false);
-      // Gagal load more gak nge-block tampilan yang udah ada, cukup kasih tau lewat snackbar.
-      _showError(e);
-    }
+  // Dipanggil dari tombol prev/next di _buildTabContent.
+  void _gotoPage(int tabIndex, int page) {
+    final lastPage = _lastPagePerTab[tabIndex] ?? 1;
+    if (page < 1 || page > lastPage) return;
+    _loadTab(tabIndex, page: page);
   }
 
   Future<void> _reloadAllTabs() async {
     for (var i = 0; i < 3; i++) {
-      await _loadTab(i);
+      await _loadTab(i, page: 1); // pull-to-refresh → balik ke halaman 1 semua tab
     }
   }
 
   void _onFilterKategoriChanged(String? val) {
     if (val == null) return;
     setState(() => _filterKategori = val);
-    _loadTab(_tabController.index);
+    _loadTab(_tabController.index, page: 1); // ganti filter kategori → reset ke halaman 1
   }
 
   // ---------------------------------------------------------------------
-  // Aksi-aksi yang memanggil API
+  // Aksi-aksi yang memanggil API — reload di HALAMAN YANG SAMA (bukan reset ke 1)
   // ---------------------------------------------------------------------
 
   Future<void> _confirmVisit(PicVisitModel item) async {
     try {
       await PicBloc.updateStatus(id: item.id, status: 'confirmed');
-      await _loadTab(_tabController.index);
+      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -164,7 +146,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   Future<void> _cancelVisit(PicVisitModel item) async {
     try {
       await PicBloc.updateStatus(id: item.id, status: 'cancelled');
-      await _loadTab(_tabController.index);
+      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -173,7 +155,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   Future<void> _startMeeting(PicVisitModel item) async {
     try {
       await PicBloc.startMeeting(item.id);
-      await _loadTab(_tabController.index);
+      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -198,7 +180,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Catatan pertemuan berhasil disimpan!'), backgroundColor: Color(0xFF006B3F)),
       );
-      await _loadTab(_tabController.index);
+      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -769,8 +751,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     final loading = _loadingPerTab[tabIndex] ?? false;
     final error = _errorPerTab[tabIndex];
     final data = _dataPerTab[tabIndex] ?? [];
-    final hasMore = _hasMorePerTab[tabIndex] ?? false;
-    final loadingMore = _loadingMorePerTab[tabIndex] ?? false;
+    final currentPage = _currentPagePerTab[tabIndex] ?? 1;
+    final lastPage = _lastPagePerTab[tabIndex] ?? 1;
 
     if (loading) {
       return const Center(child: CircularProgressIndicator());
@@ -785,7 +767,10 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
             const SizedBox(height: 8),
             Text(error, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            TextButton(onPressed: () => _loadTab(tabIndex), child: const Text("Coba lagi", style: TextStyle(fontSize: 11))),
+            TextButton(
+              onPressed: () => _loadTab(tabIndex, page: currentPage),
+              child: const Text("Coba lagi", style: TextStyle(fontSize: 11)),
+            ),
           ],
         ),
       );
@@ -797,35 +782,37 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       );
     }
 
-    // === PAGINATION: auto load-more begitu user scroll mendekati bawah list ===
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification.metrics.pixels >= notification.metrics.maxScrollExtent - 150) {
-          _loadMoreTab(tabIndex);
-        }
-        return false;
-      },
-      child: ListView.builder(
-        itemCount: data.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= data.length) {
-            // Item terakhir = indikator loading utk halaman berikutnya.
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Center(
-                child: loadingMore
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const SizedBox.shrink(),
+    // === PAGINATION: page-based (prev/next), bukan infinite scroll lagi ===
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: data.length,
+            itemBuilder: (context, index) => _buildTamuCard(data[index]),
+          ),
+        ),
+        if (lastPage > 1) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                color: corporateGreen,
+                onPressed: currentPage > 1 ? () => _gotoPage(tabIndex, currentPage - 1) : null,
               ),
-            );
-          }
-          return _buildTamuCard(data[index]);
-        },
-      ),
+              Text(
+                '$currentPage / $lastPage',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                color: corporateGreen,
+                onPressed: currentPage < lastPage ? () => _gotoPage(tabIndex, currentPage + 1) : null,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -864,8 +851,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
           // Nama tamu
           Text(item.guestName ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
 
-          // ← FIX #1: jabatan + instansi (company_name) sekarang ditampilkan bersama,
-          // sebelumnya companyName ada di model tapi tidak pernah dipakai di sini.
+          // Jabatan + instansi (company_name) ditampilkan bersama.
           if ((item.guestPosition ?? '').isNotEmpty || (item.companyName ?? '').isNotEmpty)
             Text(
               [item.guestPosition, item.companyName]
@@ -877,8 +863,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
           const SizedBox(height: 4),
 
-          // ← FIX #2: pakai formattedTime (sudah difilter zero-date & diformat rapi),
-          // bukan displayTime lagi (itu string mentah, penyebab tampil "0000").
+          // Pakai formattedTime (sudah difilter zero-date & diformat rapi),
+          // bukan displayTime (itu string mentah, penyebab tampil "0000").
           Text("Waktu: ${item.formattedTime}", style: const TextStyle(fontSize: 10, color: Color(0xFF006B3F), fontWeight: FontWeight.w600)),
 
           if (item.purposeDetail != null || item.purposeType != null)
@@ -890,7 +876,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
           const SizedBox(height: 6),
 
           InkWell(
-            onTap: () => _showCatatanDialog(context, item), // sebelumnya: _showCatatanDialog(context, item.notes)
+            onTap: () => _showCatatanDialog(context, item),
             child: Row(
               children: [
                 const Icon(Icons.speaker_notes_rounded, size: 13, color: Colors.blue),
@@ -911,11 +897,11 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                 children: [
                   const Text("Konfirmasi: ", style: TextStyle(fontSize: 10, color: Color(0xFF778195))),
 
-                  // ← FIX #3 (revisi): sama persis logic Blade
-                  // (_dashboard_panel.blade.php) — tombol ✓/✕ CUMA muncul kalau
-                  // status masih pending/waiting/menunggu (canConfirm). Kalau
-                  // status masih "Terjadwal" (isScheduled), berarti tamu belum
-                  // check-in sama sekali → tampilkan badge nonaktif, bukan tombol.
+                  // Sama persis logic Blade (_dashboard_panel.blade.php) — tombol
+                  // ✓/✕ CUMA muncul kalau status masih pending/waiting/menunggu
+                  // (canConfirm). Kalau status masih "Terjadwal" (isScheduled),
+                  // berarti tamu belum check-in sama sekali → tampilkan badge
+                  // nonaktif, bukan tombol.
                   if (item.canConfirm) ...[
                     InkWell(
                       onTap: () => _confirmVisit(item),

@@ -16,9 +16,18 @@ class PicLeadBloc {
     String filter = 'active',
     String vipStatus = 'all',
     int page = 1,
+    int perPage = 10, // <-- ditambahkan: tanpa ini, ApiUrl.picLeads() selalu
+                       // jatuh ke default perPage=10-nya sendiri, gak peduli
+                       // berapa pun yang mau dipakai screen (sama kasusnya
+                       // kayak DashboardPICScreen sebelum di-fix).
   }) async {
     final response = await Api().get(
-      ApiUrl.picLeads(filter: filter, vipStatus: vipStatus, page: page),
+      ApiUrl.picLeads(
+        filter: filter,
+        vipStatus: vipStatus,
+        page: page,
+        perPage: perPage, // <-- diteruskan
+      ),
     );
 
     if (response == null) {
@@ -100,40 +109,3 @@ class PicLeadBloc {
     }
   }
 }
-
-/// Tambahkan dua method ini ke class ApiUrl kamu yang sudah ada:
-///
-/// static String picLeads({String filter = 'active', String vipStatus = 'all', int page = 1, int perPage = 10}) {
-///   return '$baseUrl/api/pic/leads?filter=$filter&vip_status=$vipStatus&page=$page&per_page=$perPage';
-/// }
-///
-/// static String picLeadFollowUp(int leadId) => '$baseUrl/api/pic/leads/$leadId/follow-up';
-///
-/// ============================================================
-/// CONTOH PEMAKAIAN DI SCREEN (LeadPICScreen) — ganti try-catch
-/// yang lama supaya pesan errornya ikut ditampilkan ke user:
-/// ============================================================
-///
-/// String? errorMessage;
-///
-/// Future<void> _loadLeads() async {
-///   setState(() => errorMessage = null);
-///   try {
-///     final result = await PicLeadBloc.fetchLeads(
-///       filter: currentFilter,
-///       vipStatus: currentVipFilter,
-///       page: currentPage,
-///     );
-///     setState(() {
-///       leadsResponse = result;
-///     });
-///   } catch (e) {
-///     setState(() {
-///       errorMessage = e.toString().replaceFirst('Exception: ', '');
-///     });
-///   }
-/// }
-///
-/// // Di build(), tampilkan errorMessage kalau ada, contoh:
-/// if (errorMessage != null)
-///   Text('Gagal memuat data lead. $errorMessage', style: TextStyle(color: Colors.red)),

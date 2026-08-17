@@ -7,6 +7,51 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '/helpers/api_url.dart'; // sesuaikan path import ApiUrl dengan struktur project kamu
 
+// ← TAMBAHAN: model wrapper buat response paginated, biar konsisten
+// sama pola _laporanResponse yang dipakai di screen laporan.
+class RiwayatResponse {
+  final List<Map<String, dynamic>> data;
+  final int currentPage;
+  final int lastPage;
+
+  RiwayatResponse({
+    required this.data,
+    required this.currentPage,
+    required this.lastPage,
+  });
+
+  factory RiwayatResponse.fromJson(Map<String, dynamic> json, {required int fallbackPage}) {
+    // Backend bisa taruh pagination di beberapa kemungkinan bentuk:
+    // 1) {"data": {"data": [...], "current_page": 1, "last_page": 3}}  ← pola dashboard()/leads()
+    // 2) {"data": [...], "meta": {"current_page": 1, "last_page": 3}}  ← pola Laravel paginate() umum
+    // 3) {"data": [...], "current_page": 1, "last_page": 3}            ← flat
+    final dynamic rawData = json['data'];
+
+    Map<String, dynamic> paginationSource = json;
+    List rawList = [];
+
+    if (rawData is Map<String, dynamic>) {
+      // Bentuk (1): pagination nempel di dalam 'data'
+      paginationSource = rawData;
+      rawList = (rawData['data'] as List?) ?? [];
+    } else if (rawData is List) {
+      // Bentuk (2) / (3): 'data' cuma list, pagination di 'meta' atau di root
+      rawList = rawData;
+      if (json['meta'] is Map<String, dynamic>) {
+        paginationSource = json['meta'] as Map<String, dynamic>;
+      } else {
+        paginationSource = json;
+      }
+    }
+
+    return RiwayatResponse(
+      data: rawList.cast<Map<String, dynamic>>(),
+      currentPage: (paginationSource['current_page'] as num?)?.toInt() ?? fallbackPage,
+      lastPage: (paginationSource['last_page'] as num?)?.toInt() ?? 1,
+    );
+  }
+}
+
 class RiwayatPICScreen extends StatefulWidget {
   const RiwayatPICScreen({Key? key}) : super(key: key);
 
@@ -19,19 +64,20 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
 
   // Controller Pencarian & Filter
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
 
   String _filterStatus = 'Semua Kategori'; // Semua Kategori / VIP / Reguler
   String _dariTanggal = '';
   String _sampaiTanggal = '';
 
-  // Data dari API
-  List<Map<String, dynamic>> _daftarRiwayat = [];
+  // Data dari API — sekarang dibungkus RiwayatResponse (data + pagination jadi satu)
+  RiwayatResponse? _riwayatResponse;
+
+  // === PAGINATION STATE (page-based — bukan infinite scroll lagi) ===
+  static const int _perPage = 10; // sesuaikan kalau perlu
   int _currentPage = 1;
-  int _lastPage = 1;
+
   bool _isLoading = false;
-  bool _isLoadingMore = false;
   String? _errorMessage;
 
   // ← TAMBAHAN: badge warna per status pipeline, meniru $leadBadges di Blade
@@ -48,26 +94,14 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchRiwayat(reset: true);
-    _scrollController.addListener(_onScroll);
+    _fetchRiwayat(page: 1);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
-        !_isLoadingMore &&
-        _currentPage < _lastPage) {
-      _fetchRiwayat(loadMore: true);
-    }
   }
 
   String? _mapVipStatus() {
@@ -86,21 +120,17 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     return prefs.getString('token');
   }
 
-  Future<void> _fetchRiwayat({bool reset = false, bool loadMore = false}) async {
-    if (reset) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-        _currentPage = 1;
-        _daftarRiwayat = [];
-      });
-    } else if (loadMore) {
-      setState(() => _isLoadingMore = true);
-    }
+  // page default 1 → dipakai buat load awal, ganti filter/tanggal/kategori,
+  // pencarian, dan pull-to-refresh. Untuk pindah halaman manual (tombol
+  // prev/next), panggil lewat _gotoPage().
+  Future<void> _fetchRiwayat({required int page}) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
       final token = await _getToken();
-      final page = reset ? 1 : (loadMore ? _currentPage + 1 : _currentPage);
 
       final url = ApiUrl.picRiwayat(
         keyword: _searchController.text.trim().isEmpty
@@ -110,7 +140,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
         endDate: _sampaiTanggal.isEmpty ? null : _sampaiTanggal,
         vipStatus: _mapVipStatus() ?? 'all',
         page: page,
-        perPage: 10,
+        perPage: _perPage,
       );
 
       final response = await http.get(
@@ -121,19 +151,20 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
         },
       );
 
+      // TAMBAHAN SEMENTARA buat debug — hapus lagi kalau sudah beres:
+      print('RIWAYAT URL: $url');
+      print('RIWAYAT BODY: ${response.body}');
+
       if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        final List data = body['data'] ?? [];
-        final meta = body['meta'] ?? {};
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final parsed = RiwayatResponse.fromJson(body, fallbackPage: page);
+
+        // Debug: pastiin last_page beneran kebaca > 1 kalau datanya emang banyak
+        print('RIWAYAT PARSED → currentPage: ${parsed.currentPage}, lastPage: ${parsed.lastPage}, jumlahItem: ${parsed.data.length}');
 
         setState(() {
-          if (loadMore) {
-            _daftarRiwayat.addAll(data.cast<Map<String, dynamic>>());
-          } else {
-            _daftarRiwayat = data.cast<Map<String, dynamic>>();
-          }
-          _currentPage = meta['current_page'] ?? page;
-          _lastPage = meta['last_page'] ?? 1;
+          _riwayatResponse = parsed;
+          _currentPage = parsed.currentPage;
           _errorMessage = null;
         });
       } else if (response.statusCode == 401) {
@@ -144,17 +175,21 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     } catch (e) {
       setState(() => _errorMessage = 'Terjadi kesalahan koneksi. Coba lagi.');
     } finally {
-      setState(() {
-        _isLoading = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // Dipanggil dari tombol prev/next.
+  void _gotoPage(int page) {
+    final lastPage = _riwayatResponse?.lastPage ?? 1;
+    if (page < 1 || page > lastPage) return;
+    _fetchRiwayat(page: page);
   }
 
   void _onSearchChanged(String value) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      _fetchRiwayat(reset: true);
+      _fetchRiwayat(page: 1); // pencarian baru → reset ke halaman 1
     });
   }
 
@@ -391,7 +426,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
           _sampaiTanggal = formatted;
         }
       });
-      _fetchRiwayat(reset: true);
+      _fetchRiwayat(page: 1); // filter tanggal baru → reset ke halaman 1
     }
   }
 
@@ -403,7 +438,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
       _dariTanggal = '';
       _sampaiTanggal = '';
     });
-    _fetchRiwayat(reset: true);
+    _fetchRiwayat(page: 1);
   }
 
   @override
@@ -420,9 +455,8 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
       ),
       body: RefreshIndicator(
         color: corporateGreen,
-        onRefresh: () => _fetchRiwayat(reset: true),
+        onRefresh: () => _fetchRiwayat(page: 1),
         child: SingleChildScrollView(
-          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -524,7 +558,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                               onChanged: (String? val) {
                                 if (val != null) {
                                   setState(() => _filterStatus = val);
-                                  _fetchRiwayat(reset: true);
+                                  _fetchRiwayat(page: 1); // ganti filter kategori → reset ke halaman 1
                                 }
                               },
                             ),
@@ -553,7 +587,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Konten: loading / error / kosong / list
+              // Konten: loading / error / kosong / list + pagination
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.only(top: 60),
@@ -570,27 +604,27 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                         Text(_errorMessage!, style: const TextStyle(color: Color(0xFF778195), fontSize: 11), textAlign: TextAlign.center),
                         const SizedBox(height: 8),
                         TextButton(
-                          onPressed: () => _fetchRiwayat(reset: true),
+                          onPressed: () => _fetchRiwayat(page: _currentPage),
                           child: const Text("Coba Lagi", style: TextStyle(fontSize: 11)),
                         ),
                       ],
                     ),
                   ),
                 )
-              else if (_daftarRiwayat.isEmpty)
+              else if ((_riwayatResponse?.data ?? []).isEmpty)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.only(top: 40),
                     child: Text("Belum ada riwayat kunjungan yang ditangani.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
                   ),
                 )
-              else
+              else ...[
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _daftarRiwayat.length,
+                  itemCount: _riwayatResponse!.data.length,
                   itemBuilder: (context, index) {
-                    final item = _daftarRiwayat[index];
+                    final item = _riwayatResponse!.data[index];
                     final bool isVip = item["isVip"] == true;
                     final String statusKey = item["statusAkhirKey"] ?? 'non_lead';
                     final statusColor = _colorForStatus(statusKey);
@@ -675,11 +709,35 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                   },
                 ),
 
-              if (_isLoadingMore)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
+                // === PAGINATION: page-based (prev/next), tanpa garis pemisah ===
+                if (_riwayatResponse != null && _riwayatResponse!.lastPage > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, size: 18),
+                          color: corporateGreen,
+                          onPressed: _isLoading || _currentPage <= 1
+                              ? null
+                              : () => _gotoPage(_currentPage - 1),
+                        ),
+                        Text(
+                          '${_riwayatResponse!.currentPage} / ${_riwayatResponse!.lastPage}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, size: 18),
+                          color: corporateGreen,
+                          onPressed: _isLoading || _currentPage >= _riwayatResponse!.lastPage
+                              ? null
+                              : () => _gotoPage(_currentPage + 1),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ],
           ),
         ),

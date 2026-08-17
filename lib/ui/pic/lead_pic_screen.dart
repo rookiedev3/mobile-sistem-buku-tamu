@@ -54,6 +54,11 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
   List<PicLeadModel> _daftarLead = [];
   Map<String, int> _counts = {};
 
+  // === PAGINATION STATE (page-based, sama pola dengan DashboardPICScreen) ===
+  static const int _perPage = 10; // sesuaikan kalau perlu
+  int _currentPage = 1;
+  int _lastPage = 1;
+
   // Urutan tab harus sama persis dengan urutan Tab() di TabBar di bawah.
   static const List<String> _tabFilters = ['all', 'active', 'deal', 'overdue', 'today', 'upcoming'];
 
@@ -62,7 +67,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) _fetchLeads();
+      if (!_tabController.indexIsChanging) _fetchLeads(page: 1); // ganti tab -> reset ke halaman 1
     });
     _fetchLeads();
   }
@@ -79,7 +84,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
     return 'all';
   }
 
-  Future<void> _fetchLeads() async {
+  Future<void> _fetchLeads({int page = 1}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -89,6 +94,8 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
       final result = await PicLeadBloc.fetchLeads(
         filter: _tabFilters[_tabController.index],
         vipStatus: _vipParam,
+        page: page,
+        perPage: _perPage,
       );
 
       if (!mounted) return;
@@ -97,6 +104,8 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
         _isLoading = false;
         _daftarLead = result.leads;
         _counts = result.counts;
+        _currentPage = result.currentPage;
+        _lastPage = result.lastPage;
       });
     } catch (e) {
       if (!mounted) return;
@@ -107,9 +116,15 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
     }
   }
 
+  // Dipanggil dari tombol prev/next di _buildBody.
+  void _gotoPage(int page) {
+    if (page < 1 || page > _lastPage) return;
+    _fetchLeads(page: page);
+  }
+
   void _onFilterKategoriChanged(String val) {
     setState(() => _filterKategori = val);
-    _fetchLeads();
+    _fetchLeads(page: 1); // ganti filter kategori -> reset ke halaman 1
   }
 
   // ===================== HELPERS: LABEL, TANGGAL & STATUS =====================
@@ -377,7 +392,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                   backgroundColor: Color(0xFF006B3F),
                 ),
               );
-              _fetchLeads();
+              _fetchLeads(page: _currentPage); // reload di halaman yang sama, bukan reset ke 1
             } catch (e) {
               // Kalau gagal, dialog TETAP kebuka + spinner dimatiin,
               // biar user bisa coba lagi tanpa isi ulang form dari nol.
@@ -631,7 +646,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchLeads,
+        onRefresh: () => _fetchLeads(page: 1),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
@@ -752,7 +767,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
           children: [
             Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 11), textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: _fetchLeads, child: const Text("Coba Lagi", style: TextStyle(fontSize: 11))),
+            OutlinedButton(onPressed: () => _fetchLeads(page: _currentPage), child: const Text("Coba Lagi", style: TextStyle(fontSize: 11))),
           ],
         ),
       );
@@ -762,9 +777,37 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
         child: Text("Tidak ada data lead untuk tab ini.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
       );
     }
-    return ListView.builder(
-      itemCount: _daftarLead.length,
-      itemBuilder: (context, index) => _leadCard(_daftarLead[index]),
+
+    // === PAGINATION: page-based (prev/next), tanpa garis pemisah ===
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: _daftarLead.length,
+            itemBuilder: (context, index) => _leadCard(_daftarLead[index]),
+          ),
+        ),
+        if (_lastPage > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                color: corporateGreen,
+                onPressed: _currentPage > 1 ? () => _gotoPage(_currentPage - 1) : null,
+              ),
+              Text(
+                '$_currentPage / $_lastPage',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                color: corporateGreen,
+                onPressed: _currentPage < _lastPage ? () => _gotoPage(_currentPage + 1) : null,
+              ),
+            ],
+          ),
+      ],
     );
   }
 
