@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
 import 'package:mobile_flutter/services/notification_service.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
-<<<<<<< HEAD
 import 'form_tambah_janji_dialog.dart';
-=======
-import 'package:mobile_flutter/bloc/logout_bloc.dart'; // kalau foldernya "blocs" bukan "bloc"
-
-
->>>>>>> 05787630ebc4c8ff8fe7caf2b0661d9796711325
 
 class DashboardAdminScreen extends StatefulWidget {
   const DashboardAdminScreen({super.key});
@@ -187,7 +181,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
             icon: const Icon(Icons.notifications_outlined, color: Colors.white),
             onPressed: () {},
           ),
-<<<<<<< HEAD
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
@@ -238,38 +231,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                 ),
               );
             },
-=======
-            //button logout sementara
-         IconButton(
-  icon: const Icon(Icons.logout, color: Colors.white),
-  onPressed: () {
-    // Menampilkan dialog konfirmasi atau langsung redirect
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Tutup dialog
-            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            onPressed: () async {
-              Navigator.pop(context); // tutup dialog dulu
-              await LogoutBloc.logout(); // hapus token & remember_me
-              if (context.mounted) {
-                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
-              }
-            },
-            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
->>>>>>> 05787630ebc4c8ff8fe7caf2b0661d9796711325
           ),
         ],
       ),
