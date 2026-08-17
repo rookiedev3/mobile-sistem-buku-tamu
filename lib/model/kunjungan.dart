@@ -1,3 +1,5 @@
+import 'paginated_response.dart';
+
 class FollowUp {
   final int id;
   final String? result;
@@ -111,27 +113,10 @@ class Kunjungan {
   }
 }
 
-class KunjunganResponse {
-  final List<Kunjungan> data;
-  final int currentPage;
-  final int lastPage;
-  final int total;
-
-  KunjunganResponse({
-    required this.data,
-    required this.currentPage,
-    required this.lastPage,
-    required this.total,
-  });
-
-  factory KunjunganResponse.fromJson(Map<String, dynamic> obj) {
-    final d = obj['data'] ?? {};
-    var list = (d['data'] as List?) ?? [];
-    return KunjunganResponse(
-      data: list.map((e) => Kunjungan.fromJson(e)).toList(),
-      currentPage: d['current_page'] ?? 1,
-      lastPage: d['last_page'] ?? 1,
-      total: d['total'] ?? 0,
-    );
-  }
-}
+// Dulu class KunjunganResponse ditulis manual (parsing data.data secara
+// khusus). Sekarang cukup jadi alias dari PaginatedResponse<Kunjungan>,
+// parsing-nya dipindah ke KunjunganBloc.list() lewat
+// PaginatedResponse.fromLaravelPaginator(). Field & behavior yang dipakai
+// di _fetchData() (data, currentPage, lastPage, total) tetap sama persis,
+// plus tambahan getter hasMore.
+typedef KunjunganResponse = PaginatedResponse<Kunjungan>;

@@ -66,6 +66,13 @@ class PicBloc {
     ));
     final response = await http.get(url, headers: await _headers());
 
+    // ===== DEBUG: cek URL & response mentah dari endpoint dashboard =====
+    // Hapus 3 baris print ini kalau sudah selesai debugging.
+    print('DASHBOARD URL: $url');
+    print('DASHBOARD STATUS: ${response.statusCode}');
+    print('DASHBOARD BODY: ${response.body}');
+    // ===== END DEBUG =====
+
     if (response.statusCode == 200) {
       return PicDashboardResponse.fromJson(jsonDecode(response.body));
     }

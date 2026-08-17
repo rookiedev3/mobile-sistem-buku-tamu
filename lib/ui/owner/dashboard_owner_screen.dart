@@ -5,6 +5,8 @@ import 'aktivitas_terbaru_screen.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 import '../../bloc/owner_bloc.dart';
 import '../../model/dashboard_owner_model.dart';
+import '../../bloc/logout_bloc.dart'; // sesuaikan path sesuai lokasi file logout_bloc.dart kamu
+
 
 class DashboardOwnerScreen extends StatefulWidget {
   const DashboardOwnerScreen({Key? key}) : super(key: key);
@@ -83,6 +85,25 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
     return Icons.info_rounded;
   }
 
+  // ================= BADGE STATUS LEAD (samain sama $leadBadges di web/Blade) =================
+  Map<String, dynamic> _leadBadge(String? status) {
+    final s = (status ?? '').toLowerCase().trim();
+    switch (s) {
+      case 'new':
+        return {'bg': const Color(0xFFF1F5F9), 'color': const Color(0xFF475569), 'label': 'Baru'};
+      case 'contacted':
+        return {'bg': const Color(0xFFDBEAFE), 'color': const Color(0xFF1D4ED8), 'label': 'Dihubungi'};
+      case 'negotiation':
+        return {'bg': const Color(0xFFFEF3C7), 'color': const Color(0xFFD97706), 'label': 'Negosiasi'};
+      case 'deal':
+        return {'bg': const Color(0xFFDCFCE7), 'color': const Color(0xFF15803D), 'label': 'Deal'};
+      case 'lost':
+        return {'bg': const Color(0xFFFEE2E2), 'color': const Color(0xFFB91C1C), 'label': 'Lost'};
+      default:
+        return {'bg': const Color(0xFFF8FAFC), 'color': const Color(0xFF94A3B8), 'label': 'Bukan Lead'};
+    }
+  }
+
   void _showDetailCatatan(BuildContext context, VisitOwnerItem item) {
     showDialog(
       context: context,
@@ -130,7 +151,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar dari sesi Owner?", style: TextStyle(fontSize: 11)),
+        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -138,15 +159,14 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomepageScreen()),
-                (route) => false,
-              );
+            onPressed: () async {
+              Navigator.pop(context); // tutup dialog dulu
+              await LogoutBloc.logout(); // hapus token & remember_me
+              if (context.mounted) {
+                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+              }
             },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
         ],
       ),
@@ -508,6 +528,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                                   ],
                                   rows: List.generate(filteredTabel.length, (index) {
                                     final item = filteredTabel[index];
+                                    final leadBadge = _leadBadge(item.statusLead);
                                     return DataRow(cells: [
                                       DataCell(Text((index + 1).toString(), style: const TextStyle(fontSize: 9))),
                                       DataCell(Text(item.token, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: corporateGreen))),
@@ -515,7 +536,26 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Text(item.nama ?? '-', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(item.nama ?? '-', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                              if (item.isVip) ...[
+                                                const SizedBox(width: 4),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFFEF3C7),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text(
+                                                    "VIP",
+                                                    style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
                                           Text(item.jabatan ?? '-', style: const TextStyle(fontSize: 8, color: Colors.grey)),
                                         ],
                                       )),
@@ -534,7 +574,17 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                                         ),
                                       )),
                                       DataCell(Text(item.statusKunjungan, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w600))),
-                                      DataCell(Text(item.statusLead ?? '-', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: corporateGreen))),
+                                      DataCell(Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: leadBadge['bg'] as Color,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          leadBadge['label'] as String,
+                                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: leadBadge['color'] as Color),
+                                        ),
+                                      )),
                                     ]);
                                   }),
                                 ),

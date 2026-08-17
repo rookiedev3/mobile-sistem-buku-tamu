@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/api_url.dart';
 import '../model/kunjungan.dart';
+import '../model/paginated_response.dart';
 
 class KunjunganBloc {
   static Future<Map<String, String>> _headers() async {
@@ -28,7 +29,15 @@ class KunjunganBloc {
     final response = await http.get(url, headers: await _headers());
 
     if (response.statusCode == 200) {
-      return KunjunganResponse.fromJson(jsonDecode(response.body));
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      // Backend membungkus paginator Laravel mentah di dalam key 'data',
+      // bukan format 'data' + 'meta' yang sudah ditransform. Makanya
+      // pakai fromLaravelPaginator, bukan fromJson biasa.
+      final paginator = (body['data'] as Map<String, dynamic>?) ?? {};
+      return PaginatedResponse<Kunjungan>.fromLaravelPaginator(
+        paginator,
+        Kunjungan.fromJson,
+      );
     }
     throw Exception('Gagal memuat arsip kunjungan (${response.statusCode})');
   }

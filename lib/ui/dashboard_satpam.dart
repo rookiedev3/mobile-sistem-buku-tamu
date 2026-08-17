@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/security_bloc.dart';
 import 'package:mobile_flutter/model/visit.dart';
+import 'package:mobile_flutter/bloc/logout_bloc.dart'; // sesuaikan kalau foldernya "blocs"
+
 
 class DashboardSatpam extends StatefulWidget {
   const DashboardSatpam({Key? key}) : super(key: key);
@@ -113,13 +115,43 @@ String _formatDateForApi(DateTime d) {
           "Dashboard Satpam - Pos Penjagaan",
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        actions: [
-          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _fetchData),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-          ),
-        ],
+actions: [
+  IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _fetchData),
+  IconButton(
+    icon: const Icon(Icons.logout, color: Colors.white),
+    onPressed: () {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+          content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              onPressed: () async {
+                Navigator.pop(context); // tutup dialog dulu
+                await LogoutBloc.logout(); // hapus token & remember_me
+                if (context.mounted) {
+                  LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+                }
+              },
+              child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
+            ),
+          ],
+        ),
+      );
+    },
+  ),
+],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF006B3F)))

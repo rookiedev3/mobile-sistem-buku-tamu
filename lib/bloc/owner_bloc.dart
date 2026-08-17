@@ -36,7 +36,7 @@ class DashboardOwnerBloc {
 static Future<ActivityLogResponse> fetchActivityLog({
   String keyword = '',
   int page = 1,
-  int perPage = 25,
+  int perPage = 2,
 }) async {
   final uri = Uri.parse(ApiUrl.ownerActivityLog(keyword: keyword, page: page, perPage: perPage));
 

@@ -22,6 +22,8 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
   final List<String> _statusOptions = ['Semua', 'VIP', 'Reguler'];
 
   List<Kunjungan> _daftarKunjungan = [];
+  int _currentPage = 1;    // ⬅️ BARU
+  int _lastPage = 1;       // ⬅️ BARU
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -40,7 +42,9 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     _fetchData();
   }
 
-  Future<void> _fetchData() async {
+  // ⬅️ DIUBAH: terima parameter page opsional
+  Future<void> _fetchData({int? page}) async {
+    if (page != null) _currentPage = page;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -54,8 +58,13 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
       final result = await KunjunganBloc.list(
         vipStatus: vipParam,
         keyword: _searchQuery.isNotEmpty ? _searchQuery : null,
+        page: _currentPage, // ⬅️ BARU
       );
-      setState(() => _daftarKunjungan = result.data);
+      setState(() {
+        _daftarKunjungan = result.data;
+        _currentPage = result.currentPage; // ⬅️ BARU
+        _lastPage = result.lastPage;        // ⬅️ BARU
+      });
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
     } finally {
@@ -300,11 +309,11 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: _fetchData),
+          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: () => _fetchData()),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchData,
+        onRefresh: () => _fetchData(),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
@@ -325,7 +334,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   children: [
                     TextField(
                       onChanged: (value) => setState(() => _searchQuery = value),
-                      onSubmitted: (_) => _fetchData(),
+                      onSubmitted: (_) => _fetchData(page: 1), // ⬅️ DIUBAH: reset ke halaman 1
                       decoration: InputDecoration(
                         hintText: "Cari nama tamu, token, atau keperluan...",
                         hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
@@ -384,7 +393,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                               onChanged: (String? newValue) {
                                 if (newValue != null) {
                                   setState(() => _selectedStatus = newValue);
-                                  _fetchData();
+                                  _fetchData(page: 1); // ⬅️ DIUBAH: reset ke halaman 1
                                 }
                               },
                             ),
@@ -418,7 +427,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                     children: [
                       Text(_errorMessage!, style: const TextStyle(fontSize: 12, color: Colors.red), textAlign: TextAlign.center),
                       const SizedBox(height: 8),
-                      TextButton(onPressed: _fetchData, child: const Text("Coba Lagi")),
+                      TextButton(onPressed: () => _fetchData(), child: const Text("Coba Lagi")),
                     ],
                   ),
                 )
@@ -463,8 +472,10 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                    child: Text("No. ${index + 1}",
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                                    child: Text(
+                                      "No. ${index + 1 + (_currentPage - 1) * 10}", // ⬅️ DIUBAH: nomor urut ikut halaman
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195)),
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(item.visitCode,
@@ -598,6 +609,30 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                     );
                   },
                 ),
+
+              // ⬅️ BARU: kontrol navigasi halaman
+              if (!_isLoading && _errorMessage == null && filteredList.isNotEmpty && _lastPage > 1) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      color: corporateGreen,
+                      onPressed: _currentPage > 1 ? () => _fetchData(page: _currentPage - 1) : null,
+                    ),
+                    Text(
+                      ' $_currentPage / $_lastPage',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      color: corporateGreen,
+                      onPressed: _currentPage < _lastPage ? () => _fetchData(page: _currentPage + 1) : null,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
