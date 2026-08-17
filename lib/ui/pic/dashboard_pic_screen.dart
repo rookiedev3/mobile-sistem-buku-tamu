@@ -230,11 +230,14 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context); // tutup dialog dulu
-              LogoutBloc.keluarKeHomepage(context);
+              await LogoutBloc.logout(); // hapus token & remember_me
+              if (context.mounted) {
+                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+              }
             },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
         ],
       ),

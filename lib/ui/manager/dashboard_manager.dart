@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../bloc/manager_bloc.dart';
 import '../../model/manager_dashboard_model.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
+import '../../bloc/logout_bloc.dart'; // sesuaikan path sesuai lokasi file logout_bloc.dart kamu
 
 
 class DashboardManager extends StatefulWidget {
@@ -57,10 +58,9 @@ class _DashboardManagerState extends State<DashboardManager> {
           ),
 
           //button logout sementara
-         IconButton(
+       IconButton(
   icon: const Icon(Icons.logout, color: Colors.white),
   onPressed: () {
-    // Menampilkan dialog konfirmasi atau langsung redirect
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -78,17 +78,14 @@ class _DashboardManagerState extends State<DashboardManager> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            onPressed: () {
-              Navigator.pop(context); // Tutup dialog konfirmasi
-
-              // REDIRECT KE HOMESCREEN DAN HAPUS SEMUA RIWAYAT HALAMAN SEBELUMNYA
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomepageScreen()), // Ganti dengan nama widget HomeScreen Anda
-                (route) => false,
-              );
+            onPressed: () async {
+              Navigator.pop(context); // tutup dialog dulu
+              await LogoutBloc.logout(); // hapus token & remember_me
+              if (context.mounted) {
+                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+              }
             },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
         ],
       ),

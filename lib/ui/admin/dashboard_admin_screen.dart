@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 // import 'manajemen_pengguna_screen.dart';
 import 'form_tambah_janji_dialog.dart'; // Sesuaikan jika foldernya berbeda (misal: 'ui/admin/form_tambah_janji_dialog.dart')
 import 'package:mobile_flutter/ui/homepage_screen.dart';
+import 'package:mobile_flutter/bloc/logout_bloc.dart'; // kalau foldernya "blocs" bukan "bloc"
+
 
 
 class DashboardAdminScreen extends StatefulWidget {
@@ -110,17 +112,14 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            onPressed: () {
-              Navigator.pop(context); // Tutup dialog konfirmasi
-
-              // REDIRECT KE HOMESCREEN DAN HAPUS SEMUA RIWAYAT HALAMAN SEBELUMNYA
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomepageScreen()), // Ganti dengan nama widget HomeScreen Anda
-                (route) => false,
-              );
+            onPressed: () async {
+              Navigator.pop(context); // tutup dialog dulu
+              await LogoutBloc.logout(); // hapus token & remember_me
+              if (context.mounted) {
+                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+              }
             },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
         ],
       ),

@@ -5,6 +5,8 @@ import 'aktivitas_terbaru_screen.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 import '../../bloc/owner_bloc.dart';
 import '../../model/dashboard_owner_model.dart';
+import '../../bloc/logout_bloc.dart'; // sesuaikan path sesuai lokasi file logout_bloc.dart kamu
+
 
 class DashboardOwnerScreen extends StatefulWidget {
   const DashboardOwnerScreen({Key? key}) : super(key: key);
@@ -130,7 +132,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar dari sesi Owner?", style: TextStyle(fontSize: 11)),
+        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -138,15 +140,14 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const HomepageScreen()),
-                (route) => false,
-              );
+            onPressed: () async {
+              Navigator.pop(context); // tutup dialog dulu
+              await LogoutBloc.logout(); // hapus token & remember_me
+              if (context.mounted) {
+                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+              }
             },
-            child: const Text("Keluar", style: TextStyle(fontSize: 10)),
+            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
         ],
       ),
