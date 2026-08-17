@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
+import 'package:mobile_flutter/helpers/api_url.dart';
 
 class DaftarTamuScreen extends StatefulWidget {
   const DaftarTamuScreen({Key? key}) : super(key: key);
@@ -78,7 +79,10 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Konfirmasi Ubah VIP", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Konfirmasi Ubah VIP",
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
         content: Text("Ubah status tamu ini menjadi $statusTargetText?"),
         actions: [
           TextButton(
@@ -100,7 +104,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     if (confirm != true) return;
 
     try {
-      // Panggil API Update VIP di Bloc
       await DashboardAdminBloc.updateGuestVip(
         guestId: guestId,
         isVip: newVipStatus,
@@ -115,7 +118,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         ),
       );
 
-      // Refresh Data Halaman
       _fetchGuestsData();
     } catch (e) {
       if (!mounted) return;
@@ -126,6 +128,42 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         ),
       );
     }
+  }
+
+  /// Widget Helper untuk Menampilkan Foto Profil Tamu
+  Widget _buildAvatar(
+    Map<String, dynamic> tamu, {
+    double radius = 16,
+    double iconSize = 18,
+  }) {
+    final String? photoPath =
+        tamu["photo_path"] ?? tamu["photo"] ?? tamu["photo_url"];
+
+    if (photoPath != null && photoPath.toString().trim().isNotEmpty) {
+      String imageUrl = photoPath;
+      if (!imageUrl.startsWith('http')) {
+        final cleanPath =
+            imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+        imageUrl = '${ApiUrl.baseUrl}/storage/$cleanPath';
+      }
+
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: const Color(0xFFF4F7FC),
+        backgroundImage: NetworkImage(imageUrl),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFF4F7FC),
+      child: Icon(
+        Icons.person,
+        size: iconSize,
+        color: corporateGreen,
+      ),
+    );
   }
 
   /// Format tanggal (D-M-Y)
@@ -145,8 +183,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   // Pop-up Detail Tamu
   void _showDetailTamuDialog(BuildContext context, Map<String, dynamic> tamu) {
     final int guestId = tamu["id"] ?? 0;
-    final bool isVip =
-        (tamu["is_vip"] == 1 ||
+    final bool isVip = (tamu["is_vip"] == 1 ||
         tamu["is_vip"] == true ||
         tamu["status"] == "VIP");
     final String statusLabel = isVip ? "VIP" : "Reguler";
@@ -176,11 +213,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                     ),
                   ],
                 ),
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: const Color(0xFFF4F7FC),
-                  child: Icon(Icons.person, size: 35, color: corporateGreen),
-                ),
+                _buildAvatar(tamu, radius: 30, iconSize: 35),
                 const SizedBox(height: 10),
                 Text(
                   tamu["name"] ?? tamu["nama"] ?? "-",
@@ -236,14 +269,15 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 ),
                 _buildDetailRow("Frekuensi", "$totalKunjungan Kali"),
                 const SizedBox(height: 16),
-                
-                // Tombol Ubah VIP di Dialog Detail
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: isVip ? Colors.grey : Colors.amber.shade800),
+                          side: BorderSide(
+                            color:
+                                isVip ? Colors.grey : Colors.amber.shade800,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -262,7 +296,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: isVip ? Colors.grey[700] : Colors.amber[800],
+                            color:
+                                isVip ? Colors.grey[700] : Colors.amber[800],
                           ),
                         ),
                       ),
@@ -360,7 +395,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                     const SizedBox(height: 6),
                     _buildTextField("Jabatan", jabatanController),
                     const SizedBox(height: 6),
-
                     const Text(
                       "Status Tamu",
                       style: TextStyle(
@@ -393,8 +427,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null)
+                            if (val != null) {
                               setStateDialog(() => statusTamu = val);
+                            }
                           },
                         ),
                       ),
@@ -643,7 +678,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header & Tombol Tambah Tamu
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -698,8 +732,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-
-              // Search & Filter Kategori Dropdown
               Row(
                 children: [
                   Expanded(
@@ -774,8 +806,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-
-              // Tampilan Konten List / Loading / Error
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(40.0),
@@ -824,8 +854,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                     );
                     final int totalKunjungan =
                         tamu["visits_count"] ?? tamu["totalKunjungan"] ?? 0;
-                    final bool isVip =
-                        (tamu["is_vip"] == 1 ||
+                    final bool isVip = (tamu["is_vip"] == 1 ||
                         tamu["is_vip"] == true ||
                         tamu["status"] == "VIP");
                     final String statusText = isVip ? "VIP" : "Reguler";
@@ -847,7 +876,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ID & Status Badge
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -894,19 +922,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-
-                          // Nama & Tanggal Terdaftar
                           Row(
                             children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: const Color(0xFFF4F7FC),
-                                child: Icon(
-                                  Icons.person,
-                                  size: 18,
-                                  color: corporateGreen,
-                                ),
-                              ),
+                              _buildAvatar(tamu, radius: 16, iconSize: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Column(
@@ -963,24 +981,26 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                             padding: EdgeInsets.symmetric(vertical: 6.0),
                             child: Divider(height: 1, color: Color(0xFFE5E7EB)),
                           ),
-
-                          // Tombol Aksi: Ubah VIP & Detail
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              // Tombol Ubah VIP
                               OutlinedButton.icon(
-                                onPressed: () => _toggleVipStatus(guestId, isVip),
+                                onPressed: () =>
+                                    _toggleVipStatus(guestId, isVip),
                                 icon: Icon(
                                   isVip ? Icons.star_border : Icons.star,
                                   size: 12,
-                                  color: isVip ? Colors.grey[700] : Colors.amber[800],
+                                  color: isVip
+                                      ? Colors.grey[700]
+                                      : Colors.amber[800],
                                 ),
                                 label: Text(
                                   isVip ? "Set Reguler" : "Ubah VIP",
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isVip ? Colors.grey[700] : Colors.amber[800],
+                                    color: isVip
+                                        ? Colors.grey[700]
+                                        : Colors.amber[800],
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -990,7 +1010,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                                     vertical: 2,
                                   ),
                                   side: BorderSide(
-                                    color: isVip ? Colors.grey.shade400 : Colors.amber.shade800,
+                                    color: isVip
+                                        ? Colors.grey.shade400
+                                        : Colors.amber.shade800,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(6),
@@ -999,8 +1021,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-
-                              // Tombol Detail
                               OutlinedButton.icon(
                                 onPressed: () =>
                                     _showDetailTamuDialog(context, tamu),
