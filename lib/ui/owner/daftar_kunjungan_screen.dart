@@ -21,9 +21,13 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
   String _selectedStatus = 'Semua'; // Semua / VIP / Reguler -> mapped ke vip_status di API
   final List<String> _statusOptions = ['Semua', 'VIP', 'Reguler'];
 
+  // ⬅️ BARU: filter tanggal, disamakan dengan DaftarKunjunganManagerScreen
+  String _dariTanggal = '';
+  String _sampaiTanggal = '';
+
   List<Kunjungan> _daftarKunjungan = [];
-  int _currentPage = 1;    // ⬅️ BARU
-  int _lastPage = 1;       // ⬅️ BARU
+  int _currentPage = 1;
+  int _lastPage = 1;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -42,7 +46,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     _fetchData();
   }
 
-  // ⬅️ DIUBAH: terima parameter page opsional
   Future<void> _fetchData({int? page}) async {
     if (page != null) _currentPage = page;
     setState(() {
@@ -58,12 +61,14 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
       final result = await KunjunganBloc.list(
         vipStatus: vipParam,
         keyword: _searchQuery.isNotEmpty ? _searchQuery : null,
-        page: _currentPage, // ⬅️ BARU
+        startDate: _dariTanggal.isEmpty ? null : _dariTanggal, // ⬅️ BARU
+        endDate: _sampaiTanggal.isEmpty ? null : _sampaiTanggal, // ⬅️ BARU
+        page: _currentPage,
       );
       setState(() {
         _daftarKunjungan = result.data;
-        _currentPage = result.currentPage; // ⬅️ BARU
-        _lastPage = result.lastPage;        // ⬅️ BARU
+        _currentPage = result.currentPage;
+        _lastPage = result.lastPage;
       });
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceAll('Exception: ', ''));
@@ -72,8 +77,57 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     }
   }
 
+  // ⬅️ BARU: date picker, disamakan dengan DaftarKunjunganManagerScreen._pilihTanggal
+  Future<void> _pilihTanggal(BuildContext context, bool isDari) async {
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2025),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF006B3F),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF172033),
+            ),
+          ),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(0.85)),
+            child: child!,
+          ),
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        String formatted =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        if (isDari) {
+          _dariTanggal = formatted;
+        } else {
+          _sampaiTanggal = formatted;
+        }
+      });
+      _fetchData(page: 1); // filter tanggal baru → reset ke halaman 1
+    }
+  }
+
+  // ⬅️ BARU: reset filter, termasuk tanggal
+  void _resetFilter() {
+    setState(() {
+      _searchQuery = '';
+      _selectedStatus = 'Semua';
+      _dariTanggal = '';
+      _sampaiTanggal = '';
+    });
+    _fetchData(page: 1);
+  }
+
   // Badge lookup aman: cocok baik backend kirim key mentah ('new', dst)
-  // maupun label jadi.
+  // maupun label jadi. Dipakai untuk badge follow-up di dalam dialog
+  // (status pipeline per-update), bukan untuk status kunjungan level-kartu.
   Map<String, dynamic> _getBadge(String? status) {
     if (status == null || status.isEmpty) {
       return {'label': '-', 'color': Colors.grey};
@@ -83,6 +137,26 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
       (v) => v['label'] == status,
       orElse: () => {'label': status, 'color': Colors.grey},
     );
+  }
+
+  // ⬅️ BARU: badge "Tahap" yang sadar akan status kunjungan asli (dibatalkan/dsb),
+  // bukan cuma leadStatus. Sebelumnya kunjungan yang dibatalkan (leadStatus == null,
+  // karena gak pernah convert jadi lead) selalu jatuh ke fallback _leadBadges['new']
+  // dan nongol "Baru" alih-alih "Dibatalkan".
+  Map<String, dynamic> _tahapBadge(Kunjungan item) {
+    final s = item.status.toLowerCase().trim();
+    final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
+
+    if (isCancelled) {
+      return {'label': 'Dibatalkan', 'color': const Color(0xFFDC2626)};
+    }
+
+    final key = item.leadStatus;
+    if (key == null || key.isEmpty) {
+      return {'label': 'Bukan Lead', 'color': const Color(0xFF94A3B8)};
+    }
+
+    return _leadBadges[key] ?? {'label': 'Baru', 'color': const Color(0xFF64748B)};
   }
 
   String _formatValue(double? value) {
@@ -253,13 +327,20 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     );
   }
 
+  // ⬅️ DIUBAH: sekarang cek status kunjungan asli dulu (dibatalkan → "Dibatalkan"),
+  // baru fallback ke leadStatus follow-up terakhir kalau bukan dibatalkan.
   String _pipelineTerakhirText(Kunjungan item) {
+    final s = item.status.toLowerCase().trim();
+    final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
+    if (isCancelled) return 'Dibatalkan';
+
     String? statusKey;
     if (item.followUps.isNotEmpty && item.followUps.last.status != null && item.followUps.last.status!.isNotEmpty) {
       statusKey = item.followUps.last.status;
     } else {
       statusKey = item.leadStatus;
     }
+    if (statusKey == null || statusKey.isEmpty) return 'Bukan Lead';
     return (_leadBadges[statusKey] ?? _leadBadges['new']!)['label'] as String;
   }
 
@@ -309,11 +390,11 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: () => _fetchData()),
+          IconButton(icon: const Icon(Icons.refresh, color: Colors.white), onPressed: () => _fetchData(page: 1)),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => _fetchData(),
+        onRefresh: () => _fetchData(page: 1),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
@@ -334,7 +415,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   children: [
                     TextField(
                       onChanged: (value) => setState(() => _searchQuery = value),
-                      onSubmitted: (_) => _fetchData(page: 1), // ⬅️ DIUBAH: reset ke halaman 1
+                      onSubmitted: (_) => _fetchData(page: 1),
                       decoration: InputDecoration(
                         hintText: "Cari nama tamu, token, atau keperluan...",
                         hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
@@ -353,21 +434,61 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // ⬅️ DIUBAH: filter tanggal jadi field "Dari Tgl" / "Sampai Tgl" pakai showDatePicker,
+                    // sama polanya dengan DaftarKunjunganManagerScreen (sebelumnya cuma tombol snackbar placeholder).
                     Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Membuka kalender filter tanggal...')),
-                              );
-                            },
-                            icon: const Icon(Icons.date_range, size: 16, color: Color(0xFF006B3F)),
-                            label: const Text("Pilih Tanggal", style: TextStyle(fontSize: 11, color: Color(0xFF172033))),
-                            style: OutlinedButton.styleFrom(
+                          child: InkWell(
+                            onTap: () => _pilihTanggal(context, true),
+                            child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F7FC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 12, color: Color(0xFF006B3F)),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      _dariTanggal.isEmpty ? "Dari Tgl" : _dariTanggal,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF172033)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => _pilihTanggal(context, false),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF4F7FC),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 12, color: Color(0xFF006B3F)),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      _sampaiTanggal.isEmpty ? "Sampai Tgl" : _sampaiTanggal,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF172033)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -393,7 +514,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                               onChanged: (String? newValue) {
                                 if (newValue != null) {
                                   setState(() => _selectedStatus = newValue);
-                                  _fetchData(page: 1); // ⬅️ DIUBAH: reset ke halaman 1
+                                  _fetchData(page: 1);
                                 }
                               },
                             ),
@@ -401,6 +522,25 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                         ),
                       ],
                     ),
+
+                    // ⬅️ BARU: tombol reset filter, muncul kalau ada filter tanggal/status/keyword aktif
+                    if (_dariTanggal.isNotEmpty || _sampaiTanggal.isNotEmpty || _selectedStatus != 'Semua' || _searchQuery.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: _resetFilter,
+                          icon: const Icon(Icons.refresh, size: 12, color: Colors.grey),
+                          label: const Text("Reset Filter", style: TextStyle(fontSize: 10, color: Color(0xFF778195))),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            minimumSize: const Size(60, 24),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -427,7 +567,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                     children: [
                       Text(_errorMessage!, style: const TextStyle(fontSize: 12, color: Colors.red), textAlign: TextAlign.center),
                       const SizedBox(height: 8),
-                      TextButton(onPressed: () => _fetchData(), child: const Text("Coba Lagi")),
+                      TextButton(onPressed: () => _fetchData(page: 1), child: const Text("Coba Lagi")),
                     ],
                   ),
                 )
@@ -447,7 +587,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   itemCount: filteredList.length,
                   itemBuilder: (context, index) {
                     final item = filteredList[index];
-                    final badge = _getBadge(item.leadStatus);
+                    final tahap = _tahapBadge(item); // ⬅️ DIUBAH: dari _getBadge(item.leadStatus)
                     final catatan = item.followUps.isNotEmpty
                         ? (item.followUps.last.result ?? 'Belum ada catatan.')
                         : (item.meetingResult ?? item.notes ?? 'Belum ada catatan.');
@@ -473,7 +613,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
                                     child: Text(
-                                      "No. ${index + 1 + (_currentPage - 1) * 10}", // ⬅️ DIUBAH: nomor urut ikut halaman
+                                      "No. ${index + 1 + (_currentPage - 1) * 10}",
                                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195)),
                                     ),
                                   ),
@@ -482,15 +622,17 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
                                 ],
                               ),
+                              // ⬅️ DIUBAH: pakai _tahapBadge(item) supaya kunjungan yang dibatalkan
+                              // nunjukin "Dibatalkan", bukan "Baru".
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: (badge['color'] as Color).withOpacity(0.1),
+                                  color: (tahap['color'] as Color).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  "Tahap: ${badge['label']}",
-                                  style: TextStyle(color: badge['color'] as Color, fontSize: 10, fontWeight: FontWeight.bold),
+                                  "Tahap: ${tahap['label']}",
+                                  style: TextStyle(color: tahap['color'] as Color, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
@@ -548,7 +690,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                           ),
                           const SizedBox(height: 6),
 
-                          // Jenis Kunjungan & Value
+                          // Keperluan
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -610,7 +752,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   },
                 ),
 
-              // ⬅️ BARU: kontrol navigasi halaman
+              // Kontrol navigasi halaman
               if (!_isLoading && _errorMessage == null && filteredList.isNotEmpty && _lastPage > 1) ...[
                 const SizedBox(height: 16),
                 Row(
