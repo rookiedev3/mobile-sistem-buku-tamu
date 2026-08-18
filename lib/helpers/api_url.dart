@@ -234,6 +234,20 @@ class ApiUrl {
     return '$baseUrl/api/owner/kategori-tamu?month=$m&year=$y';
   }
 
+  static String ownerDatabaseTamu({
+    String? search,
+    int page = 1,
+    int perPage = 10,
+  }) {
+    final buffer = StringBuffer(
+      '$baseUrl/api/owner/database-tamu?page=$page&per_page=$perPage',
+    );
+    if (search != null && search.isNotEmpty) {
+      buffer.write('&search=${Uri.encodeQueryComponent(search)}');
+    }
+    return buffer.toString();
+  }
+
   // ================= CHECK-IN (TAMBAHAN BARU) =================
   static const String checkInFormData = '$baseUrl/api/check-in/form-data';
   static const String checkInValidateStep1 =
@@ -346,6 +360,13 @@ class ApiUrl {
   static String picUpdateFollowUp(int leadId) =>
       '$baseUrl/api/pic/leads/$leadId/follow-up';
 
+  // Tambahkan di dalam class ApiUrl:
+  static String readNotification(String id) {
+    return '$baseUrl/notifications/$id/read'; // Sesuaikan dengan path endpoint backend Anda
+  }
+
+  static String get readAllNotifications => '$baseUrl/notifications/read-all';
+
   // ================= ADMIN (FRONT OFFICE) =================
   static const String adminMasterData = '$baseUrl/api/admin/master-data';
 
@@ -396,12 +417,14 @@ class ApiUrl {
   }
 
   static String get adminStoreGuest => '$baseUrl/api/admin/guest';
-
-  static String adminToggleVip(int id) => '$baseUrl/api/admin/guests/$id/vip';
+  static String adminUpdateGuest(int id) => '$baseUrl/api/admin/guest/$id';
+  static String adminToggleVip(int id) => '$baseUrl/api/admin/guest/$id/vip';
 
   static const String adminNotifications = '$baseUrl/api/admin/notifications';
   static const String adminMarkAllNotificationsRead =
       '$baseUrl/api/admin/notifications/read-all';
   static String adminMarkNotificationRead(int id) =>
       '$baseUrl/api/admin/notifications/$id/read';
+
+  
 }

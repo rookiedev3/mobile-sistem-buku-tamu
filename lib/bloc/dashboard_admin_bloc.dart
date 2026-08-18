@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/helpers/api.dart';
 import 'package:mobile_flutter/helpers/api_url.dart';
+import 'package:mobile_flutter/helpers/user_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -215,15 +216,11 @@ class DashboardAdminBloc {
     String? keyword,
     int page = 1,
   }) async {
-    String query = 'page=$page';
-    if (vipStatus != null && vipStatus.isNotEmpty) {
-      query += '&vip=${Uri.encodeComponent(vipStatus)}';
-    }
-    if (keyword != null && keyword.isNotEmpty) {
-      query += '&keyword=${Uri.encodeComponent(keyword)}';
-    }
-
-    String apiUrl = '${ApiUrl.baseUrl}/api/admin/guest?$query';
+    String apiUrl = ApiUrl.adminGuest(
+      vipStatus: vipStatus,
+      keyword: keyword,
+      page: page,
+    );
 
     try {
       var response = await Api().get(apiUrl);
@@ -240,7 +237,6 @@ class DashboardAdminBloc {
   }
 
   /// 9. POST /api/admin/guest
-  /// Menyimpan data tamu baru ke database
   static Future<Map<String, dynamic>> storeGuest({
     required String name,
     required String phone,
@@ -251,7 +247,7 @@ class DashboardAdminBloc {
     required bool isVip,
     XFile? photoFile,
   }) async {
-    String apiUrl = '${ApiUrl.baseUrl}/api/admin/guest';
+    String apiUrl = ApiUrl.adminStoreGuest;
 
     Map<String, String> fields = {
       "name": name,
@@ -290,26 +286,162 @@ class DashboardAdminBloc {
     }
   }
 
-  /// PUT /api/admin/guest/{id}/vip
-  /// Mengubah status VIP tamu
+  /// 10. POST /api/admin/guest/{id} (Update Profil)
+  static Future<Map<String, dynamic>> updateGuest({
+    required int guestId,
+    required String name,
+    required String phone,
+    String? email,
+    String? companyName,
+    String? position,
+    String? address,
+    required bool isVip,
+    XFile? photoFile,
+  }) async {
+    String apiUrl = ApiUrl.adminUpdateGuest(guestId);
+
+    Map<String, String> fields = {
+      "_method": "PUT",
+      "name": name,
+      "phone": phone,
+      "is_vip": isVip ? "1" : "0",
+      "email": email ?? "",
+      "company_name": companyName ?? "",
+      "position": position ?? "",
+      "address": address ?? "",
+    };
+
+    try {
+      var response = await Api().postMultipart(
+        apiUrl,
+        fields,
+        file: photoFile,
+        fileParamName: 'photo',
+      );
+
+      var jsonObj = json.decode(response.body);
+
+      if (jsonObj['status'] == false || jsonObj['success'] == false) {
+        if (jsonObj['data'] is Map) {
+          final errors = jsonObj['data'] as Map;
+          final firstError = errors.values.first;
+          throw Exception(
+            firstError is List ? firstError.first : firstError.toString(),
+          );
+        }
+        throw Exception(jsonObj['message'] ?? "Gagal memperbarui profil tamu.");
+      }
+
+      return jsonObj['data'] ?? {};
+    } catch (error) {
+      throw Exception(error.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  /// 11. POST /api/admin/guest/{id}/vip
   static Future<Map<String, dynamic>> updateGuestVip({
     required int guestId,
     required bool isVip,
   }) async {
-    String apiUrl = '${ApiUrl.baseUrl}/api/admin/guest/$guestId/vip';
+    String apiUrl = ApiUrl.adminToggleVip(guestId);
 
     Map<String, String> body = {
       'is_vip': isVip ? "1" : "0",
     };
 
     try {
-      // Ganti ke Api().put(...) jika di Laravel menggunakan Route::put
-      var response = await Api().put(apiUrl, body);
+      var response = await Api().post(apiUrl, body);
       var jsonObj = json.decode(response.body);
 
       if (jsonObj['status'] == false || jsonObj['success'] == false) {
         throw Exception(
           jsonObj['message'] ?? "Gagal mengubah status VIP tamu.",
+        );
+      }
+
+      return jsonObj['data'] ?? {};
+    } catch (error) {
+      throw Exception(error.toString().replaceAll('Exception: ', ''));
+    }
+  }
+
+  static Future<Map<String, String>> _getHeaders() async {
+    final token = await UserInfo().getToken();
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  /// Tandai Satu Notifikasi Sudah Dibaca
+  static Future<bool> markNotificationAsRead(String id) async {
+    final int notifId = int.tryParse(id) ?? 0;
+    final String url = ApiUrl.adminMarkNotificationRead(notifId);
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      final errorJson = json.decode(response.body);
+      throw Exception(
+        errorJson['message'] ?? 'Gagal menandai notifikasi dibaca.',
+      );
+    }
+  }
+
+  /// Tandai Semua Notifikasi Sudah Dibaca
+  static Future<bool> markAllNotificationsAsRead() async {
+    final String url = ApiUrl.adminMarkAllNotificationsRead;
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      final errorJson = json.decode(response.body);
+      throw Exception(
+        errorJson['message'] ?? 'Gagal menandai semua notifikasi dibaca.',
+      );
+    }
+  }
+
+  /// Buat janji temu baru oleh admin
+  static Future<Map<String, dynamic>> storeAppointment({
+    required String name,
+    required String companyName,
+    required String phone,
+    required String scheduledAt,
+    required int purposeId,
+    required int assignedTo,
+    required int branchId,
+  }) async {
+    String apiUrl = ApiUrl.adminStoreAppointment;
+
+    Map<String, String> body = {
+      "name": name,
+      "company_name": companyName,
+      "phone": phone,
+      "scheduled_at": scheduledAt,
+      "purpose_id": purposeId.toString(),
+      "assigned_to": assignedTo.toString(),
+      "branch_id": branchId.toString(),
+    };
+
+    try {
+      var response = await Api().post(apiUrl, body);
+      var jsonObj = json.decode(response.body);
+
+      if (jsonObj['status'] == false || jsonObj['success'] == false) {
+        throw Exception(
+          jsonObj['message'] ?? "Gagal menyimpan janji temu.",
         );
       }
 

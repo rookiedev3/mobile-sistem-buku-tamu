@@ -22,6 +22,10 @@ class _DashboardManagerState extends State<DashboardManager> {
   late Future<ManagerDashboardResponse> _futureDashboard;
   final DateTime _selectedDate = DateTime.now();
 
+  // === STATE NOTIFIKASI ===
+  int _unreadNotifCount = 0;
+  List<dynamic> _notifications = [];
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +41,55 @@ class _DashboardManagerState extends State<DashboardManager> {
     _futureDashboard = ManagerBloc.dashboard(
       date: DateFormat('yyyy-MM-dd').format(_selectedDate),
       vipStatus: vipParam,
-    );
+    ).then((res) {
+      if (mounted) {
+        setState(() {
+          _notifications = res.notifications;
+          _unreadNotifCount = res.unreadNotifications;
+        });
+      }
+      return res;
+    });
+  }
+
+  /// Tandai 1 Notifikasi Dibaca
+  Future<void> _markNotificationAsRead(String notifId) async {
+    setState(() {
+      for (var notif in _notifications) {
+        if (notif['id']?.toString() == notifId) {
+          notif['read_at'] = DateTime.now().toIso8601String();
+          notif['is_read'] = true;
+        }
+      }
+      if (_unreadNotifCount > 0) {
+        _unreadNotifCount--;
+      }
+    });
+
+    try {
+      await ManagerBloc.markNotificationAsRead(notifId);
+    } catch (e) {
+      debugPrint('Gagal menandai notifikasi dibaca: $e');
+      setState(() => _loadData());
+    }
+  }
+
+  /// Tandai Semua Notifikasi Dibaca
+  Future<void> _markAllNotificationsAsRead() async {
+    setState(() {
+      for (var notif in _notifications) {
+        notif['read_at'] = DateTime.now().toIso8601String();
+        notif['is_read'] = true;
+      }
+      _unreadNotifCount = 0;
+    });
+
+    try {
+      await ManagerBloc.markAllNotificationsAsRead();
+    } catch (e) {
+      debugPrint('Gagal menandai semua notifikasi dibaca: $e');
+      setState(() => _loadData());
+    }
   }
 
   @override
@@ -52,9 +104,177 @@ class _DashboardManagerState extends State<DashboardManager> {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
+          // ================= DROPDOWN NOTIFIKASI =================
+          PopupMenuButton<String>(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.white),
+                if (_unreadNotifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 8,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            offset: const Offset(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (BuildContext context) {
+              List<PopupMenuEntry<String>> items = [];
+
+              // Header Dropdown Notifikasi
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Notifikasi Baru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF172033),
+                        ),
+                      ),
+                      if (_unreadNotifCount > 0)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _markAllNotificationsAsRead();
+                          },
+                          child: const Text(
+                            "Tandai semua dibaca",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF006B3F),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+
+              items.add(const PopupMenuDivider());
+
+              // Render Notifikasi
+              if (_notifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "Tidak ada notifikasi baru.",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (var notif in _notifications) {
+                  final String notifId = notif['id']?.toString() ?? '0';
+                  final String title = notif['title'] ?? 'Notifikasi';
+                  final String body = notif['body'] ?? '-';
+                  final String time = notif['created_at'] ?? '-';
+                  final bool isRead = notif['read_at'] != null ||
+                      (notif['is_read'] ?? false);
+
+                  items.add(
+                    PopupMenuItem<String>(
+                      value: notifId,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isRead
+                                    ? Colors.grey.withOpacity(0.1)
+                                    : const Color(0xFF006B3F).withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: isRead ? Colors.grey : const Color(0xFF006B3F),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isRead
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                      color: const Color(0xFF172033),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    body,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF778195),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    time,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isRead)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Color(0xFF006B3F),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _markNotificationAsRead(notifId);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              return items;
+            },
+            onSelected: (String notifId) {
+              _markNotificationAsRead(notifId);
+            },
           ),
 
           //button logout sementara

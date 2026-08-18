@@ -4,6 +4,8 @@ class ManagerDashboardResponse {
   final int leadDealsCount;
   final String selectedDate;
   final String vipStatus;
+  final List<dynamic> notifications;
+  final int unreadNotifications;
 
   ManagerDashboardResponse({
     required this.visits,
@@ -11,6 +13,8 @@ class ManagerDashboardResponse {
     required this.leadDealsCount,
     required this.selectedDate,
     required this.vipStatus,
+    required this.notifications,
+    required this.unreadNotifications,
   });
 
   factory ManagerDashboardResponse.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class ManagerDashboardResponse {
       leadDealsCount: data['lead_deals_count'] ?? 0,
       selectedDate: data['selected_date'] ?? '',
       vipStatus: data['vip_status'] ?? 'all',
+      notifications: data['notifications'] as List? ?? [],
+      unreadNotifications: data['unread_notifications'] ?? 0,
     );
   }
 }

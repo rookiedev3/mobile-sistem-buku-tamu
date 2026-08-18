@@ -29,4 +29,24 @@ class ManagerBloc {
       throw Exception('Gagal memuat dashboard manager (${response.statusCode})');
     }
   }
+
+  /// Tandai 1 notifikasi sebagai dibaca
+  static Future<void> markNotificationAsRead(String notifId) async {
+    final String url = ApiUrl.adminMarkNotificationRead(int.parse(notifId));
+    final response = await http.post(Uri.parse(url), headers: await _headers());
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal menandai notifikasi dibaca.');
+    }
+  }
+
+  /// Tandai semua notifikasi sebagai dibaca
+  static Future<void> markAllNotificationsAsRead() async {
+    final String url = ApiUrl.adminMarkAllNotificationsRead;
+    final response = await http.post(Uri.parse(url), headers: await _headers());
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal menandai semua notifikasi dibaca.');
+    }
+  }
 }

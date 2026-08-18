@@ -137,4 +137,6 @@ class UserInfo {
     await prefs.remove(_kRememberMe);
     await prefs.remove(_kSavedEmail);
   }
+
+  
 }

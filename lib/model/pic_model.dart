@@ -283,6 +283,8 @@ class PicDashboardResponse {
   final int countUpcoming;
   final String filter;
   final String vipStatus;
+  final List<dynamic> notifications;
+  final int unreadNotifications;
 
   PicDashboardResponse({
     required this.visits,
@@ -295,6 +297,8 @@ class PicDashboardResponse {
     required this.countUpcoming,
     required this.filter,
     required this.vipStatus,
+    required this.notifications,
+    required this.unreadNotifications,
   });
 
   factory PicDashboardResponse.fromJson(Map<String, dynamic> json) {
@@ -312,6 +316,8 @@ class PicDashboardResponse {
       countUpcoming: _asInt(data['count_upcoming']),
       filter: data['filter'] ?? 'all',
       vipStatus: data['vip_status'] ?? 'all',
+      notifications: data['notifications'] as List? ?? [],
+      unreadNotifications: _asInt(data['unread_notifications'], 0),
     );
   }
 }

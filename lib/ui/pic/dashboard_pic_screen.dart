@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 import 'package:mobile_flutter/model/pic_model.dart';
 import 'package:mobile_flutter/bloc/pic_bloc.dart';
-import 'package:mobile_flutter/bloc/logout_bloc.dart'; // kalau foldernya "blocs" bukan "bloc"
+import 'package:mobile_flutter/bloc/logout_bloc.dart';
 
 class DashboardPICScreen extends StatefulWidget {
   const DashboardPICScreen({Key? key}) : super(key: key);
@@ -11,14 +11,13 @@ class DashboardPICScreen extends StatefulWidget {
   State<DashboardPICScreen> createState() => _DashboardPICScreenState();
 }
 
-class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTickerProviderStateMixin {
+class _DashboardPICScreenState extends State<DashboardPICScreen>
+    with SingleTickerProviderStateMixin {
   final Color corporateGreen = const Color(0xFF006B3F);
   late TabController _tabController;
 
   String _filterKategori = 'Semua Kategori'; // Semua / VIP / Reguler
 
-  // Jumlah item per halaman untuk dashboard PIC.
-  // Ganti ke nilai lain (mis. 10) kalau sudah tidak butuh testing pagination.
   static const int _perPage = 10;
 
   final Map<int, List<PicVisitModel>> _dataPerTab = {0: [], 1: [], 2: []};
@@ -27,7 +26,11 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   int _totalVip = 0;
   int _totalReguler = 0;
 
-  // === PAGINATION STATE (page-based — bukan infinite scroll lagi) ===
+  // === STATE NOTIFIKASI ===
+  int _unreadNotifCount = 0;
+  List<dynamic> _notifications = [];
+
+  // === PAGINATION STATE ===
   final Map<int, int> _currentPagePerTab = {0: 1, 1: 1, 2: 1};
   final Map<int, int> _lastPagePerTab = {0: 1, 1: 1, 2: 1};
 
@@ -38,15 +41,14 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
-    // Muat tab pertama begitu layar dibuka.
     _loadTab(_tabController.index);
   }
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    // Hindari fetch ulang kalau tab ini sudah pernah dimuat & tidak sedang error.
-    final alreadyLoaded = (_dataPerTab[_tabController.index]?.isNotEmpty ?? false) &&
-        _errorPerTab[_tabController.index] == null;
+    final alreadyLoaded =
+        (_dataPerTab[_tabController.index]?.isNotEmpty ?? false) &&
+            _errorPerTab[_tabController.index] == null;
     if (!alreadyLoaded) {
       _loadTab(_tabController.index);
     }
@@ -65,12 +67,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     return 'all';
   }
 
-  // Jumlah item di HALAMAN AKTIF saat ini untuk tab tertentu (bukan total,
-  // karena data sekarang di-replace per halaman, bukan ditumpuk/append lagi).
   int _countFor(int tabIndex) => _dataPerTab[tabIndex]?.length ?? 0;
 
-  // page default 1 → dipakai buat load awal, ganti filter/tab, dan pull-to-refresh.
-  // Untuk pindah halaman manual (tombol prev/next), panggil lewat _gotoPage().
   Future<void> _loadTab(int tabIndex, {int page = 1}) async {
     if (!mounted) return;
     setState(() {
@@ -79,13 +77,6 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
     });
 
     try {
-      // PicBloc.dashboard() mengembalikan PicDashboardResponse (lihat pic_model.dart):
-      // punya visits, currentPage, lastPage, vipCount, regularCount langsung —
-      // tidak perlu wrapper tambahan.
-      // perPage WAJIB dikirim eksplisit: PicBloc.dashboard() punya default
-      // perPage = 10 sendiri, jadi kalau tidak di-set di sini, request yang
-      // dikirim selalu membawa per_page=10 dan default per_page=1 di backend
-      // (Laravel) tidak pernah kepakai.
       final result = await PicBloc.dashboard(
         filter: _tabFilters[tabIndex],
         vipStatus: _vipStatusParam,
@@ -95,23 +86,66 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
       if (!mounted) return;
       setState(() {
-        _dataPerTab[tabIndex] = result.visits; // replace isi halaman, bukan append lagi
+        _dataPerTab[tabIndex] = result.visits;
         _totalVip = result.vipCount;
         _totalReguler = result.regularCount;
         _currentPagePerTab[tabIndex] = result.currentPage;
         _lastPagePerTab[tabIndex] = result.lastPage;
+        _notifications = result.notifications;
+        _unreadNotifCount = result.unreadNotifications;
         _loadingPerTab[tabIndex] = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorPerTab[tabIndex] = e is ApiException ? e.message : 'Gagal memuat data. Periksa koneksi Anda.';
+        _errorPerTab[tabIndex] = e is ApiException
+            ? e.message
+            : 'Gagal memuat data. Periksa koneksi Anda.';
         _loadingPerTab[tabIndex] = false;
       });
     }
   }
 
-  // Dipanggil dari tombol prev/next di _buildTabContent.
+  /// Tandai 1 Notifikasi Dibaca
+  Future<void> _markNotificationAsRead(String notifId) async {
+    setState(() {
+      for (var notif in _notifications) {
+        if (notif['id']?.toString() == notifId) {
+          notif['read_at'] = DateTime.now().toIso8601String();
+          notif['is_read'] = true;
+        }
+      }
+      if (_unreadNotifCount > 0) {
+        _unreadNotifCount--;
+      }
+    });
+
+    try {
+      await PicBloc.markNotificationAsRead(notifId);
+    } catch (e) {
+      debugPrint('Gagal menandai notifikasi dibaca: $e');
+      _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+    }
+  }
+
+  /// Tandai Semua Notifikasi Dibaca
+  Future<void> _markAllNotificationsAsRead() async {
+    setState(() {
+      for (var notif in _notifications) {
+        notif['read_at'] = DateTime.now().toIso8601String();
+        notif['is_read'] = true;
+      }
+      _unreadNotifCount = 0;
+    });
+
+    try {
+      await PicBloc.markAllNotificationsAsRead();
+    } catch (e) {
+      debugPrint('Gagal menandai semua notifikasi dibaca: $e');
+      _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+    }
+  }
+
   void _gotoPage(int tabIndex, int page) {
     final lastPage = _lastPagePerTab[tabIndex] ?? 1;
     if (page < 1 || page > lastPage) return;
@@ -120,24 +154,21 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
   Future<void> _reloadAllTabs() async {
     for (var i = 0; i < 3; i++) {
-      await _loadTab(i, page: 1); // pull-to-refresh → balik ke halaman 1 semua tab
+      await _loadTab(i, page: 1);
     }
   }
 
   void _onFilterKategoriChanged(String? val) {
     if (val == null) return;
     setState(() => _filterKategori = val);
-    _loadTab(_tabController.index, page: 1); // ganti filter kategori → reset ke halaman 1
+    _loadTab(_tabController.index, page: 1);
   }
-
-  // ---------------------------------------------------------------------
-  // Aksi-aksi yang memanggil API — reload di HALAMAN YANG SAMA (bukan reset ke 1)
-  // ---------------------------------------------------------------------
 
   Future<void> _confirmVisit(PicVisitModel item) async {
     try {
       await PicBloc.updateStatus(id: item.id, status: 'confirmed');
-      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+      await _loadTab(_tabController.index,
+          page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -146,7 +177,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   Future<void> _cancelVisit(PicVisitModel item) async {
     try {
       await PicBloc.updateStatus(id: item.id, status: 'cancelled');
-      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+      await _loadTab(_tabController.index,
+          page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -155,7 +187,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   Future<void> _startMeeting(PicVisitModel item) async {
     try {
       await PicBloc.startMeeting(item.id);
-      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+      await _loadTab(_tabController.index,
+          page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -178,9 +211,12 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Catatan pertemuan berhasil disimpan!'), backgroundColor: Color(0xFF006B3F)),
+        const SnackBar(
+            content: Text('Catatan pertemuan berhasil disimpan!'),
+            backgroundColor: Color(0xFF006B3F)),
       );
-      await _loadTab(_tabController.index, page: _currentPagePerTab[_tabController.index] ?? 1);
+      await _loadTab(_tabController.index,
+          page: _currentPagePerTab[_tabController.index] ?? 1);
     } catch (e) {
       _showError(e);
     }
@@ -188,7 +224,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
   void _showError(Object e) {
     if (!mounted) return;
-    final msg = e is ApiException ? e.message : 'Terjadi kesalahan, silakan coba lagi.';
+    final msg =
+        e is ApiException ? e.message : 'Terjadi kesalahan, silakan coba lagi.';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.red[700]),
     );
@@ -199,12 +236,15 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+        title: const Text("Konfirmasi Keluar",
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        content: const Text("Apakah Anda yakin ingin keluar?",
+            style: TextStyle(fontSize: 11)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+            child: const Text("Batal",
+                style: TextStyle(fontSize: 10, color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -213,10 +253,10 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               elevation: 0,
             ),
             onPressed: () async {
-              Navigator.pop(context); // tutup dialog dulu
-              await LogoutBloc.logout(); // hapus token & remember_me
+              Navigator.pop(context);
+              await LogoutBloc.logout();
               if (context.mounted) {
-                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+                LogoutBloc.keluarKeHomepage(context);
               }
             },
             child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
@@ -255,14 +295,20 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: Text(
-              (catatan != null && catatan.isNotEmpty) ? catatan : "Tidak ada catatan khusus untuk tamu ini.",
-              style: const TextStyle(fontSize: 12, color: Color(0xFF172033), height: 1.5),
+              (catatan != null && catatan.isNotEmpty)
+                  ? catatan
+                  : "Tidak ada catatan khusus untuk tamu ini.",
+              style: const TextStyle(
+                  fontSize: 12, color: Color(0xFF172033), height: 1.5),
             ),
           ),
         ),
         actions: [
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: corporateGreen, foregroundColor: Colors.white, elevation: 0),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: corporateGreen,
+                foregroundColor: Colors.white,
+                elevation: 0),
             onPressed: () => Navigator.pop(context),
             child: const Text("Tutup", style: TextStyle(fontSize: 11)),
           ),
@@ -272,16 +318,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   }
 
   void _showCatatHasilDialog(BuildContext context, PicVisitModel item) {
-    final ditemuiCtrl = TextEditingController();
     final ringkasanCtrl = TextEditingController(text: item.meetingResult ?? '');
-    String prospekSelected = _prospekLabelFromLevel(item.potentialLevel) ?? 'Warm Lead';
+    String prospekSelected =
+        _prospekLabelFromLevel(item.potentialLevel) ?? 'Warm Lead';
     final followUpDate = item.followUpDate;
     final followUpCtrl = TextEditingController(
       text: followUpDate != null
           ? "${followUpDate.year}-${followUpDate.month.toString().padLeft(2, '0')}-${followUpDate.day.toString().padLeft(2, '0')}"
           : '',
     );
-    final estimasiCtrl = TextEditingController(text: item.estimatedValue?.toString() ?? '');
+    final estimasiCtrl =
+        TextEditingController(text: item.estimatedValue?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -291,7 +338,6 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
           final showEstimasi = _showEstimasiField(prospekSelected);
           final isDeal = prospekSelected == 'Deal';
 
-          // Kalau lagi optional, kosongin tanggal (samain kayak flatpickr .clear() di web)
           if (isDateOptional && followUpCtrl.text.isNotEmpty) {
             followUpCtrl.text = '';
           }
@@ -320,27 +366,38 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       children: [
                         const Text(
                           "TAMU YANG DITEMUI",
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF778195), letterSpacing: 0.3),
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF778195),
+                              letterSpacing: 0.3),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           item.guestName ?? '-',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF172033)),
                         ),
                         if ((item.companyName ?? '').isNotEmpty)
                           Text(
                             item.companyName!,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF778195)),
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF778195)),
                           ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _dialogField("Catatan / Ringkasan Diskusi", ringkasanCtrl, maxLines: 3),
+                  _dialogField("Catatan / Ringkasan Diskusi", ringkasanCtrl,
+                      maxLines: 3),
                   const SizedBox(height: 8),
-
                   const Text("Prospek Klien",
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF778195))),
                   const SizedBox(height: 3),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -353,19 +410,26 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       child: DropdownButton<String>(
                         value: prospekSelected,
                         isExpanded: true,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF172033), fontWeight: FontWeight.bold),
-                        items: ['Warm Lead', 'Hot Lead', 'Cold Lead', 'Non-Lead', 'Deal'].map((val) {
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF172033),
+                            fontWeight: FontWeight.bold),
+                        items: [
+                          'Warm Lead',
+                          'Hot Lead',
+                          'Cold Lead',
+                          'Non-Lead',
+                          'Deal'
+                        ].map((val) {
                           return DropdownMenuItem(value: val, child: Text(val));
                         }).toList(),
                         onChanged: (val) {
                           if (val != null) {
                             setDialogState(() {
                               prospekSelected = val;
-                              // Reset estimasi kalau field-nya bakal disembunyiin
                               if (!_showEstimasiField(val)) {
                                 estimasiCtrl.text = '';
                               }
-                              // Matiin tanggal kalau statusnya jadi optional
                               if (_isFollowUpOptional(val)) {
                                 followUpCtrl.text = '';
                               }
@@ -376,60 +440,77 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                     ),
                   ),
                   const SizedBox(height: 8),
-
-                  // Estimasi nilai: muncul utk Hot/Warm/Deal, wajib >0 cuma pas Deal
                   if (showEstimasi) ...[
                     _dialogField(
-                      isDeal ? "Estimasi Nilai Deal (Rp) *" : "Estimasi Nilai (Rp)",
+                      isDeal
+                          ? "Estimasi Nilai Deal (Rp) *"
+                          : "Estimasi Nilai (Rp)",
                       estimasiCtrl,
                     ),
                     const SizedBox(height: 8),
                   ],
-
                   Text(
-                    isDateOptional ? "Tanggal Follow-Up (tidak diperlukan)" : "Tanggal Follow-Up *",
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195)),
+                    isDateOptional
+                        ? "Tanggal Follow-Up (tidak diperlukan)"
+                        : "Tanggal Follow-Up *",
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF778195)),
                   ),
                   const SizedBox(height: 3),
                   TextField(
                     controller: followUpCtrl,
                     readOnly: true,
-                    enabled: !isDateOptional, // ← ini yang bikin field-nya "gabisa diteken"
+                    enabled: !isDateOptional,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isDateOptional ? const Color(0xFF9CA3AF) : const Color(0xFF172033),
+                      color: isDateOptional
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF172033),
                     ),
                     decoration: InputDecoration(
-                      hintText: isDateOptional ? "Tidak memerlukan follow up" : "Pilih tanggal follow-up...",
-                      hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                      hintText: isDateOptional
+                          ? "Tidak memerlukan follow up"
+                          : "Pilih tanggal follow-up...",
+                      hintStyle: const TextStyle(
+                          fontSize: 11, color: Color(0xFF9CA3AF)),
                       suffixIcon: Icon(Icons.calendar_today_rounded,
-                          size: 16, color: isDateOptional ? const Color(0xFF9CA3AF) : const Color(0xFF006B3F)),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                          size: 16,
+                          color: isDateOptional
+                              ? const Color(0xFF9CA3AF)
+                              : const Color(0xFF006B3F)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 8),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          borderRadius: BorderRadius.circular(4),
+                          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       filled: true,
-                      fillColor: isDateOptional ? const Color(0xFFF1F5F9) : const Color(0xFFF4F7FC),
+                      fillColor: isDateOptional
+                          ? const Color(0xFFF1F5F9)
+                          : const Color(0xFFF4F7FC),
                       isDense: true,
                     ),
                     onTap: isDateOptional
-                        ? null // disabled → gak bakal ke-trigger, tapi jaga-jaga
+                        ? null
                         : () async {
-                            // 🔒 firstDate = hari ini → tanggal kebelakang (masa lalu)
-                            // otomatis di-block/disable di kalender, follow-up
-                            // cuma bisa dijadwalkan hari ini atau ke depan.
                             final now = DateTime.now();
-                            final today = DateTime(now.year, now.month, now.day);
+                            final today =
+                                DateTime(now.year, now.month, now.day);
 
                             DateTime? pickedDate = await showDatePicker(
                               context: context,
                               initialDate: today,
                               firstDate: today,
                               lastDate: DateTime(now.year + 2),
-                              initialEntryMode: DatePickerEntryMode.calendarOnly,
+                              initialEntryMode:
+                                  DatePickerEntryMode.calendarOnly,
                               builder: (context, child) {
                                 return Theme(
                                   data: Theme.of(context).copyWith(
@@ -440,7 +521,9 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                                     ),
                                   ),
                                   child: MediaQuery(
-                                    data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(0.85)),
+                                    data: MediaQuery.of(context).copyWith(
+                                        textScaler:
+                                            const TextScaler.linear(0.85)),
                                     child: child!,
                                   ),
                                 );
@@ -460,26 +543,35 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Batal", style: TextStyle(fontSize: 11, color: Color(0xFF778195))),
+                child: const Text("Batal",
+                    style: TextStyle(fontSize: 11, color: Color(0xFF778195))),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: corporateGreen, foregroundColor: Colors.white, elevation: 0),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: corporateGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0),
                 onPressed: () {
                   final level = _levelFromProspekLabel(prospekSelected);
                   final estimasiValue = num.tryParse(estimasiCtrl.text);
 
-                  // Wajib estimasi cuma pas Deal
-                  if (level == 'deal' && (estimasiValue == null || estimasiValue <= 0)) {
+                  if (level == 'deal' &&
+                      (estimasiValue == null || estimasiValue <= 0)) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Estimasi nilai Deal wajib diisi (lebih dari Rp 0).'), backgroundColor: Colors.red),
+                      const SnackBar(
+                          content: Text(
+                              'Estimasi nilai Deal wajib diisi (lebih dari Rp 0).'),
+                          backgroundColor: Colors.red),
                     );
                     return;
                   }
 
-                  // Wajib tanggal follow-up KECUALI cold/non_lead/deal
-                  if (!_isFollowUpOptional(prospekSelected) && followUpCtrl.text.isEmpty) {
+                  if (!_isFollowUpOptional(prospekSelected) &&
+                      followUpCtrl.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tanggal follow-up wajib dipilih.'), backgroundColor: Colors.red),
+                      const SnackBar(
+                          content: Text('Tanggal follow-up wajib dipilih.'),
+                          backgroundColor: Colors.red),
                     );
                     return;
                   }
@@ -488,11 +580,15 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
                   _completeMeeting(
                     item,
-                    meetingResult: ringkasanCtrl.text.isNotEmpty ? ringkasanCtrl.text : '-',
+                    meetingResult: ringkasanCtrl.text.isNotEmpty
+                        ? ringkasanCtrl.text
+                        : '-',
                     potentialLevel: level,
-                    followUpAt: !_isFollowUpOptional(prospekSelected) && followUpCtrl.text.isNotEmpty
-                        ? followUpCtrl.text
-                        : null,
+                    followUpAt:
+                        !_isFollowUpOptional(prospekSelected) &&
+                                followUpCtrl.text.isNotEmpty
+                            ? followUpCtrl.text
+                            : null,
                     estimatedValue: showEstimasi ? estimasiValue : null,
                   );
                 },
@@ -540,34 +636,41 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
   }
 
   bool _isFollowUpOptional(String prospekLabel) {
-    // Samain kayak toggleFollowUpRequirement() di web: cold, non_lead, deal
-    // = follow-up tidak wajib & field-nya dimatikan (disabled).
     return prospekLabel == 'Cold Lead' ||
         prospekLabel == 'Non-Lead' ||
         prospekLabel == 'Deal';
   }
 
   bool _showEstimasiField(String prospekLabel) {
-    // Samain kayak showEstValue di web: hot, warm, deal.
     return prospekLabel == 'Hot Lead' ||
         prospekLabel == 'Warm Lead' ||
         prospekLabel == 'Deal';
   }
 
-  Widget _dialogField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _dialogField(String label, TextEditingController controller,
+      {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF778195))),
         const SizedBox(height: 3),
         TextField(
           controller: controller,
           maxLines: maxLines,
           style: const TextStyle(fontSize: 11),
           decoration: InputDecoration(
-            contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
             filled: true,
             fillColor: const Color(0xFFF4F7FC),
             isDense: true,
@@ -586,16 +689,180 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
         elevation: 0,
         title: const Text(
           "PIC - Dashboard Tamu",
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+              fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            tooltip: "Notifikasi",
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Tidak ada notifikasi baru."), duration: Duration(milliseconds: 700)),
+          // ================= DROPDOWN NOTIFIKASI =================
+          PopupMenuButton<String>(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.white),
+                if (_unreadNotifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 8,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            offset: const Offset(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (BuildContext context) {
+              List<PopupMenuEntry<String>> items = [];
+
+              // Header Dropdown Notifikasi
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Notifikasi Baru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF172033),
+                        ),
+                      ),
+                      if (_unreadNotifCount > 0)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _markAllNotificationsAsRead();
+                          },
+                          child: Text(
+                            "Tandai semua dibaca",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: corporateGreen,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               );
+
+              items.add(const PopupMenuDivider());
+
+              // Render Notifikasi
+              if (_notifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "Tidak ada notifikasi baru.",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (var notif in _notifications) {
+                  final String notifId = notif['id']?.toString() ?? '0';
+                  final String title = notif['title'] ?? 'Notifikasi';
+                  final String body = notif['body'] ?? '-';
+                  final String time = notif['created_at'] ?? '-';
+                  final bool isRead = notif['read_at'] != null ||
+                      (notif['is_read'] ?? false);
+
+                  items.add(
+                    PopupMenuItem<String>(
+                      value: notifId,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isRead
+                                    ? Colors.grey.withOpacity(0.1)
+                                    : corporateGreen.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: isRead ? Colors.grey : corporateGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isRead
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                      color: const Color(0xFF172033),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    body,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF778195),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    time,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isRead)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: corporateGreen,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _markNotificationAsRead(notifId);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              return items;
+            },
+            onSelected: (String notifId) {
+              _markNotificationAsRead(notifId);
             },
           ),
           IconButton(
@@ -626,9 +893,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Total Tamu VIP", style: TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.bold)),
+                          const Text("Total Tamu VIP",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text("$_totalVip Orang", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber[900])),
+                          Text("$_totalVip Orang",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber[900])),
                         ],
                       ),
                     ),
@@ -645,9 +920,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Total Tamu Reguler", style: TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.bold)),
+                          const Text("Total Tamu Reguler",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold)),
                           const SizedBox(height: 4),
-                          Text("$_totalReguler Orang", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[900])),
+                          Text("$_totalReguler Orang",
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue[900])),
                         ],
                       ),
                     ),
@@ -655,20 +938,27 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                 ],
               ),
               const SizedBox(height: 16),
-
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2))
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       "Daftar Tamu Masuk & Kategori Pelanggan",
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF172033)),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -688,7 +978,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                           indicatorSize: TabBarIndicatorSize.tab,
                           labelColor: Colors.white,
                           unselectedLabelColor: const Color(0xFF778195),
-                          labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                          labelStyle: const TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.bold),
                           tabs: [
                             Tab(text: "Semua(${_countFor(0)})"),
                             Tab(text: "Hari Ini(${_countFor(1)})"),
@@ -701,10 +992,15 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text("Filter Kategori: ", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                        const Text("Filter Kategori: ",
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF778195))),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF4F7FC),
                             borderRadius: BorderRadius.circular(6),
@@ -714,9 +1010,14 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                             child: DropdownButton<String>(
                               value: _filterKategori,
                               isDense: true,
-                              style: const TextStyle(fontSize: 10, color: Color(0xFF172033), fontWeight: FontWeight.bold),
-                              items: ['Semua Kategori', 'VIP', 'Reguler'].map((String val) {
-                                return DropdownMenuItem<String>(value: val, child: Text(val));
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF172033),
+                                  fontWeight: FontWeight.bold),
+                              items: ['Semua Kategori', 'VIP', 'Reguler']
+                                  .map((String val) {
+                                return DropdownMenuItem<String>(
+                                    value: val, child: Text(val));
                               }).toList(),
                               onChanged: _onFilterKategoriChanged,
                             ),
@@ -728,7 +1029,6 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                 ),
               ),
               const SizedBox(height: 14),
-
               SizedBox(
                 height: 450,
                 child: TabBarView(
@@ -765,7 +1065,9 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
           children: [
             const Icon(Icons.wifi_off_rounded, color: Colors.grey, size: 28),
             const SizedBox(height: 8),
-            Text(error, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+            Text(error,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                textAlign: TextAlign.center),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => _loadTab(tabIndex, page: currentPage),
@@ -778,11 +1080,11 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
 
     if (data.isEmpty) {
       return const Center(
-        child: Text("Tidak ada data tamu.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
+        child: Text("Tidak ada data tamu.",
+            style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
       );
     }
 
-    // === PAGINATION: page-based (prev/next), bukan infinite scroll lagi ===
     return Column(
       children: [
         Expanded(
@@ -798,16 +1100,23 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 color: corporateGreen,
-                onPressed: currentPage > 1 ? () => _gotoPage(tabIndex, currentPage - 1) : null,
+                onPressed: currentPage > 1
+                    ? () => _gotoPage(tabIndex, currentPage - 1)
+                    : null,
               ),
               Text(
                 '$currentPage / $lastPage',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF172033)),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 color: corporateGreen,
-                onPressed: currentPage < lastPage ? () => _gotoPage(tabIndex, currentPage + 1) : null,
+                onPressed: currentPage < lastPage
+                    ? () => _gotoPage(tabIndex, currentPage + 1)
+                    : null,
               ),
             ],
           ),
@@ -823,7 +1132,12 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -833,26 +1147,41 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                child: Text("Token: ${item.token ?? '-'}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFF4F7FC),
+                    borderRadius: BorderRadius.circular(4)),
+                child: Text("Token: ${item.token ?? '-'}",
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF006B3F))),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: item.kategori == "VIP" ? Colors.amber.withOpacity(0.2) : Colors.grey.withOpacity(0.15),
+                  color: item.kategori == "VIP"
+                      ? Colors.amber.withOpacity(0.2)
+                      : Colors.grey.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(item.kategori, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: item.kategori == "VIP" ? Colors.amber[800] : Colors.grey[700])),
+                child: Text(item.kategori,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: item.kategori == "VIP"
+                            ? Colors.amber[800]
+                            : Colors.grey[700])),
               ),
             ],
           ),
           const SizedBox(height: 8),
-
-          // Nama tamu
-          Text(item.guestName ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
-
-          // Jabatan + instansi (company_name) ditampilkan bersama.
-          if ((item.guestPosition ?? '').isNotEmpty || (item.companyName ?? '').isNotEmpty)
+          Text(item.guestName ?? '-',
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Color(0xFF172033))),
+          if ((item.guestPosition ?? '').isNotEmpty ||
+              (item.companyName ?? '').isNotEmpty)
             Text(
               [item.guestPosition, item.companyName]
                   .where((s) => (s ?? '').isNotEmpty)
@@ -860,13 +1189,12 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               style: const TextStyle(fontSize: 10, color: Color(0xFF778195)),
               overflow: TextOverflow.ellipsis,
             ),
-
           const SizedBox(height: 4),
-
-          // Pakai formattedTime (sudah difilter zero-date & diformat rapi),
-          // bukan displayTime (itu string mentah, penyebab tampil "0000").
-          Text("Waktu: ${item.formattedTime}", style: const TextStyle(fontSize: 10, color: Color(0xFF006B3F), fontWeight: FontWeight.w600)),
-
+          Text("Waktu: ${item.formattedTime}",
+              style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF006B3F),
+                  fontWeight: FontWeight.w600)),
           if (item.purposeDetail != null || item.purposeType != null)
             Text(
               "Jenis: ${item.categoryName ?? '-'} • Keperluan: ${item.purposeType ?? '-'}",
@@ -874,14 +1202,18 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
               overflow: TextOverflow.ellipsis,
             ),
           const SizedBox(height: 6),
-
           InkWell(
             onTap: () => _showCatatanDialog(context, item),
             child: Row(
               children: [
-                const Icon(Icons.speaker_notes_rounded, size: 13, color: Colors.blue),
+                const Icon(Icons.speaker_notes_rounded,
+                    size: 13, color: Colors.blue),
                 const SizedBox(width: 4),
-                const Text("Lihat Catatan Tamu", style: TextStyle(fontSize: 10, color: Colors.blue, decoration: TextDecoration.underline)),
+                const Text("Lihat Catatan Tamu",
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline)),
               ],
             ),
           ),
@@ -889,26 +1221,24 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
             padding: EdgeInsets.symmetric(vertical: 6.0),
             child: Divider(height: 1, color: Color(0xFFE5E7EB)),
           ),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Text("Konfirmasi: ", style: TextStyle(fontSize: 10, color: Color(0xFF778195))),
-
-                  // Sama persis logic Blade (_dashboard_panel.blade.php) — tombol
-                  // ✓/✕ CUMA muncul kalau status masih pending/waiting/menunggu
-                  // (canConfirm). Kalau status masih "Terjadwal" (isScheduled),
-                  // berarti tamu belum check-in sama sekali → tampilkan badge
-                  // nonaktif, bukan tombol.
+                  const Text("Konfirmasi: ",
+                      style:
+                          TextStyle(fontSize: 10, color: Color(0xFF778195))),
                   if (item.canConfirm) ...[
                     InkWell(
                       onTap: () => _confirmVisit(item),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                        child: const Icon(Icons.check, size: 14, color: Colors.green),
+                        decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4)),
+                        child: const Icon(Icons.check,
+                            size: 14, color: Colors.green),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -916,14 +1246,20 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       onTap: () => _cancelVisit(item),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                        child: const Icon(Icons.close, size: 14, color: Colors.red),
+                        decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4)),
+                        child: const Icon(Icons.close,
+                            size: 14, color: Colors.red),
                       ),
                     ),
                   ] else if (item.isScheduled) ...[
                     const Text(
                       "Belum Check-In",
-                      style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF94A3B8),
+                          fontStyle: FontStyle.italic),
                     ),
                   ] else ...[
                     Text(
@@ -931,31 +1267,39 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: item.isMeeting ? Colors.orange[700] : Colors.green[700],
+                        color: item.isMeeting
+                            ? Colors.orange[700]
+                            : Colors.green[700],
                       ),
                     ),
                   ],
                 ],
               ),
               if (item.isFinished)
-                // Samain kayak web: kalau sudah "Meeting Selesai", cukup teks info,
-                // gak ada tombol lagi buat buka ulang dialog catat hasil.
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 6),
                   child: Text(
                     "✔ Hasil Tercatat",
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.teal[600]),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal[600]),
                   ),
                 )
               else
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: item.isConfirmed ? corporateGreen : Colors.grey[300],
-                    foregroundColor: item.isConfirmed ? Colors.white : Colors.grey[600],
+                    backgroundColor:
+                        item.isConfirmed ? corporateGreen : Colors.grey[300],
+                    foregroundColor:
+                        item.isConfirmed ? Colors.white : Colors.grey[600],
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     minimumSize: const Size(60, 26),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6)),
                   ),
                   onPressed: !item.isConfirmed
                       ? null
@@ -968,7 +1312,8 @@ class _DashboardPICScreenState extends State<DashboardPICScreen> with SingleTick
                         },
                   child: Text(
                     item.isMeeting ? "Catat Hasil" : "Mulai Pertemuan",
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
 import 'package:mobile_flutter/services/notification_service.dart';
+import 'package:mobile_flutter/ui/homepage_screen.dart';
 import 'form_tambah_janji_dialog.dart';
 
 class JanjiTamuScreen extends StatefulWidget {
@@ -17,6 +18,10 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _daftarJanji = [];
+
+  // State Notifikasi
+  int _unreadNotifCount = 0;
+  List<dynamic> _notifications = [];
 
   // Filter Status & Controller Search
   String _filterStatus = 'Semua';
@@ -81,9 +86,8 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
     });
 
     try {
-      final String dateFilterParam = _filterStatus == 'Hari Ini' ? 'today' : 'all';
-
-      // Aman dari error membaca controller.text jika belum siap/disposed
+      final String dateFilterParam =
+          _filterStatus == 'Hari Ini' ? 'today' : 'all';
       final String keywordQuery = _searchController.text.trim();
 
       final data = await DashboardAdminBloc.getDashboard(
@@ -91,7 +95,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
         keyword: keywordQuery,
       );
 
-      // Defensive Parsing JSON API
+      // Parsing Kunjungan
       dynamic targetData = data;
       if (data is Map && data.containsKey('data') && data['data'] != null) {
         if (data['data'] is Map) {
@@ -105,7 +109,9 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
       }
 
       List<dynamic> visitList = [];
-      if (visitsData is Map && visitsData.containsKey('data') && visitsData['data'] != null) {
+      if (visitsData is Map &&
+          visitsData.containsKey('data') &&
+          visitsData['data'] != null) {
         visitList = visitsData['data'] is List ? visitsData['data'] : [];
       } else if (visitsData is List) {
         visitList = visitsData;
@@ -113,9 +119,29 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
         visitList = targetData;
       }
 
+      // Parsing Notifikasi
+      final statistics = data['statistics'] ?? {};
+      final notifData = data['notifications'];
+
+      List<dynamic> notifList = [];
+      if (notifData is Map && notifData.containsKey('data')) {
+        notifList = notifData['data'] ?? [];
+      } else if (notifData is List) {
+        notifList = notifData;
+      }
+
+      List<dynamic> unreadNotifs = notifList.where((item) {
+        return item['read_at'] == null;
+      }).toList();
+
+      int unreadCount =
+          statistics['unread_notifications'] ?? unreadNotifs.length;
+
       if (!mounted) return;
       setState(() {
         _daftarJanji = visitList;
+        _notifications = unreadNotifs;
+        _unreadNotifCount = unreadCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -124,6 +150,46 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
         _errorMessage = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  /// Tandai 1 Notifikasi Dibaca
+  Future<void> _markNotificationAsRead(String notifId) async {
+    setState(() {
+      for (var notif in _notifications) {
+        if (notif['id']?.toString() == notifId) {
+          notif['read_at'] = DateTime.now().toIso8601String();
+          notif['is_read'] = true;
+        }
+      }
+      if (_unreadNotifCount > 0) {
+        _unreadNotifCount--;
+      }
+    });
+
+    try {
+      await DashboardAdminBloc.markNotificationAsRead(notifId);
+    } catch (e) {
+      debugPrint('Gagal menandai notifikasi dibaca: $e');
+      _fetchJanjiData();
+    }
+  }
+
+  /// Tandai Semua Notifikasi Dibaca
+  Future<void> _markAllNotificationsAsRead() async {
+    setState(() {
+      for (var notif in _notifications) {
+        notif['read_at'] = DateTime.now().toIso8601String();
+        notif['is_read'] = true;
+      }
+      _unreadNotifCount = 0;
+    });
+
+    try {
+      await DashboardAdminBloc.markAllNotificationsAsRead();
+    } catch (e) {
+      debugPrint('Gagal menandai semua notifikasi dibaca: $e');
+      _fetchJanjiData();
     }
   }
 
@@ -184,8 +250,250 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
         elevation: 0,
         title: const Text(
           "Admin - Janji Tamu & Reservasi",
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
+        actions: [
+          // ================= 1. TOMBOL REFRESH DATA =================
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: 'Refresh Data',
+            onPressed: _fetchJanjiData,
+          ),
+
+          // ================= 2. DROPDOWN NOTIFIKASI =================
+          PopupMenuButton<String>(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.white),
+                if (_unreadNotifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 8,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            offset: const Offset(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (BuildContext context) {
+              List<PopupMenuEntry<String>> items = [];
+
+              // Header Dropdown Notifikasi
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Notifikasi Baru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF172033),
+                        ),
+                      ),
+                      if (_unreadNotifCount > 0)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _markAllNotificationsAsRead();
+                          },
+                          child: Text(
+                            "Tandai semua dibaca",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: corporateGreen,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+
+              items.add(const PopupMenuDivider());
+
+              // Render Notifikasi dari Backend API
+              if (_notifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "Tidak ada notifikasi baru.",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (var notif in _notifications) {
+                  final String notifId = notif['id']?.toString() ?? '0';
+                  final String title = notif['title'] ?? 'Notifikasi';
+                  final String body = notif['body'] ?? '-';
+                  final String time = notif['created_at'] ?? '-';
+                  final bool isRead = notif['read_at'] != null ||
+                      (notif['is_read'] ?? false);
+
+                  items.add(
+                    PopupMenuItem<String>(
+                      value: notifId,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isRead
+                                    ? Colors.grey.withValues(alpha: 0.1)
+                                    : corporateGreen.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: isRead ? Colors.grey : corporateGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isRead
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                      color: const Color(0xFF172033),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    body,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF778195),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    time,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isRead)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: corporateGreen,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _markNotificationAsRead(notifId);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              return items;
+            },
+            onSelected: (String notifId) {
+              _markNotificationAsRead(notifId);
+            },
+          ),
+
+          // ================= 3. TOMBOL LOGOUT =================
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Keluar',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  title: const Text(
+                    "Konfirmasi Keluar",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: const Text(
+                    "Apakah Anda yakin ingin keluar?",
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomepageScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      child: const Text(
+                        "Keluar",
+                        style: TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchJanjiData,
@@ -206,12 +514,19 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       children: [
                         Text(
                           "Daftar Janji Tamu Terjadwal",
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF172033),
+                          ),
                         ),
                         SizedBox(height: 2),
                         Text(
                           "Kelola jadwal kedatangan dan reservasi tamu",
-                          style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF778195),
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -223,8 +538,13 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       backgroundColor: corporateGreen,
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: () async {
                       final dynamic rawResult = await showDialog(
@@ -232,26 +552,49 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                         builder: (context) => const FormTambahJanjiDialog(),
                       );
 
-                      if (rawResult != null) {
-                        _fetchJanjiData();
+                      if (rawResult != null && rawResult is Map) {
+                        try {
+                          await DashboardAdminBloc.storeAppointment(
+                            name: (rawResult['nama'] ?? '').toString(),
+                            companyName: (rawResult['instansi'] ?? '').toString(),
+                            phone: (rawResult['phone'] ?? '').toString(),
+                            scheduledAt: (rawResult['scheduled_at'] ?? '').toString(),
+                            purposeId: rawResult['purpose_id'] as int,
+                            assignedTo: rawResult['staff_id'] as int,
+                            branchId: rawResult['branch_id'] as int,
+                          );
 
-                        String namaTamu = 'Tamu Baru';
-                        String jam = '-';
+                          _fetchJanjiData();
 
-                        if (rawResult is Map) {
-                          namaTamu = (rawResult['nama'] ?? rawResult['name'] ?? 'Tamu Baru').toString();
-                          jam = (rawResult['jam'] ?? '-').toString();
+                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru').toString();
+                          String jam = (rawResult['jam'] ?? '-').toString();
+
+                          await NotificationService.showNotification(
+                            id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                            title: 'Janji Temu Berhasil Dibuat! 📅',
+                            body:
+                                'Janji temu untuk $namaTamu pada $jam telah ditambahkan.',
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal membuat janji temu: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
-
-                        await NotificationService.showNotification(
-                          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                          title: 'Janji Temu Berhasil Dibuat! 📅',
-                          body: 'Janji temu untuk $namaTamu pada $jam telah ditambahkan.',
-                        );
                       }
                     },
                     icon: const Icon(Icons.add, size: 14),
-                    label: const Text("Buat Janji", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      "Buat Janji",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -267,11 +610,31 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       style: const TextStyle(fontSize: 12),
                       decoration: InputDecoration(
                         hintText: "Cari nama tamu, token, atau PIC...",
-                        hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-                        prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF778195)),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        hintStyle: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          size: 18,
+                          color: Color(0xFF778195),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0,
+                          horizontal: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
@@ -284,11 +647,20 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       _fetchJanjiData();
                     },
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'Semua', child: Text("Semua Data")),
-                      const PopupMenuItem(value: 'Hari Ini', child: Text("Hari Ini Saja")),
+                      const PopupMenuItem(
+                        value: 'Semua',
+                        child: Text("Semua Data"),
+                      ),
+                      const PopupMenuItem(
+                        value: 'Hari Ini',
+                        child: Text("Hari Ini Saja"),
+                      ),
                     ],
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -296,9 +668,20 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.filter_list, size: 16, color: Color(0xFF006B3F)),
+                          const Icon(
+                            Icons.filter_list,
+                            size: 16,
+                            color: Color(0xFF006B3F),
+                          ),
                           const SizedBox(width: 4),
-                          Text(_filterStatus, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF172033))),
+                          Text(
+                            _filterStatus,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF172033),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -311,20 +694,29 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(40.0),
-                  child: Center(child: CircularProgressIndicator(color: Color(0xFF006B3F))),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF006B3F)),
+                  ),
                 )
               else if (_errorMessage != null)
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32.0),
-                    child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                    child: Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
                   ),
                 )
               else if (_daftarJanji.isEmpty)
                 const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32.0),
-                    child: Text("Tidak ada data janji temu ditemukan di database.", style: TextStyle(color: Color(0xFF778195), fontSize: 11)),
+                    child: Text(
+                      "Tidak ada data janji temu ditemukan di database.",
+                      style: TextStyle(color: Color(0xFF778195), fontSize: 11),
+                    ),
                   ),
                 )
               else
@@ -336,23 +728,40 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                     final dynamic itemRaw = _daftarJanji[index];
                     if (itemRaw is! Map) return const SizedBox.shrink();
 
-                    final Map<String, dynamic> item = Map<String, dynamic>.from(itemRaw);
+                    final Map<String, dynamic> item =
+                        Map<String, dynamic>.from(itemRaw);
 
-                    final int visitId = item['id'] is int ? item['id'] : int.tryParse(item['id']?.toString() ?? '0') ?? 0;
-                    final String visitCode = item['visit_code']?.toString() ?? '-';
+                    final int visitId = item['id'] is int
+                        ? item['id']
+                        : int.tryParse(item['id']?.toString() ?? '0') ?? 0;
+                    final String visitCode =
+                        item['visit_code']?.toString() ?? '-';
 
-                    final Map<String, dynamic>? guest = item['guest'] is Map ? Map<String, dynamic>.from(item['guest']) : null;
-                    final String guestName = guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
-                    final String companyName = guest?['company_name']?.toString() ?? '-';
+                    final Map<String, dynamic>? guest = item['guest'] is Map
+                        ? Map<String, dynamic>.from(item['guest'])
+                        : null;
+                    final String guestName =
+                        guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
+                    final String companyName =
+                        guest?['company_name']?.toString() ?? '-';
 
-                    final Map<String, dynamic>? purpose = item['purpose'] is Map ? Map<String, dynamic>.from(item['purpose']) : null;
-                    final String purposeName = purpose?['name']?.toString() ?? '-';
+                    final Map<String, dynamic>? purpose = item['purpose'] is Map
+                        ? Map<String, dynamic>.from(item['purpose'])
+                        : null;
+                    final String purposeName =
+                        purpose?['name']?.toString() ?? '-';
 
-                    final Map<String, dynamic>? assignedUser = item['assigned_user'] is Map ? Map<String, dynamic>.from(item['assigned_user']) : null;
-                    final String picName = assignedUser?['name']?.toString() ?? '-';
+                    final Map<String, dynamic>? assignedUser =
+                        item['assigned_user'] is Map
+                            ? Map<String, dynamic>.from(item['assigned_user'])
+                            : null;
+                    final String picName =
+                        assignedUser?['name']?.toString() ?? '-';
 
-                    final String scheduledAtFormatted = _formatDateTime(item['scheduled_at']?.toString());
-                    final String currentStatus = item['status']?.toString() ?? 'Terjadwal';
+                    final String scheduledAtFormatted =
+                        _formatDateTime(item['scheduled_at']?.toString());
+                    final String currentStatus =
+                        item['status']?.toString() ?? 'Terjadwal';
 
                     final Color statusColor = _getStatusColor(currentStatus);
 
@@ -362,7 +771,13 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,12 +786,28 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                child: Text("No. ${index + 1} • $visitCode", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF4F7FC),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  "No. ${index + 1} • $visitCode",
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF778195),
+                                  ),
+                                ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: statusColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
@@ -393,67 +824,147 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
-                          Text(companyName, style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
+                          Text(
+                            guestName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Color(0xFF172033),
+                            ),
+                          ),
+                          Text(
+                            companyName,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF778195),
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, size: 12, color: Color(0xFF006B3F)),
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 12,
+                                color: Color(0xFF006B3F),
+                              ),
                               const SizedBox(width: 4),
-                              Text("Jadwal: $scheduledAtFormatted", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
+                              Text(
+                                "Jadwal: $scheduledAtFormatted",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF006B3F),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.assignment_outlined, size: 12, color: Color(0xFF778195)),
+                              const Icon(
+                                Icons.assignment_outlined,
+                                size: 12,
+                                color: Color(0xFF778195),
+                              ),
                               const SizedBox(width: 4),
-                              Text("Jenis Kunjungan: $purposeName", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
+                              Text(
+                                "Jenis Kunjungan: $purposeName",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF778195),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
-                              const Icon(Icons.person_outline_rounded, size: 12, color: Color(0xFF006B3F)),
+                              const Icon(
+                                Icons.person_outline_rounded,
+                                size: 12,
+                                color: Color(0xFF006B3F),
+                              ),
                               const SizedBox(width: 4),
-                              Text("Tujuan PIC: $picName", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
+                              Text(
+                                "Tujuan PIC: $picName",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF006B3F),
+                                ),
+                              ),
                             ],
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 6.0),
                             child: Divider(height: 1, color: Color(0xFFE5E7EB)),
                           ),
+
                           // Tombol Aksi Kunjungan
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (currentStatus == 'Terjadwal' || currentStatus == 'waiting') ...[
+                              if (currentStatus == 'Terjadwal' ||
+                                  currentStatus == 'waiting') ...[
                                 OutlinedButton.icon(
                                   onPressed: () => _processCheckIn(visitId),
-                                  icon: const Icon(Icons.check_circle_outline, size: 12, color: Colors.green),
-                                  label: const Text("Check-In", style: TextStyle(fontSize: 10, color: Colors.green)),
+                                  icon: const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 12,
+                                    color: Colors.green,
+                                  ),
+                                  label: const Text(
+                                    "Check-In",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.green,
+                                    ),
+                                  ),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
                                     side: const BorderSide(color: Colors.green),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
                                     minimumSize: const Size(40, 24),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 OutlinedButton.icon(
                                   onPressed: () => _processCancel(visitId),
-                                  icon: const Icon(Icons.cancel_outlined, size: 12, color: Colors.red),
-                                  label: const Text("Batalkan", style: TextStyle(fontSize: 10, color: Colors.red)),
+                                  icon: const Icon(
+                                    Icons.cancel_outlined,
+                                    size: 12,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text(
+                                    "Batalkan",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.red,
+                                    ),
+                                  ),
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
                                     side: const BorderSide(color: Colors.red),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
                                     minimumSize: const Size(40, 24),
                                   ),
                                 ),
                               ] else ...[
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: statusColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(6),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
 import 'package:mobile_flutter/helpers/api_url.dart';
+import 'package:mobile_flutter/ui/homepage_screen.dart';
 
 class DaftarTamuScreen extends StatefulWidget {
   const DaftarTamuScreen({Key? key}) : super(key: key);
@@ -13,10 +14,14 @@ class DaftarTamuScreen extends StatefulWidget {
 class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
-  // State Data
+  // State Data Tamu
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _daftarTamu = [];
+
+  // State Notifikasi
+  int _unreadNotifCount = 0;
+  List<dynamic> _notifications = [];
 
   // State Filter & Search
   String _filterKategori = 'Semua Tamu'; // 'Semua Tamu', 'VIP', 'Reguler'
@@ -34,7 +39,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     super.dispose();
   }
 
-  /// Memuat data dari Backend API Laravel
+  /// Memuat data Tamu & Notifikasi dari Backend API
   Future<void> _fetchGuestsData() async {
     setState(() {
       _isLoading = true;
@@ -46,6 +51,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       if (_filterKategori == 'VIP') vipParam = '1';
       if (_filterKategori == 'Reguler') vipParam = '0';
 
+      // 1. Ambil data direktori tamu
       final Map<String, dynamic> responseData =
           await DashboardAdminBloc.getGuests(
         vipStatus: vipParam,
@@ -57,8 +63,34 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         guestList = List<dynamic>.from(responseData['data']);
       }
 
+      // 2. Ambil data notifikasi dari dashboard backend
+      int unreadCount = 0;
+      List<dynamic> unreadNotifs = [];
+      try {
+        final dashboardData = await DashboardAdminBloc.getDashboard();
+        final statistics = dashboardData['statistics'] ?? {};
+        final notifData = dashboardData['notifications'];
+
+        List<dynamic> notifList = [];
+        if (notifData is Map && notifData.containsKey('data')) {
+          notifList = notifData['data'] ?? [];
+        } else if (notifData is List) {
+          notifList = notifData;
+        }
+
+        unreadNotifs = notifList.where((item) {
+          return item['read_at'] == null;
+        }).toList();
+
+        unreadCount = statistics['unread_notifications'] ?? unreadNotifs.length;
+      } catch (e) {
+        debugPrint('Gagal memuat notifikasi: $e');
+      }
+
       setState(() {
         _daftarTamu = guestList;
+        _notifications = unreadNotifs;
+        _unreadNotifCount = unreadCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -69,12 +101,51 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     }
   }
 
+  /// Tandai 1 Notifikasi Dibaca
+  Future<void> _markNotificationAsRead(String notifId) async {
+    setState(() {
+      for (var notif in _notifications) {
+        if (notif['id']?.toString() == notifId) {
+          notif['read_at'] = DateTime.now().toIso8601String();
+          notif['is_read'] = true;
+        }
+      }
+      if (_unreadNotifCount > 0) {
+        _unreadNotifCount--;
+      }
+    });
+
+    try {
+      await DashboardAdminBloc.markNotificationAsRead(notifId);
+    } catch (e) {
+      debugPrint('Gagal menandai notifikasi dibaca: $e');
+      _fetchGuestsData();
+    }
+  }
+
+  /// Tandai Semua Notifikasi Dibaca
+  Future<void> _markAllNotificationsAsRead() async {
+    setState(() {
+      for (var notif in _notifications) {
+        notif['read_at'] = DateTime.now().toIso8601String();
+        notif['is_read'] = true;
+      }
+      _unreadNotifCount = 0;
+    });
+
+    try {
+      await DashboardAdminBloc.markAllNotificationsAsRead();
+    } catch (e) {
+      debugPrint('Gagal menandai semua notifikasi dibaca: $e');
+      _fetchGuestsData();
+    }
+  }
+
   /// Mengubah Status VIP Tamu ke Backend API Laravel
   Future<void> _toggleVipStatus(int guestId, bool currentIsVip) async {
     final bool newVipStatus = !currentIsVip;
     final String statusTargetText = newVipStatus ? "VIP" : "Reguler";
 
-    // Konfirmasi Perubahan
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -136,22 +207,55 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     double radius = 16,
     double iconSize = 18,
   }) {
-    final String? photoPath =
-        tamu["photo_path"] ?? tamu["photo"] ?? tamu["photo_url"];
+    final String? photoUrl =
+        tamu["photo_url"] ?? tamu["photo_path"] ?? tamu["photo"];
 
-    if (photoPath != null && photoPath.toString().trim().isNotEmpty) {
-      String imageUrl = photoPath;
-      if (!imageUrl.startsWith('http')) {
+    if (photoUrl != null && photoUrl.toString().trim().isNotEmpty) {
+      String finalUrl = photoUrl;
+
+      if (!finalUrl.startsWith('http')) {
         final cleanPath =
-            imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-        imageUrl = '${ApiUrl.baseUrl}/storage/$cleanPath';
+            finalUrl.startsWith('/') ? finalUrl.substring(1) : finalUrl;
+        finalUrl = '${ApiUrl.baseUrl}/storage/$cleanPath';
       }
 
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: const Color(0xFFF4F7FC),
-        backgroundImage: NetworkImage(imageUrl),
-        onBackgroundImageError: (_, __) {},
+      return SizedBox(
+        width: radius * 2,
+        height: radius * 2,
+        child: ClipOval(
+          child: Image.network(
+            finalUrl,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return CircleAvatar(
+                radius: radius,
+                backgroundColor: const Color(0xFFF4F7FC),
+                child: Icon(
+                  Icons.person,
+                  size: iconSize,
+                  color: corporateGreen,
+                ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return CircleAvatar(
+                radius: radius,
+                backgroundColor: const Color(0xFFF4F7FC),
+                child: SizedBox(
+                  width: radius,
+                  height: radius,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: corporateGreen,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       );
     }
 
@@ -333,7 +437,286 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     );
   }
 
-  // Pop-up Tambah Tamu Baru ke API
+  // Pop-up Ubah Profil Tamu
+  void _showEditTamuDialog(BuildContext context, Map<String, dynamic> tamu) {
+    final int guestId = tamu["id"] ?? 0;
+    final TextEditingController namaController =
+        TextEditingController(text: tamu["name"] ?? tamu["nama"] ?? "");
+    final TextEditingController waController =
+        TextEditingController(text: tamu["phone"] ?? tamu["wa"] ?? "");
+    final TextEditingController emailController =
+        TextEditingController(text: tamu["email"] ?? "");
+    final TextEditingController instansiController = TextEditingController(
+        text: tamu["company_name"] ?? tamu["instansi"] ?? "");
+    final TextEditingController jabatanController =
+        TextEditingController(text: tamu["position"] ?? tamu["jabatan"] ?? "");
+    final TextEditingController alamatController =
+        TextEditingController(text: tamu["address"] ?? tamu["alamat"] ?? "");
+
+    bool isVip = (tamu["is_vip"] == 1 ||
+        tamu["is_vip"] == true ||
+        tamu["status"] == "VIP");
+    String statusTamu = isVip ? 'VIP' : 'Reguler';
+    XFile? pickedPhoto;
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.edit_note_rounded,
+                    color: corporateGreen,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Ubah Profil Tamu",
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Stack(
+                        children: [
+                          _buildAvatar(tamu, radius: 32, iconSize: 36),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: corporateGreen,
+                              child: const Icon(
+                                Icons.camera_alt,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField("Nama Lengkap *", namaController),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      "No. WhatsApp *",
+                      waController,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      "Email",
+                      emailController,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildTextField(
+                      "Instansi / Perusahaan",
+                      instansiController,
+                    ),
+                    const SizedBox(height: 6),
+                    _buildTextField("Jabatan", jabatanController),
+                    const SizedBox(height: 6),
+                    const Text(
+                      "Status Tamu",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF778195),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F7FC),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: statusTamu,
+                          isExpanded: true,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF172033),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          items: ['Reguler', 'VIP'].map((val) {
+                            return DropdownMenuItem(
+                              value: val,
+                              child: Text(val),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setStateDialog(() => statusTamu = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildTextField("Alamat", alamatController),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final ImagePicker picker = ImagePicker();
+                            final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery,
+                            );
+                            if (image != null) {
+                              setStateDialog(() => pickedPhoto = image);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.upload_file,
+                            size: 12,
+                            color: Color(0xFF006B3F),
+                          ),
+                          label: const Text(
+                            "Ganti Foto",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF006B3F),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: corporateGreen),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (pickedPhoto != null)
+                          const Text(
+                            "Foto Baru ✓",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: const Text(
+                    "Batal",
+                    style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: corporateGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (namaController.text.trim().isEmpty ||
+                              waController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Nama dan No. WA wajib diisi!'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setStateDialog(() => isSubmitting = true);
+
+                          try {
+                            await DashboardAdminBloc.updateGuest(
+                              guestId: guestId,
+                              name: namaController.text.trim(),
+                              phone: waController.text.trim(),
+                              email: emailController.text.trim(),
+                              companyName: instansiController.text.trim(),
+                              position: jabatanController.text.trim(),
+                              address: alamatController.text.trim(),
+                              isVip: statusTamu == 'VIP',
+                              photoFile: pickedPhoto,
+                            );
+
+                            if (!mounted) return;
+                            Navigator.pop(context);
+                            _fetchGuestsData();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Profil tamu berhasil diperbarui!',
+                                ),
+                                backgroundColor: Color(0xFF006B3F),
+                              ),
+                            );
+                          } catch (e) {
+                            setStateDialog(() => isSubmitting = false);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal memperbarui profil: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Simpan Perubahan",
+                          style: TextStyle(fontSize: 11),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Pop-up Tambah Tamu Baru
   void _showTambahTamuDialog(BuildContext context) {
     final TextEditingController namaController = TextEditingController();
     final TextEditingController waController = TextEditingController();
@@ -668,6 +1051,244 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
             color: Colors.white,
           ),
         ),
+        actions: [
+          // ================= 1. TOMBOL REFRESH DATA =================
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: 'Refresh Data',
+            onPressed: _fetchGuestsData,
+          ),
+
+          // ================= 2. DROPDOWN NOTIFIKASI =================
+          PopupMenuButton<String>(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.white),
+                if (_unreadNotifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 8,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            offset: const Offset(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (BuildContext context) {
+              List<PopupMenuEntry<String>> items = [];
+
+              // Header Dropdown Notifikasi
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Notifikasi Baru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF172033),
+                        ),
+                      ),
+                      if (_unreadNotifCount > 0)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _markAllNotificationsAsRead();
+                          },
+                          child: Text(
+                            "Tandai semua dibaca",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: corporateGreen,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+
+              items.add(const PopupMenuDivider());
+
+              // Render Notifikasi dari Backend
+              if (_notifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "Tidak ada notifikasi baru.",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (var notif in _notifications) {
+                  final String notifId = notif['id']?.toString() ?? '0';
+                  final String title = notif['title'] ?? 'Notifikasi';
+                  final String body = notif['body'] ?? '-';
+                  final String time = notif['created_at'] ?? '-';
+                  final bool isRead = notif['read_at'] != null ||
+                      (notif['is_read'] ?? false);
+
+                  items.add(
+                    PopupMenuItem<String>(
+                      value: notifId,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isRead
+                                    ? Colors.grey.withValues(alpha: 0.1)
+                                    : corporateGreen.withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: isRead ? Colors.grey : corporateGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isRead
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                      color: const Color(0xFF172033),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    body,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF778195),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    time,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isRead)
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: corporateGreen,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _markNotificationAsRead(notifId);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              return items;
+            },
+            onSelected: (String notifId) {
+              _markNotificationAsRead(notifId);
+            },
+          ),
+
+          // ================= 3. TOMBOL LOGOUT =================
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Keluar',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  title: const Text(
+                    "Konfirmasi Keluar",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: const Text(
+                    "Apakah Anda yakin ingin keluar?",
+                    style: TextStyle(fontSize: 11),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Batal",
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomepageScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      child: const Text(
+                        "Keluar",
+                        style: TextStyle(fontSize: 10),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _fetchGuestsData,
@@ -1020,7 +1641,35 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                                   minimumSize: const Size(40, 24),
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 6),
+                              OutlinedButton.icon(
+                                onPressed: () =>
+                                    _showEditTamuDialog(context, tamu),
+                                icon: Icon(
+                                  Icons.edit_outlined,
+                                  size: 12,
+                                  color: Colors.blue[700],
+                                ),
+                                label: Text(
+                                  "Edit",
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.blue[700],
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  side: BorderSide(color: Colors.blue.shade700),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  minimumSize: const Size(40, 24),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
                               OutlinedButton.icon(
                                 onPressed: () =>
                                     _showDetailTamuDialog(context, tamu),

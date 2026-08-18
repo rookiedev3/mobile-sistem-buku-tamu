@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile_flutter/bloc/admin_bloc.dart';
 import 'package:mobile_flutter/bloc/check_in_bloc.dart';
 import 'package:mobile_flutter/model/check_in.dart';
 
@@ -14,6 +15,7 @@ class FormTambahJanjiDialog extends StatefulWidget {
 class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
   final Color corporateGreen = const Color(0xFF006B3F);
   int _currentStep = 0;
+  bool _isSubmitting = false;
 
   // STEP 1: Controllers Identitas Tamu & Foto (Opsional)
   final TextEditingController _namaController = TextEditingController();
@@ -129,8 +131,8 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
     }
   }
 
-  /// Pengiriman Akhir Form Janji Tamu (Step 3 Submit)
-  void _submitForm() {
+  /// Pengiriman Akhir Form Janji Tamu (Step 3 Submit ke Database)
+  Future<void> _submitForm() async {
     if (!_isChecked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -141,50 +143,79 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
       return;
     }
 
-    String staffName = _listStaff
-        .firstWhere(
-          (e) => e.id == _selectedStaffId,
-          orElse: () => OptionItem(id: 0, name: '-'),
-        )
-        .name;
+    setState(() {
+      _isSubmitting = true;
+    });
 
-    String branchName = _listCabang
-        .firstWhere(
-          (e) => e.id == _selectedCabangId,
-          orElse: () => OptionItem(id: 0, name: '-'),
-        )
-        .name;
+    // Format & Normalisasi Nomor Telepon
+    String normalizedPhone = _phoneController.text.trim();
+    if (normalizedPhone.isNotEmpty) {
+      normalizedPhone = normalizedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (normalizedPhone.startsWith('0')) {
+        normalizedPhone = '62${normalizedPhone.substring(1)}';
+      }
+      if (!normalizedPhone.startsWith('+') && normalizedPhone.isNotEmpty) {
+        normalizedPhone = '+$normalizedPhone';
+      }
+    }
 
-    String purposeName = _listPurposes
-        .firstWhere(
-          (e) => e.id == _selectedPurposeId,
-          orElse: () => OptionItem(id: 0, name: '-'),
-        )
-        .name;
+    // Format Tanggal untuk backend (YYYY-MM-DD HH:mm:ss)
+    String formattedScheduledAt = _selectedDateTime != null
+        ? "${_selectedDateTime!.year}-${_selectedDateTime!.month.toString().padLeft(2, '0')}-${_selectedDateTime!.day.toString().padLeft(2, '0')} ${_selectedDateTime!.hour.toString().padLeft(2, '0')}:${_selectedDateTime!.minute.toString().padLeft(2, '0')}:00"
+        : DateTime.now().toString();
 
-    final resultData = {
-      'nama': _namaController.text.trim(),
-      'instansi': _instansiController.text.trim(),
-      'alamat': _alamatController.text.trim(),
-      'jabatan': _jabatanController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'email': _emailController.text.trim(),
-      'branch_id': _selectedCabangId,
-      'branch_name': branchName,
-      'staff_id': _selectedStaffId,
-      'tujuan': staffName,
-      'purpose_id': _selectedPurposeId,
-      'jenis': purposeName,
-      'product_id': _selectedProdukId,
-      'source_id': _selectedSumberId,
-      'scheduled_at': _selectedDateTime?.toIso8601String(),
-      'jam': _tanggalController.text,
-      'notes': _detailController.text.trim(),
-      'foto_file': _pickedImageFile,
-      'foto_bytes': _imageBytes,
-    };
+    try {
+      final response = await AdminBloc.storeManual(
+        name: _namaController.text.trim(),
+        companyName: _instansiController.text.trim().isEmpty
+            ? '-'
+            : _instansiController.text.trim(),
+        position: _jabatanController.text.trim().isEmpty
+            ? '-'
+            : _jabatanController.text.trim(),
+        address: _alamatController.text.trim().isEmpty
+            ? '-'
+            : _alamatController.text.trim(),
+        phone: normalizedPhone,
+        email: _emailController.text.trim().isEmpty
+            ? 'guest@example.com'
+            : _emailController.text.trim(),
+        guestCategoryId: 1, // Default Guest Category (Reguler)
+        assignedTo: _selectedStaffId!,
+        branchId: _selectedCabangId!,
+        purposeId: _selectedPurposeId!,
+        productId: _selectedProdukId,
+        sourceId: _selectedSumberId,
+        scheduledAt: formattedScheduledAt,
+        notes: _detailController.text.trim().isEmpty
+            ? '-'
+            : _detailController.text.trim(),
+        photoBytes: _imageBytes,
+      );
 
-    Navigator.pop(context, resultData);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Janji tamu berhasil disimpan ke database!'),
+          backgroundColor: Color(0xFF006B3F),
+        ),
+      );
+
+      Navigator.pop(context, response['data']);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -213,7 +244,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -240,7 +271,9 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: () => setState(() => _currentStep--),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => setState(() => _currentStep--),
                       child: Text(
                         "Kembali",
                         style: TextStyle(fontSize: 11, color: corporateGreen),
@@ -257,37 +290,50 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      if (_currentStep == 0) {
-                        if (_namaController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Nama lengkap tamu wajib diisi!')),
-                          );
-                          return;
-                        }
-                        setState(() => _currentStep = 1);
-                      } else if (_currentStep == 1) {
-                        if (_selectedCabangId == null ||
-                            _selectedStaffId == null ||
-                            _selectedPurposeId == null ||
-                            _tanggalController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Harap lengkapi kolom wajib (*)')),
-                          );
-                          return;
-                        }
-                        setState(() => _currentStep = 2);
-                      } else {
-                        _submitForm();
-                      }
-                    },
-                    child: Text(
-                      _currentStep == 2 ? "Simpan Janji" : "Lanjut",
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () {
+                            if (_currentStep == 0) {
+                              if (_namaController.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Nama lengkap tamu wajib diisi!')),
+                                );
+                                return;
+                              }
+                              setState(() => _currentStep = 1);
+                            } else if (_currentStep == 1) {
+                              if (_selectedCabangId == null ||
+                                  _selectedStaffId == null ||
+                                  _selectedPurposeId == null ||
+                                  _tanggalController.text.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Harap lengkapi kolom wajib (*)')),
+                                );
+                                return;
+                              }
+                              setState(() => _currentStep = 2);
+                            } else {
+                              _submitForm();
+                            }
+                          },
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _currentStep == 2 ? "Simpan Janji" : "Lanjut",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -380,14 +426,11 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           ),
         ),
         const SizedBox(height: 14),
-
-        // Section Foto Tamu (Opsional)
         const Text(
           "Foto Tamu (Opsional)",
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
         ),
         const SizedBox(height: 8),
-
         Center(
           child: Container(
             width: 100,
@@ -413,7 +456,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           ),
         ),
         const SizedBox(height: 10),
-
         Row(
           children: [
             Expanded(
@@ -464,8 +506,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           ),
         ),
         const SizedBox(height: 12),
-
-        // Cabang
         DropdownButtonFormField<int>(
           value: _selectedCabangId,
           isExpanded: true,
@@ -490,8 +530,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           },
         ),
         const SizedBox(height: 10),
-
-        // Staff/PIC
         DropdownButtonFormField<int>(
           key: ValueKey(_selectedCabangId),
           value: _selectedStaffId,
@@ -502,7 +540,9 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             labelStyle: const TextStyle(fontSize: 11),
             hintText: _selectedCabangId == null
                 ? "Pilih cabang terlebih dahulu"
-                : (_filteredStaff.isEmpty ? "Tidak ada PIC di cabang ini" : "Pilih Staff / PIC"),
+                : (_filteredStaff.isEmpty
+                    ? "Tidak ada PIC di cabang ini"
+                    : "Pilih Staff / PIC"),
             hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
             border: const OutlineInputBorder(),
             isDense: true,
@@ -518,8 +558,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
               : (val) => setState(() => _selectedStaffId = val),
         ),
         const SizedBox(height: 10),
-
-        // Jenis Kunjungan
         DropdownButtonFormField<int>(
           value: _selectedPurposeId,
           isExpanded: true,
@@ -539,8 +577,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           onChanged: (val) => setState(() => _selectedPurposeId = val),
         ),
         const SizedBox(height: 10),
-
-        // Produk
         DropdownButtonFormField<int>(
           value: _selectedProdukId,
           isExpanded: true,
@@ -560,8 +596,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           onChanged: (val) => setState(() => _selectedProdukId = val),
         ),
         const SizedBox(height: 10),
-
-        // Tanggal & Jam Picker
         TextField(
           controller: _tanggalController,
           readOnly: true,
@@ -611,8 +645,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           },
         ),
         const SizedBox(height: 10),
-
-        // Sumber
         DropdownButtonFormField<int>(
           value: _selectedSumberId,
           isExpanded: true,
@@ -632,8 +664,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           onChanged: (val) => setState(() => _selectedSumberId = val),
         ),
         const SizedBox(height: 10),
-
-        // Detail Kunjungan Notes
         TextField(
           controller: _detailController,
           maxLines: 2,
@@ -709,8 +739,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
         ),
         const SizedBox(height: 12),
-
-        // Box Preview Ringkasan Data
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
@@ -738,7 +766,6 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                     ),
                   ),
                 ),
-
               _buildSectionHeader("Identitas Tamu"),
               _buildInfoRow("Nama Lengkap", _namaController.text),
               _buildInfoRow("Instansi", _instansiController.text),
@@ -746,9 +773,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
               _buildInfoRow("No. WhatsApp", _phoneController.text),
               _buildInfoRow("Email", _emailController.text),
               _buildInfoRow("Alamat", _alamatController.text),
-
               const Divider(height: 16),
-
               _buildSectionHeader("Detail Kunjungan"),
               _buildInfoRow("Tujuan PIC", staffName),
               _buildInfoRow("Cabang", branchName),
@@ -760,10 +785,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ],
           ),
         ),
-
         const SizedBox(height: 12),
-
-        // Checkbox Persetujuan
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

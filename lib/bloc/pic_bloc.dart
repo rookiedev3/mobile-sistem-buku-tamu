@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/api_url.dart';
+
 import '../model/pic_model.dart';
 
 class ApiException implements Exception {
@@ -243,5 +244,25 @@ class PicBloc {
       return PicLeadModel.fromJson(data['lead']);
     }
     _throwFromResponse(response);
+  }
+
+  /// Tandai 1 notifikasi sebagai dibaca
+  static Future<void> markNotificationAsRead(String notifId) async {
+    final String url = ApiUrl.adminMarkNotificationRead(int.parse(notifId));
+    final response = await http.post(Uri.parse(url), headers: await _headers());
+
+    if (response.statusCode != 200) {
+      _throwFromResponse(response);
+    }
+  }
+
+  /// Tandai semua notifikasi sebagai dibaca
+  static Future<void> markAllNotificationsAsRead() async {
+    final String url = ApiUrl.adminMarkAllNotificationsRead;
+    final response = await http.post(Uri.parse(url), headers: await _headers());
+
+    if (response.statusCode != 200) {
+      _throwFromResponse(response);
+    }
   }
 }

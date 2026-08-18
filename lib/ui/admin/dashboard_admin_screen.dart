@@ -18,10 +18,13 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
 
   int _totalToday = 0;
   int _unfinishedTodayCount = 0;
+  int _unreadNotifCount = 0;
+
   List<dynamic> _visits = [];
+  List<dynamic> _notifications = [];
 
   // State Filter & Search
-  String _filterStatus = 'Semua'; // 'Semua' atau 'Hari Ini'
+  String _filterStatus = 'Semua';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -36,7 +39,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
     super.dispose();
   }
 
-  /// Helper untuk penentuan warna status dinamis
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'terjadwal':
@@ -56,7 +58,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
     }
   }
 
-  /// Helper untuk memformat tanggal dari API menjadi format (D-M-Y HH:mm WIB)
   String _formatDateTime(String? rawDateTime) {
     if (rawDateTime == null || rawDateTime.isEmpty) return '-';
     try {
@@ -91,7 +92,9 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
 
       final statistics = data['statistics'] ?? {};
       final visitsData = data['visits'];
+      final notifData = data['notifications'];
 
+      // Parsing data kunjungan
       List<dynamic> visitList = [];
       if (visitsData is Map && visitsData.containsKey('data')) {
         visitList = visitsData['data'] ?? [];
@@ -99,10 +102,26 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
         visitList = visitsData;
       }
 
+      // Parsing data notifikasi
+      List<dynamic> notifList = [];
+      if (notifData is Map && notifData.containsKey('data')) {
+        notifList = notifData['data'] ?? [];
+      } else if (notifData is List) {
+        notifList = notifData;
+      }
+
+      // Filter hanya notifikasi yang belum dibaca (read_at == null)
+      List<dynamic> unreadNotifs = notifList.where((item) {
+        return item['read_at'] == null;
+      }).toList();
+
       setState(() {
         _totalToday = statistics['total_today'] ?? 0;
         _unfinishedTodayCount = statistics['unfinished_today'] ?? 0;
+        _unreadNotifCount = statistics['unread_notifications'] ?? 0;
+
         _visits = visitList;
+        _notifications = unreadNotifs;
         _isLoading = false;
       });
     } catch (e) {
@@ -113,7 +132,50 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
     }
   }
 
-  /// Memproses Check-In Kunjungan
+  /// Tandai 1 Notifikasi Dibaca
+  Future<void> _markNotificationAsRead(String notifId) async {
+    // 1. Update UI lokal secara langsung (Optimistic UI)
+    setState(() {
+      for (var notif in _notifications) {
+        if (notif['id']?.toString() == notifId) {
+          notif['read_at'] = DateTime.now().toIso8601String();
+          notif['is_read'] = true;
+        }
+      }
+      if (_unreadNotifCount > 0) {
+        _unreadNotifCount--;
+      }
+    });
+
+    // 2. Kirim perubahan ke API Backend
+    try {
+      await DashboardAdminBloc.markNotificationAsRead(notifId);
+    } catch (e) {
+      debugPrint('Gagal menandai notifikasi dibaca: $e');
+      _fetchDashboardData();
+    }
+  }
+
+  /// Tandai Semua Notifikasi Dibaca
+  Future<void> _markAllNotificationsAsRead() async {
+    // 1. Update UI lokal secara langsung
+    setState(() {
+      for (var notif in _notifications) {
+        notif['read_at'] = DateTime.now().toIso8601String();
+        notif['is_read'] = true;
+      }
+      _unreadNotifCount = 0;
+    });
+
+    // 2. Kirim perubahan ke API Backend
+    try {
+      await DashboardAdminBloc.markAllNotificationsAsRead();
+    } catch (e) {
+      debugPrint('Gagal menandai semua notifikasi dibaca: $e');
+      _fetchDashboardData();
+    }
+  }
+
   Future<void> _processCheckIn(int visitId) async {
     try {
       await DashboardAdminBloc.checkIn(visitId);
@@ -137,7 +199,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
     }
   }
 
-  /// Memproses Pembatalan Kunjungan
   Future<void> _processCancel(int visitId) async {
     try {
       await DashboardAdminBloc.cancel(visitId);
@@ -177,10 +238,190 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           ),
         ),
         actions: [
+          // ================= TOMBOL REFRESH DATA =================
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: 'Refresh Data',
+            onPressed: _fetchDashboardData,
           ),
+
+          // ================= DROPDOWN NOTIFIKASI DATABASE =================
+          PopupMenuButton<String>(
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.white),
+                if (_unreadNotifCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 8,
+                        minHeight: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            offset: const Offset(0, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            itemBuilder: (BuildContext context) {
+              List<PopupMenuEntry<String>> items = [];
+
+              // Header Dropdown Notifikasi
+              items.add(
+                PopupMenuItem<String>(
+                  enabled: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Notifikasi Baru",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF172033),
+                        ),
+                      ),
+                      if (_unreadNotifCount > 0)
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            _markAllNotificationsAsRead();
+                          },
+                          child: const Text(
+                            "Tandai semua dibaca",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF006B3F),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+
+              items.add(const PopupMenuDivider());
+
+              // Render Notifikasi dari API Database
+              if (_notifications.isEmpty) {
+                items.add(
+                  const PopupMenuItem<String>(
+                    enabled: false,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        "Tidak ada notifikasi baru.",
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                for (var notif in _notifications) {
+                  final String notifId = notif['id']?.toString() ?? '0';
+                  final String title = notif['title'] ?? 'Notifikasi';
+                  final String body = notif['body'] ?? '-';
+                  final String time = notif['created_at'] ?? '-';
+                  final bool isRead = notif['read_at'] != null ||
+                      (notif['is_read'] ?? false);
+
+                  items.add(
+                    PopupMenuItem<String>(
+                      value: notifId,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: isRead
+                                    ? Colors.grey.withValues(alpha: 0.1)
+                                    : const Color(
+                                        0xFF006B3F,
+                                      ).withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.notifications_active_rounded,
+                                size: 16,
+                                color: isRead
+                                    ? Colors.grey
+                                    : const Color(0xFF006B3F),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isRead
+                                          ? FontWeight.normal
+                                          : FontWeight.bold,
+                                      color: const Color(0xFF172033),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    body,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF778195),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    time,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!isRead)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Color(0xFF006B3F),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _markNotificationAsRead(notifId);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              }
+
+              return items;
+            },
+            onSelected: (String notifId) {
+              _markNotificationAsRead(notifId);
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
@@ -192,7 +433,10 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                   ),
                   title: const Text(
                     "Konfirmasi Keluar",
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   content: const Text(
                     "Apakah Anda yakin ingin keluar?",
@@ -243,7 +487,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= RINGKASAN STATISTIK =================
               Row(
                 children: [
                   Expanded(
@@ -327,7 +570,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
               ),
               const SizedBox(height: 20),
 
-              // ================= HEADER & TAMBAH JANJI =================
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -358,24 +600,39 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                         builder: (context) => const FormTambahJanjiDialog(),
                       );
 
-                      if (rawResult != null) {
-                        // 1. Refresh data dashboard
-                        _fetchDashboardData();
+                      if (rawResult != null && rawResult is Map) {
+                        try {
+                          await DashboardAdminBloc.storeAppointment(
+                            name: (rawResult['nama'] ?? '').toString(),
+                            companyName: (rawResult['instansi'] ?? '').toString(),
+                            phone: (rawResult['phone'] ?? '').toString(),
+                            scheduledAt: (rawResult['scheduled_at'] ?? '').toString(),
+                            purposeId: rawResult['purpose_id'] as int,
+                            assignedTo: rawResult['staff_id'] as int,
+                            branchId: rawResult['branch_id'] as int,
+                          );
 
-                        // 2. Ekstrak data dan tampilkan Notifikasi Lokal
-                        String namaTamu = 'Tamu Baru';
-                        String jam = '-';
+                          _fetchDashboardData();
 
-                        if (rawResult is Map) {
-                          namaTamu = rawResult['nama'] ?? rawResult['name'] ?? 'Tamu Baru';
-                          jam = rawResult['jam'] ?? '-';
+                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru').toString();
+                          String jam = (rawResult['jam'] ?? '-').toString();
+
+                          await NotificationService.showNotification(
+                            id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                            title: 'Janji Temu Berhasil Dibuat! 📅',
+                            body:
+                                'Janji temu untuk $namaTamu pada $jam telah ditambahkan.',
+                          );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Gagal membuat janji temu: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
-
-                        await NotificationService.showNotification(
-                          id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                          title: 'Janji Temu Berhasil Dibuat! 📅',
-                          body: 'Janji temu untuk $namaTamu pada $jam telah ditambahkan.',
-                        );
                       }
                     },
                     icon: const Icon(Icons.add, size: 16),
@@ -391,7 +648,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ================= SEARCH BAR & FILTER =================
               Row(
                 children: [
                   Expanded(
@@ -480,7 +736,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ================= CONTENT LIST / LOADING / ERROR =================
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.all(40.0),
@@ -550,7 +805,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Token & Status Badge (Kanan Atas)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -594,7 +848,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           ),
                           const SizedBox(height: 8),
 
-                          // Data Tamu
                           Text(
                             guestName,
                             style: const TextStyle(
@@ -612,7 +865,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           ),
                           const SizedBox(height: 6),
 
-                          // Jadwal (D-M-Y HH:mm WIB)
                           Row(
                             children: [
                               const Icon(
@@ -633,7 +885,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           ),
                           const SizedBox(height: 4),
 
-                          // Keperluan
                           Row(
                             children: [
                               const Icon(
@@ -653,7 +904,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           ),
                           const SizedBox(height: 2),
 
-                          // Tujuan PIC
                           Row(
                             children: [
                               const Icon(
@@ -677,7 +927,6 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                             child: Divider(height: 1, color: Color(0xFFE5E7EB)),
                           ),
 
-                          // Tombol Aksi / Indicator Status (Kanan Bawah)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
