@@ -640,25 +640,45 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                           const SizedBox(height: 10),
 
                           // Tamu, Jabatan & Instansi
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  "Tamu: ${item.guestName ?? '-'}"
-                                  "${item.guestPosition != null && item.guestPosition!.isNotEmpty ? '(${item.guestPosition})' : ''}"
-                                  "${item.companyName != null && item.companyName!.isNotEmpty ? ' - ${item.companyName}' : ''}",
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-                                ),
-                              ),
-                              if (item.isVip) ...[
-                                const SizedBox(width: 4),
-                                const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                              ],
-                            ],
-                          ),
+                        // Baris 2: Perusahaan + bintang VIP
+Row(
+  children: [
+    Expanded(
+      child: Text(
+        item.companyName ?? '-',
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF172033),
+        ),
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+    if (item.isVip) ...[
+      const SizedBox(width: 6),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB), // Background #fffbeb
+          borderRadius: BorderRadius.circular(20), // Border radius 20px
+          border: Border.all(
+            color: const Color(0xFFFDE68A), // Border #fde68a
+            width: 1,
+          ),
+        ),
+        child: const Text(
+          'VIP',
+          style: TextStyle(
+            fontSize: 10, // Font size 10px
+            fontWeight: FontWeight.w700, // Font weight 700
+            color: Color(0xFFB45309), // Color #b45309
+          ),
+        ),
+      ),
+    ],
+  ],
+),
+const SizedBox(height: 4),
                           const SizedBox(height: 6),
 
                           // Waktu
