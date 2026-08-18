@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '/bloc/laporan_bloc.dart';
 import '/model/laporan_model.dart';
-import 'dart:html' as html; // taruh di paling atas file, hanya jalan di web
+// import 'dart:html' as html; // taruh di paling atas file, hanya jalan di web
+import 'package:mobile_flutter/utils/export_helper.dart';
 
 class LaporanManagerScreen extends StatefulWidget {
   const LaporanManagerScreen({Key? key}) : super(key: key);
@@ -131,60 +132,60 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
   }
 
   // Aksi Export Excel
-  Future<void> _exportExcel() async {
-    final newTab = html.window.open('', '_blank'); // buka tab KOSONG dulu, synchronous
-    try {
-      final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
-      final fileUrl = await LaporanBloc.exportExcel(
-        month: bulanIndex,
-        year: int.parse(_selectedTahun),
-        category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
-        branchId: _selectedCabangId,
-        picId: _selectedPicId,
+Future<void> _exportExcel() async {
+  final tabHandle = prepareExportTab();
+  try {
+    final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
+    final fileUrl = await LaporanBloc.exportExcel(
+      month: bulanIndex,
+      year: int.parse(_selectedTahun),
+      category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+      branchId: _selectedCabangId,
+      picId: _selectedPicId,
+    );
+    await completeExport(tabHandle, fileUrl);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
       );
-      newTab.location.href = fileUrl; // baru arahkan setelah URL didapat -> auto download
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
-        );
-      }
-    } catch (e) {
-      newTab.close();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal export Excel: $e"), backgroundColor: Colors.red),
-        );
-      }
+    }
+  } catch (e) {
+    closeExportTab(tabHandle);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal export Excel: $e"), backgroundColor: Colors.red),
+      );
     }
   }
+}
 
   // Aksi Export PDF
-  Future<void> _exportPdf() async {
-    final newTab = html.window.open('', '_blank');
-    try {
-      final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
-      final fileUrl = await LaporanBloc.exportPdf(
-        month: bulanIndex,
-        year: int.parse(_selectedTahun),
-        category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
-        branchId: _selectedCabangId,
-        picId: _selectedPicId,
+Future<void> _exportPdf() async {
+  final tabHandle = prepareExportTab();
+  try {
+    final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
+    final fileUrl = await LaporanBloc.exportPdf(
+      month: bulanIndex,
+      year: int.parse(_selectedTahun),
+      category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+      branchId: _selectedCabangId,
+      picId: _selectedPicId,
+    );
+    await completeExport(tabHandle, fileUrl);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
       );
-      newTab.location.href = fileUrl;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
-        );
-      }
-    } catch (e) {
-      newTab.close();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal export PDF: $e"), backgroundColor: Colors.red),
-        );
-      }
+    }
+  } catch (e) {
+    closeExportTab(tabHandle);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal export PDF: $e"), backgroundColor: Colors.red),
+      );
     }
   }
+}
 
   // ================= HELPER FORMAT =================
   String _formatDateTime(String? iso) {
