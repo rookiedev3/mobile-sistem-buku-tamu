@@ -145,70 +145,46 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
 
   void _showFormGuestCategory(BuildContext context, GuestCategory? item) {
     final namaCtrl = TextEditingController(text: item?.name ?? '');
+    // Warna tetap dipertahankan pada data lama jika melakukan edit (menggunakan item.color default), atau menggunakan warna pertama
     String warnaTerpilih = item?.color ?? _pilihanWarna.first;
 
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(item == null ? "Tambah Guest Category" : "Edit Guest Category", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                dialogField("Nama Kategori", namaCtrl),
-                const SizedBox(height: 10),
-                const Align(alignment: Alignment.centerLeft, child: Text("Warna", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _pilihanWarna.map((hex) {
-                    final selected = hex == warnaTerpilih;
-                    return GestureDetector(
-                      onTap: () => setDialogState(() => warnaTerpilih = hex),
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: _hexToColor(hex),
-                          shape: BoxShape.circle,
-                          border: selected ? Border.all(color: Colors.black, width: 2) : null,
-                        ),
-                        child: selected ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(item == null ? "Tambah Guest Category" : "Edit Guest Category", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              dialogField("Nama Kategori", namaCtrl),
+            ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Batal", style: TextStyle(fontSize: 11))),
-            ElevatedButton(
-              style: btnStyle(),
-              onPressed: () async {
-                try {
-                  if (item == null) {
-                    await GuestCategoryBloc.tambahGuestCategory(namaCtrl.text, warnaTerpilih);
-                  } else {
-                    await GuestCategoryBloc.updateGuestCategory(item.id, namaCtrl.text, warnaTerpilih);
-                  }
-                  Navigator.pop(dialogContext);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(item == null ? 'Guest category berhasil ditambahkan' : 'Guest category berhasil diperbarui')));
-                  _fetchData();
-                } catch (e) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
-                  );
-                }
-              },
-              child: const Text("Simpan", style: TextStyle(fontSize: 11)),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Batal", style: TextStyle(fontSize: 11))),
+          ElevatedButton(
+            style: btnStyle(),
+            onPressed: () async {
+              try {
+                if (item == null) {
+                  await GuestCategoryBloc.tambahGuestCategory(namaCtrl.text, warnaTerpilih);
+                } else {
+                  await GuestCategoryBloc.updateGuestCategory(item.id, namaCtrl.text, warnaTerpilih);
+                }
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(item == null ? 'Guest category berhasil ditambahkan' : 'Guest category berhasil diperbarui')));
+                _fetchData();
+              } catch (e) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text("Simpan", style: TextStyle(fontSize: 11)),
+          ),
+        ],
       ),
     );
   }
