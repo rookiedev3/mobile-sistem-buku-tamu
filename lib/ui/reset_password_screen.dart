@@ -121,7 +121,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         obscureText: _obscureNewPassword,
                         style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
                         decoration: InputDecoration(
-                          hintText: "••••••••",
+                          hintText: "Masukkan password baru",
                           hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
                           filled: true,
                           fillColor: Colors.white,
