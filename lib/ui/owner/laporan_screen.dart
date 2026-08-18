@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '/bloc/laporan_bloc.dart';
 import '/model/laporan_model.dart';
-import 'dart:html' as html; // taruh di paling atas file, hanya jalan di web
 
 class LaporanScreen extends StatefulWidget {
   const LaporanScreen({Key? key}) : super(key: key);
@@ -19,16 +19,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
   String _selectedTahun = '2026';
   String _selectedKategori = 'Semua Kategori'; // VIP / Reguler
 
-  // Cabang & PIC disimpan sebagai ID (string), bukan nama, karena
-  // LaporanBloc.fetch/export butuh branch_id & pic_id (angka).
-  // '' berarti "Semua Cabang" / "Semua PIC".
   String _selectedCabangId = '';
   String _selectedPicId = '';
 
-  // Pagination: halaman aktif (1-based) & jumlah baris yang KITA MINTA per
-  // halaman. Nilai per_page ASLI yang dipakai backend dibaca dari
-  // _laporanResponse.perPage (lihat build()), bukan dari konstanta ini —
-  // supaya nomor urut tabel selalu benar walau backend override nilainya.
   int _currentPage = 1;
   final int _perPage = 15;
 
@@ -39,12 +32,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
   final List<String> _tahunList = ['2025', '2026', '2027'];
   final List<String> _kategoriList = ['Semua Kategori', 'VIP', 'Reguler'];
 
-  // Daftar opsi cabang/PIC (id + nama), diisi dari options.branches &
-  // options.pic_users hasil response API.
   List<OptionItem> _cabangList = [];
   List<OptionItem> _picList = [];
 
-  // Samain dengan $leadBadges di web (leads.status -> badge)
   static const Map<String, Map<String, dynamic>> _leadBadges = {
     'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
     'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
@@ -88,8 +78,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
         _cabangList = result.branches;
         _picList = result.picUsers;
 
-        // Kalau cabang/PIC yang lagi dipilih ternyata sudah tidak ada di
-        // daftar opsi terbaru (mis. ganti bulan), reset ke "Semua".
         if (_selectedCabangId.isNotEmpty &&
             !_cabangList.any((b) => b.id.toString() == _selectedCabangId)) {
           _selectedCabangId = '';
@@ -122,7 +110,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
     );
   }
 
-  // Aksi Tampilkan Preview -> ambil ulang data dari API sesuai filter aktif
+  // Aksi Tampilkan Preview
   void _tampilkanPreview() {
     _currentPage = 1;
     _fetchLaporan();
@@ -131,9 +119,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
     );
   }
 
-  // Aksi Export Excel
+  // Aksi Export Excel (Cross-platform via url_launcher)
   Future<void> _exportExcel() async {
-    final newTab = html.window.open('', '_blank'); // buka tab KOSONG dulu, synchronous
     try {
       final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
       final fileUrl = await LaporanBloc.exportExcel(
@@ -143,14 +130,19 @@ class _LaporanScreenState extends State<LaporanScreen> {
         branchId: _selectedCabangId,
         picId: _selectedPicId,
       );
-      newTab.location.href = fileUrl; // baru arahkan setelah URL didapat -> auto download
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
-        );
+
+      final Uri uri = Uri.parse(fileUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
+          );
+        }
+      } else {
+        throw 'Tidak dapat membuka URL download';
       }
     } catch (e) {
-      newTab.close();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Gagal export Excel: $e"), backgroundColor: Colors.red),
@@ -159,9 +151,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
     }
   }
 
-  // Aksi Export PDF
+  // Aksi Export PDF (Cross-platform via url_launcher)
   Future<void> _exportPdf() async {
-    final newTab = html.window.open('', '_blank');
     try {
       final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
       final fileUrl = await LaporanBloc.exportPdf(
@@ -171,14 +162,19 @@ class _LaporanScreenState extends State<LaporanScreen> {
         branchId: _selectedCabangId,
         picId: _selectedPicId,
       );
-      newTab.location.href = fileUrl;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
-        );
+
+      final Uri uri = Uri.parse(fileUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
+          );
+        }
+      } else {
+        throw 'Tidak dapat membuka URL download';
       }
     } catch (e) {
-      newTab.close();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Gagal export PDF: $e"), backgroundColor: Colors.red),
@@ -221,11 +217,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
     return '$menit Menit';
   }
 
-  // Meniru logika status di web (riwayat.blade.php):
-  // 1) status dibatalkan/cancelled/ditolak -> chip merah "Dibatalkan"
-  // 2) sudah selesai (isCompleted) & punya leadStatus -> pakai _leadBadges
-  // 3) sudah selesai tapi tidak ada leadStatus -> chip abu "Non-Lead"
-  // 4) belum selesai -> chip kuning "Menunggu"
   Widget _buildStatusChip(LaporanItem item) {
     final statusLower = (item.status ?? '').toLowerCase();
 
@@ -255,13 +246,8 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Data halaman aktif langsung dari API — kategori/cabang/PIC sudah
-    // difilter di backend lewat LaporanBloc.fetch(), jadi tidak difilter
-    // ulang di client.
     final List<LaporanItem> laporanRows = _laporanResponse?.data ?? <LaporanItem>[];
 
-    // 4 card statistik pakai summary dari backend (dihitung dari SELURUH
-    // data bulan itu, bukan cuma halaman aktif).
     final int totalKunjungan = _laporanResponse?.summary.totalKunjungan ?? 0;
     final int totalDeal = _laporanResponse?.summary.totalDeal ?? 0;
     final int totalVip = _laporanResponse?.summary.totalVip ?? 0;
@@ -290,7 +276,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ================= 4 CARD STATISTIK LAPORAN =================
+              // 4 CARD STATISTIK LAPORAN
               GridView.count(
                 crossAxisCount: 2,
                 crossAxisSpacing: 8,
@@ -307,7 +293,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ================= FILTER PERIODE & PARAMETER =================
+              // FILTER PERIODE & PARAMETER
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -438,7 +424,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                     ),
                     const SizedBox(height: 6),
 
-                    // Baris 3: PIC & Tombol Aksi (Tampilkan & Reset)
+                    // Baris 3: PIC & Tombol Aksi
                     Row(
                       children: [
                         Expanded(
@@ -495,7 +481,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ================= TOMBOL EXPORT EXCEL & PDF =================
+              // TOMBOL EXPORT EXCEL & PDF
               Row(
                 children: [
                   Expanded(
@@ -525,7 +511,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
               ),
               const SizedBox(height: 12),
 
-              // ================= TABEL PREVIEW HASIL LAPORAN =================
+              // TABEL PREVIEW HASIL LAPORAN
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -544,8 +530,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Info halaman aktif, karena tabel di bawah hanya
-                    // menampilkan 1 halaman, bukan seluruh data bulan itu.
                     if (_laporanResponse != null)
                       Text(
                         "Menampilkan halaman ${_laporanResponse!.currentPage} dari ${_laporanResponse!.lastPage} (total ${_laporanResponse!.total} kunjungan)",
@@ -593,9 +577,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
                           ],
                           rows: List.generate(laporanRows.length, (index) {
                             final item = laporanRows[index];
-                            // Nomor urut mengikuti halaman aktif. Pakai
-                            // perPage ASLI dari backend (_laporanResponse.perPage),
-                            // bukan _perPage yang cuma nilai yang KITA KIRIM.
                             final nomor = _laporanResponse != null
                                 ? ((_laporanResponse!.currentPage - 1) * _laporanResponse!.perPage) + index + 1
                                 : index + 1;
@@ -675,7 +656,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
                         ),
                       ),
 
-                    // Navigasi halaman (Prev/Next).
+                    // Navigasi halaman (Prev/Next)
                     if (_laporanResponse != null && _laporanResponse!.lastPage > 1)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
@@ -717,7 +698,6 @@ class _LaporanScreenState extends State<LaporanScreen> {
     );
   }
 
-  // Widget Compact Card Statistik Laporan
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(8),

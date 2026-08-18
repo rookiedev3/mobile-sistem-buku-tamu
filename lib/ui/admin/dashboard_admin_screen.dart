@@ -27,6 +27,13 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
   String _filterStatus = 'Semua';
   final TextEditingController _searchController = TextEditingController();
 
+  // 🆕 State Pagination — supaya tidak "nyangkut" di halaman lama saat
+  // keyword pencarian / filter status berganti.
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalData = 0;
+  int _perPage = 10; // fallback jika API tidak mengirim field per_page
+
   @override
   void initState() {
     super.initState();
@@ -75,10 +82,19 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
   }
 
   /// Memuat Data Dashboard via DashboardAdminBloc
-  Future<void> _fetchDashboardData() async {
+  ///
+  /// [page] menentukan halaman data yang diambil. Saat parameter ini tidak
+  /// diberikan, dianggap tetap di halaman yang sedang aktif (`_currentPage`).
+  /// Gunakan [resetPage] = true setiap kali keyword pencarian atau filter
+  /// status berubah, supaya pagination selalu mulai lagi dari halaman 1 dan
+  /// tidak menampilkan data kosong akibat nyangkut di halaman lama.
+  Future<void> _fetchDashboardData({int? page, bool resetPage = false}) async {
+    final int targetPage = resetPage ? 1 : (page ?? _currentPage);
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _currentPage = targetPage;
     });
 
     try {
@@ -88,18 +104,34 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
       final data = await DashboardAdminBloc.getDashboard(
         dateFilter: dateFilterParam,
         keyword: _searchController.text.trim(),
+        page: targetPage,
       );
 
       final statistics = data['statistics'] ?? {};
       final visitsData = data['visits'];
       final notifData = data['notifications'];
 
-      // Parsing data kunjungan
+      // Parsing data kunjungan + meta pagination (struktur Laravel paginator:
+      // { data: [...], current_page, last_page, total, ... })
       List<dynamic> visitList = [];
+      int parsedCurrentPage = targetPage;
+      int parsedLastPage = 1;
+      int parsedTotal = 0;
+      int parsedPerPage = _perPage;
+
       if (visitsData is Map && visitsData.containsKey('data')) {
         visitList = visitsData['data'] ?? [];
+        parsedCurrentPage =
+            (visitsData['current_page'] as num?)?.toInt() ?? targetPage;
+        parsedLastPage = (visitsData['last_page'] as num?)?.toInt() ?? 1;
+        parsedTotal = (visitsData['total'] as num?)?.toInt() ?? visitList.length;
+        parsedPerPage = (visitsData['per_page'] as num?)?.toInt() ??
+            (visitList.isNotEmpty ? visitList.length : _perPage);
       } else if (visitsData is List) {
         visitList = visitsData;
+        parsedLastPage = 1;
+        parsedTotal = visitList.length;
+        parsedPerPage = visitList.isNotEmpty ? visitList.length : _perPage;
       }
 
       // Parsing data notifikasi
@@ -115,6 +147,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
         return item['read_at'] == null;
       }).toList();
 
+      if (!mounted) return;
+
       setState(() {
         _totalToday = statistics['total_today'] ?? 0;
         _unfinishedTodayCount = statistics['unfinished_today'] ?? 0;
@@ -122,14 +156,33 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
 
         _visits = visitList;
         _notifications = unreadNotifs;
+
+        _currentPage = parsedCurrentPage;
+        _lastPage = parsedLastPage < 1 ? 1 : parsedLastPage;
+        _totalData = parsedTotal;
+        _perPage = parsedPerPage > 0 ? parsedPerPage : _perPage;
+
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
     }
+  }
+
+  /// Pindah ke halaman berikutnya (kalau belum di halaman terakhir).
+  void _goToNextPage() {
+    if (_isLoading || _currentPage >= _lastPage) return;
+    _fetchDashboardData(page: _currentPage + 1);
+  }
+
+  /// Pindah ke halaman sebelumnya (kalau belum di halaman pertama).
+  void _goToPreviousPage() {
+    if (_isLoading || _currentPage <= 1) return;
+    _fetchDashboardData(page: _currentPage - 1);
   }
 
   /// Tandai 1 Notifikasi Dibaca
@@ -187,7 +240,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           backgroundColor: Color(0xFF006B3F),
         ),
       );
-      _fetchDashboardData();
+      // Tetap di halaman yang sama setelah check-in, bukan reset ke halaman 1.
+      _fetchDashboardData(page: _currentPage);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -210,7 +264,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           backgroundColor: Color(0xFF006B3F),
         ),
       );
-      _fetchDashboardData();
+      // Tetap di halaman yang sama setelah pembatalan, bukan reset ke halaman 1.
+      _fetchDashboardData(page: _currentPage);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -242,7 +297,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Refresh Data',
-            onPressed: _fetchDashboardData,
+            onPressed: () => _fetchDashboardData(page: _currentPage),
           ),
 
           // ================= DROPDOWN NOTIFIKASI DATABASE =================
@@ -479,7 +534,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchDashboardData,
+        onRefresh: () => _fetchDashboardData(page: _currentPage),
         color: const Color(0xFF006B3F),
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -612,7 +667,9 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                             branchId: rawResult['branch_id'] as int,
                           );
 
-                          _fetchDashboardData();
+                          // Data baru biasanya muncul di halaman pertama,
+                          // jadi kita reset paginasi setelah berhasil menambah.
+                          _fetchDashboardData(resetPage: true);
 
                           String namaTamu = (rawResult['nama'] ?? 'Tamu Baru').toString();
                           String jam = (rawResult['jam'] ?? '-').toString();
@@ -635,11 +692,11 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                         }
                       }
                     },
-                    icon: const Icon(Icons.add, size: 16),
+                    icon: const Icon(Icons.add, size: 14),
                     label: const Text(
                       "Tambah Janji",
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -653,7 +710,10 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      onSubmitted: (_) => _fetchDashboardData(),
+                      // 🆕 Reset ke halaman 1 setiap kali submit pencarian,
+                      // supaya tidak nyangkut di halaman lama yang mungkin
+                      // sudah tidak relevan / kosong untuk keyword baru.
+                      onSubmitted: (_) => _fetchDashboardData(resetPage: true),
                       decoration: InputDecoration(
                         hintText: "Cari nama tamu / token...",
                         hintStyle: const TextStyle(
@@ -690,7 +750,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                   PopupMenuButton<String>(
                     onSelected: (val) {
                       setState(() => _filterStatus = val);
-                      _fetchDashboardData();
+                      // 🆕 Reset ke halaman 1 setiap kali filter status berubah.
+                      _fetchDashboardData(resetPage: true);
                     },
                     itemBuilder: (context) => [
                       const PopupMenuItem(
@@ -788,6 +849,13 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
 
                     final Color statusColor = _getStatusColor(currentStatus);
 
+                    // Nomor urut mengikuti halaman aktif (pakai per_page dari
+                    // API, bukan jumlah item di halaman ini saja — supaya
+                    // tetap benar walau halaman terakhir jumlah itemnya
+                    // lebih sedikit dari halaman-halaman sebelumnya).
+                    final int displayNumber =
+                        ((_currentPage - 1) * _perPage) + index + 1;
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
@@ -818,7 +886,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  "No. ${index + 1} • $visitCode",
+                                  "No. $displayNumber • $visitCode",
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -1001,6 +1069,105 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                       ),
                     );
                   },
+                ),
+
+              // 🆕 Kontrol Pagination (Sebelumnya / Halaman X dari Y / Berikutnya)
+              if (!_isLoading && _errorMessage == null && _visits.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _currentPage > 1 ? _goToPreviousPage : null,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          side: BorderSide(
+                            color: _currentPage > 1
+                                ? const Color(0xFF006B3F)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: Icon(
+                          Icons.chevron_left,
+                          size: 16,
+                          color: _currentPage > 1
+                              ? const Color(0xFF006B3F)
+                              : const Color(0xFF9CA3AF),
+                        ),
+                        label: Text(
+                          "Sebelumnya",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _currentPage > 1
+                                ? const Color(0xFF006B3F)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          Text(
+                            "Halaman $_currentPage dari $_lastPage",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF172033),
+                            ),
+                          ),
+                          Text(
+                            "$_totalData total data",
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF778195),
+                            ),
+                          ),
+                        ],
+                      ),
+                      OutlinedButton.icon(
+                        onPressed:
+                            _currentPage < _lastPage ? _goToNextPage : null,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          side: BorderSide(
+                            color: _currentPage < _lastPage
+                                ? const Color(0xFF006B3F)
+                                : const Color(0xFFE2E8F0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        icon: Icon(
+                          Icons.chevron_right,
+                          size: 16,
+                          color: _currentPage < _lastPage
+                              ? const Color(0xFF006B3F)
+                              : const Color(0xFF9CA3AF),
+                        ),
+                        label: Text(
+                          "Berikutnya",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _currentPage < _lastPage
+                                ? const Color(0xFF006B3F)
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),

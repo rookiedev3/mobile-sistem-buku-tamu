@@ -12,10 +12,14 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
   final TextEditingController _searchController = TextEditingController();
 
-  // State API
+  // State API & Pagination
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _databaseTamuList = [];
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalData = 0;
+  int _perPage = 10;
 
   @override
   void initState() {
@@ -30,7 +34,7 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
   }
 
   /// Memuat data dari API Backend Laravel
-  Future<void> _fetchDatabaseTamu() async {
+  Future<void> _fetchDatabaseTamu({int page = 1}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -39,10 +43,16 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
     try {
       final response = await DatabaseTamuBloc.getDatabaseTamu(
         search: _searchController.text.trim(),
+        page: page,
       );
 
       setState(() {
         _databaseTamuList = response['data'] ?? [];
+        final meta = response['meta'] ?? {};
+        _currentPage = meta['current_page'] ?? 1;
+        _lastPage = meta['last_page'] ?? 1;
+        _totalData = meta['total'] ?? _databaseTamuList.length;
+        _perPage = meta['per_page'] ?? 10;
         _isLoading = false;
       });
     } catch (e) {
@@ -484,7 +494,7 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
                               cells: [
                                 DataCell(
                                   Text(
-                                    (index + 1).toString(),
+                                    ((_currentPage - 1) * _perPage + index + 1).toString(),
                                     style: const TextStyle(fontSize: 9),
                                   ),
                                 ),
@@ -574,6 +584,10 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
                           }),
                         ),
                       ),
+                    if (!_isLoading && _errorMessage == null && _databaseTamuList.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      _buildPaginationControl(),
+                    ],
                   ],
                 ),
               ),
@@ -582,5 +596,142 @@ class _DatabaseTamuScreenState extends State<DatabaseTamuScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildPaginationControl() {
+    int startItem = _totalData == 0 ? 0 : ((_currentPage - 1) * _perPage) + 1;
+    int endItem = (_currentPage * _perPage) > _totalData
+        ? _totalData
+        : (_currentPage * _perPage);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Menampilkan $startItem-$endItem dari $_totalData data",
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: Color(0xFF778195),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                "Hal $_currentPage dari $_lastPage",
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172033),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 16),
+                onPressed: _currentPage > 1 ? () => _fetchDatabaseTamu(page: 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 16),
+                onPressed: _currentPage > 1
+                    ? () => _fetchDatabaseTamu(page: _currentPage - 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              const SizedBox(width: 4),
+              ..._buildPageNumbers(),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 16),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchDatabaseTamu(page: _currentPage + 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 16),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchDatabaseTamu(page: _lastPage)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers() {
+    List<Widget> pageButtons = [];
+    int start = _currentPage - 1;
+    int end = _currentPage + 1;
+
+    if (start < 1) {
+      start = 1;
+      end = start + 2;
+    }
+    if (end > _lastPage) {
+      end = _lastPage;
+      start = end - 2;
+      if (start < 1) start = 1;
+    }
+
+    for (int i = start; i <= end; i++) {
+      final bool isCurrent = (i == _currentPage);
+      pageButtons.add(
+        InkWell(
+          onTap: isCurrent ? null : () => _fetchDatabaseTamu(page: i),
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: isCurrent ? corporateGreen : const Color(0xFFF4F7FC),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isCurrent ? corporateGreen : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Text(
+              "$i",
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: isCurrent ? Colors.white : const Color(0xFF172033),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return pageButtons;
   }
 }

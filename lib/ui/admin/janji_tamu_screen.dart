@@ -14,10 +14,14 @@ class JanjiTamuScreen extends StatefulWidget {
 class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
-  // State Management Data Database API
+  // State Management Data Database API & Pagination
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _daftarJanji = [];
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalData = 0;
+  int _perPage = 10;
 
   // State Notifikasi
   int _unreadNotifCount = 0;
@@ -77,7 +81,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
   }
 
   /// Memuat Data dari Database Backend via DashboardAdminBloc
-  Future<void> _fetchJanjiData() async {
+  Future<void> _fetchJanjiData({int page = 1}) async {
     if (!mounted) return;
 
     setState(() {
@@ -93,6 +97,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
       final data = await DashboardAdminBloc.getDashboard(
         dateFilter: dateFilterParam,
         keyword: keywordQuery,
+        page: page,
       );
 
       // Parsing Kunjungan
@@ -109,10 +114,19 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
       }
 
       List<dynamic> visitList = [];
+      int current = 1;
+      int last = 1;
+      int total = 0;
+      int perPage = 10;
+
       if (visitsData is Map &&
           visitsData.containsKey('data') &&
           visitsData['data'] != null) {
         visitList = visitsData['data'] is List ? visitsData['data'] : [];
+        current = visitsData['current_page'] ?? 1;
+        last = visitsData['last_page'] ?? 1;
+        total = visitsData['total'] ?? visitList.length;
+        perPage = visitsData['per_page'] ?? 10;
       } else if (visitsData is List) {
         visitList = visitsData;
       } else if (targetData is List) {
@@ -140,6 +154,10 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
       if (!mounted) return;
       setState(() {
         _daftarJanji = visitList;
+        _currentPage = current;
+        _lastPage = last;
+        _totalData = total;
+        _perPage = perPage;
         _notifications = unreadNotifs;
         _unreadNotifCount = unreadCount;
         _isLoading = false;
@@ -261,7 +279,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Refresh Data',
-            onPressed: _fetchJanjiData,
+            onPressed: () => _fetchJanjiData(page: _currentPage),
           ),
 
           // ================= 2. DROPDOWN NOTIFIKASI =================
@@ -496,7 +514,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchJanjiData,
+        onRefresh: () => _fetchJanjiData(page: _currentPage),
         color: corporateGreen,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -795,7 +813,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  "No. ${index + 1} • $visitCode",
+                                  "No. ${((_currentPage - 1) * _perPage) + index + 1} • $visitCode",
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -986,10 +1004,158 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                     );
                   },
                 ),
+              if (!_isLoading && _errorMessage == null && _daftarJanji.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPaginationControl(),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPaginationControl() {
+    int startItem = _totalData == 0 ? 0 : ((_currentPage - 1) * _perPage) + 1;
+    int endItem = (_currentPage * _perPage) > _totalData
+        ? _totalData
+        : (_currentPage * _perPage);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Menampilkan $startItem-$endItem dari $_totalData data",
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF778195),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                "Hal $_currentPage dari $_lastPage",
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172033),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 18),
+                onPressed: _currentPage > 1 ? () => _fetchJanjiData(page: 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 18),
+                onPressed: _currentPage > 1
+                    ? () => _fetchJanjiData(page: _currentPage - 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              const SizedBox(width: 6),
+              ..._buildPageNumbers(),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchJanjiData(page: _currentPage + 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchJanjiData(page: _lastPage)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers() {
+    List<Widget> pageButtons = [];
+    int start = _currentPage - 1;
+    int end = _currentPage + 1;
+
+    if (start < 1) {
+      start = 1;
+      end = start + 2;
+    }
+    if (end > _lastPage) {
+      end = _lastPage;
+      start = end - 2;
+      if (start < 1) start = 1;
+    }
+
+    for (int i = start; i <= end; i++) {
+      final bool isCurrent = (i == _currentPage);
+      pageButtons.add(
+        InkWell(
+          onTap: isCurrent ? null : () => _fetchJanjiData(page: i),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isCurrent ? corporateGreen : const Color(0xFFF4F7FC),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isCurrent ? corporateGreen : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Text(
+              "$i",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isCurrent ? Colors.white : const Color(0xFF172033),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return pageButtons;
   }
 }

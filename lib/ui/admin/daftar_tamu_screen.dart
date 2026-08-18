@@ -14,10 +14,15 @@ class DaftarTamuScreen extends StatefulWidget {
 class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
-  // State Data Tamu
+  // State Data Tamu & Pagination
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _daftarTamu = [];
+
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalData = 0;
+  int _perPage = 10;
 
   // State Notifikasi
   int _unreadNotifCount = 0;
@@ -40,7 +45,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   }
 
   /// Memuat data Tamu & Notifikasi dari Backend API
-  Future<void> _fetchGuestsData() async {
+  Future<void> _fetchGuestsData({int page = 1}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -51,16 +56,36 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       if (_filterKategori == 'VIP') vipParam = '1';
       if (_filterKategori == 'Reguler') vipParam = '0';
 
-      // 1. Ambil data direktori tamu
+      // 1. Ambil data direktori tamu dengan pagination
       final Map<String, dynamic> responseData =
           await DashboardAdminBloc.getGuests(
         vipStatus: vipParam,
         keyword: _searchController.text.trim(),
+        page: page,
       );
 
       List<dynamic> guestList = [];
-      if (responseData.containsKey('data') && responseData['data'] is List) {
-        guestList = List<dynamic>.from(responseData['data']);
+      int current = 1;
+      int last = 1;
+      int total = 0;
+
+      if (responseData.containsKey('data')) {
+        final dataProp = responseData['data'];
+        if (dataProp is List) {
+          guestList = List<dynamic>.from(dataProp);
+        } else if (dataProp is Map<String, dynamic>) {
+          guestList = List<dynamic>.from(dataProp['data'] ?? []);
+          current = dataProp['current_page'] ?? 1;
+          last = dataProp['last_page'] ?? 1;
+          total = dataProp['total'] ?? guestList.length;
+        }
+      }
+
+      // Fallback metadata pagination jika berada di root response JSON
+      if (responseData.containsKey('current_page')) {
+        current = responseData['current_page'] ?? 1;
+        last = responseData['last_page'] ?? 1;
+        total = responseData['total'] ?? guestList.length;
       }
 
       // 2. Ambil data notifikasi dari dashboard backend
@@ -89,6 +114,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
       setState(() {
         _daftarTamu = guestList;
+        _currentPage = current;
+        _lastPage = last;
+        _totalData = total;
         _notifications = unreadNotifs;
         _unreadNotifCount = unreadCount;
         _isLoading = false;
@@ -119,7 +147,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       await DashboardAdminBloc.markNotificationAsRead(notifId);
     } catch (e) {
       debugPrint('Gagal menandai notifikasi dibaca: $e');
-      _fetchGuestsData();
+      _fetchGuestsData(page: _currentPage);
     }
   }
 
@@ -137,7 +165,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       await DashboardAdminBloc.markAllNotificationsAsRead();
     } catch (e) {
       debugPrint('Gagal menandai semua notifikasi dibaca: $e');
-      _fetchGuestsData();
+      _fetchGuestsData(page: _currentPage);
     }
   }
 
@@ -189,7 +217,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         ),
       );
 
-      _fetchGuestsData();
+      _fetchGuestsData(page: _currentPage);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -674,7 +702,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
                             if (!mounted) return;
                             Navigator.pop(context);
-                            _fetchGuestsData();
+                            _fetchGuestsData(page: _currentPage);
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -921,7 +949,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
                             if (!mounted) return;
                             Navigator.pop(context);
-                            _fetchGuestsData();
+                            _fetchGuestsData(page: 1);
 
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -1036,6 +1064,159 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     );
   }
 
+  /// ================= WIDGET PAGINATION CONTROL =================
+  Widget _buildPaginationControl() {
+    int startItem = _totalData == 0 ? 0 : ((_currentPage - 1) * _perPage) + 1;
+    int endItem = (_currentPage * _perPage) > _totalData
+        ? _totalData
+        : (_currentPage * _perPage);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Menampilkan $startItem-$endItem dari $_totalData data",
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF778195),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                "Hal $_currentPage dari $_lastPage",
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172033),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // First Page
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 18),
+                onPressed: _currentPage > 1
+                    ? () => _fetchGuestsData(page: 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              // Previous Page
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 18),
+                onPressed: _currentPage > 1
+                    ? () => _fetchGuestsData(page: _currentPage - 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              const SizedBox(width: 6),
+              // Dynamic Page Numbers
+              ..._buildPageNumbers(),
+              const SizedBox(width: 6),
+              // Next Page
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchGuestsData(page: _currentPage + 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              // Last Page
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchGuestsData(page: _lastPage)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Membuat Tombol Nomor Halaman Secara Dinamis
+  List<Widget> _buildPageNumbers() {
+    List<Widget> pageButtons = [];
+    int start = _currentPage - 1;
+    int end = _currentPage + 1;
+
+    if (start < 1) {
+      start = 1;
+      end = start + 2;
+    }
+    if (end > _lastPage) {
+      end = _lastPage;
+      start = end - 2;
+      if (start < 1) start = 1;
+    }
+
+    for (int i = start; i <= end; i++) {
+      final bool isCurrent = (i == _currentPage);
+      pageButtons.add(
+        InkWell(
+          onTap: isCurrent ? null : () => _fetchGuestsData(page: i),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isCurrent ? corporateGreen : const Color(0xFFF4F7FC),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isCurrent ? corporateGreen : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Text(
+              "$i",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isCurrent ? Colors.white : const Color(0xFF172033),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return pageButtons;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1056,7 +1237,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Refresh Data',
-            onPressed: _fetchGuestsData,
+            onPressed: () => _fetchGuestsData(page: _currentPage),
           ),
 
           // ================= 2. DROPDOWN NOTIFIKASI =================
@@ -1291,7 +1472,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchGuestsData,
+        onRefresh: () => _fetchGuestsData(page: 1),
         color: corporateGreen,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -1358,7 +1539,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                   Expanded(
                     child: TextField(
                       controller: _searchController,
-                      onSubmitted: (_) => _fetchGuestsData(),
+                      onSubmitted: (_) => _fetchGuestsData(page: 1),
                       decoration: InputDecoration(
                         hintText: "Cari nama / WA / perusahaan...",
                         hintStyle: const TextStyle(
@@ -1370,6 +1551,15 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                           size: 16,
                           color: Color(0xFF778195),
                         ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 14),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _fetchGuestsData(page: 1);
+                                },
+                              )
+                            : null,
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 0,
                           horizontal: 10,
@@ -1418,7 +1608,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                         onChanged: (String? val) {
                           if (val != null) {
                             setState(() => _filterKategori = val);
-                            _fetchGuestsData();
+                            _fetchGuestsData(page: 1);
                           }
                         },
                       ),
@@ -1456,253 +1646,267 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                   ),
                 )
               else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _daftarTamu.length,
-                  itemBuilder: (context, index) {
-                    final tamu = _daftarTamu[index] as Map<String, dynamic>;
+                Column(
+                  children: [
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _daftarTamu.length,
+                      itemBuilder: (context, index) {
+                        final tamu = _daftarTamu[index] as Map<String, dynamic>;
 
-                    final int guestId = tamu["id"] ?? (index + 1);
-                    final String nama = tamu["name"] ?? tamu["nama"] ?? "Tamu";
-                    final String phone = tamu["phone"] ?? tamu["wa"] ?? "-";
-                    final String instansi =
-                        tamu["company_name"] ?? tamu["instansi"] ?? "-";
-                    final String jabatan =
-                        tamu["position"] ?? tamu["jabatan"] ?? "-";
-                    final String tglTerdaftar = _formatDate(
-                      tamu["created_at"] ?? tamu["tanggal"],
-                    );
-                    final int totalKunjungan =
-                        tamu["visits_count"] ?? tamu["totalKunjungan"] ?? 0;
-                    final bool isVip = (tamu["is_vip"] == 1 ||
-                        tamu["is_vip"] == true ||
-                        tamu["status"] == "VIP");
-                    final String statusText = isVip ? "VIP" : "Reguler";
+                        final int guestId = tamu["id"] ?? (index + 1);
+                        final String nama = tamu["name"] ?? tamu["nama"] ?? "Tamu";
+                        final String phone = tamu["phone"] ?? tamu["wa"] ?? "-";
+                        final String instansi =
+                            tamu["company_name"] ?? tamu["instansi"] ?? "-";
+                        final String jabatan =
+                            tamu["position"] ?? tamu["jabatan"] ?? "-";
+                        final String tglTerdaftar = _formatDate(
+                          tamu["created_at"] ?? tamu["tanggal"],
+                        );
+                        final int totalKunjungan =
+                            tamu["visits_count"] ?? tamu["totalKunjungan"] ?? 0;
+                        final bool isVip = (tamu["is_vip"] == 1 ||
+                            tamu["is_vip"] == true ||
+                            tamu["status"] == "VIP");
+                        final String statusText = isVip ? "VIP" : "Reguler";
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F7FC),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  "ID: $guestId",
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF778195),
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isVip
-                                      ? Colors.amber.withValues(alpha: 0.2)
-                                      : Colors.grey.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  statusText,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isVip
-                                        ? Colors.amber[800]
-                                        : Colors.grey[700],
-                                  ),
-                                ),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildAvatar(tamu, radius: 16, iconSize: 18),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      nama,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: Color(0xFF172033),
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
                                     ),
-                                    Text(
-                                      "Terdaftar: $tglTerdaftar",
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF4F7FC),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      "ID: $guestId",
                                       style: const TextStyle(
-                                        fontSize: 9,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
                                         color: Color(0xFF778195),
                                       ),
                                     ),
-                                  ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isVip
+                                          ? Colors.amber.withValues(alpha: 0.2)
+                                          : Colors.grey.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      statusText,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: isVip
+                                            ? Colors.amber[800]
+                                            : Colors.grey[700],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  _buildAvatar(tamu, radius: 16, iconSize: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          nama,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: Color(0xFF172033),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        Text(
+                                          "Terdaftar: $tglTerdaftar",
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            color: Color(0xFF778195),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                "Instansi: $instansi • $jabatan",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF778195),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "No. WA: $phone",
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF778195),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            "Instansi: $instansi • $jabatan",
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF778195),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "No. WA: $phone",
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF778195),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            "Total Kunjungan: $totalKunjungan Kali",
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: corporateGreen,
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 6.0),
-                            child: Divider(height: 1, color: Color(0xFFE5E7EB)),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _toggleVipStatus(guestId, isVip),
-                                icon: Icon(
-                                  isVip ? Icons.star_border : Icons.star,
-                                  size: 12,
-                                  color: isVip
-                                      ? Colors.grey[700]
-                                      : Colors.amber[800],
-                                ),
-                                label: Text(
-                                  isVip ? "Set Reguler" : "Ubah VIP",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: isVip
-                                        ? Colors.grey[700]
-                                        : Colors.amber[800],
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  side: BorderSide(
-                                    color: isVip
-                                        ? Colors.grey.shade400
-                                        : Colors.amber.shade800,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  minimumSize: const Size(40, 24),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _showEditTamuDialog(context, tamu),
-                                icon: Icon(
-                                  Icons.edit_outlined,
-                                  size: 12,
-                                  color: Colors.blue[700],
-                                ),
-                                label: Text(
-                                  "Edit",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.blue[700],
-                                  ),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  side: BorderSide(color: Colors.blue.shade700),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  minimumSize: const Size(40, 24),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _showDetailTamuDialog(context, tamu),
-                                icon: Icon(
-                                  Icons.visibility_outlined,
-                                  size: 12,
+                              const SizedBox(height: 2),
+                              Text(
+                                "Total Kunjungan: $totalKunjungan Kali",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
                                   color: corporateGreen,
                                 ),
-                                label: Text(
-                                  "Detail",
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: corporateGreen,
-                                  ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 6.0),
+                                child: Divider(
+                                  height: 1,
+                                  color: Color(0xFFE5E7EB),
                                 ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _toggleVipStatus(guestId, isVip),
+                                    icon: Icon(
+                                      isVip ? Icons.star_border : Icons.star,
+                                      size: 12,
+                                      color: isVip
+                                          ? Colors.grey[700]
+                                          : Colors.amber[800],
+                                    ),
+                                    label: Text(
+                                      isVip ? "Set Reguler" : "Ubah VIP",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isVip
+                                            ? Colors.grey[700]
+                                            : Colors.amber[800],
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      side: BorderSide(
+                                        color: isVip
+                                            ? Colors.grey.shade400
+                                            : Colors.amber.shade800,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      minimumSize: const Size(40, 24),
+                                    ),
                                   ),
-                                  side: BorderSide(color: corporateGreen),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
+                                  const SizedBox(width: 6),
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showEditTamuDialog(context, tamu),
+                                    icon: Icon(
+                                      Icons.edit_outlined,
+                                      size: 12,
+                                      color: Colors.blue[700],
+                                    ),
+                                    label: Text(
+                                      "Edit",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.blue[700],
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      side: BorderSide(
+                                        color: Colors.blue.shade700,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      minimumSize: const Size(40, 24),
+                                    ),
                                   ),
-                                  minimumSize: const Size(40, 24),
-                                ),
+                                  const SizedBox(width: 6),
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _showDetailTamuDialog(context, tamu),
+                                    icon: Icon(
+                                      Icons.visibility_outlined,
+                                      size: 12,
+                                      color: corporateGreen,
+                                    ),
+                                    label: Text(
+                                      "Detail",
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: corporateGreen,
+                                      ),
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      side: BorderSide(color: corporateGreen),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      minimumSize: const Size(40, 24),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+
+                    // Component Pagination di Bawah Daftar Tamu
+                    _buildPaginationControl(),
+                  ],
                 ),
             ],
           ),

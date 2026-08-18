@@ -12,10 +12,14 @@ class RiwayatScreen extends StatefulWidget {
 class _RiwayatScreenState extends State<RiwayatScreen> {
   final Color corporateGreen = const Color(0xFF006B3F);
 
-  // State Management Data API Database
+  // State Management Data API Database & Pagination
   bool _isLoading = true;
   String? _errorMessage;
   List<dynamic> _daftarRiwayat = [];
+  int _currentPage = 1;
+  int _lastPage = 1;
+  int _totalData = 0;
+  int _perPage = 10;
 
   // State Notifikasi
   int _unreadNotifCount = 0;
@@ -73,7 +77,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
   }
 
   /// Memuat Data Riwayat & Notifikasi dari Database Backend
-  Future<void> _fetchRiwayatData() async {
+  Future<void> _fetchRiwayatData({int page = 1}) async {
     if (!mounted) return;
 
     setState(() {
@@ -84,68 +88,70 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     try {
       final String keywordQuery = _searchController.text.trim();
 
-      // Memanggil API dengan dateFilter = 'all' untuk pencarian lengkap
-      final dynamic data = await DashboardAdminBloc.getDashboard(
-        dateFilter: 'all',
+      // 1. Ambil data riwayat yang terpaginasi dari backend
+      final dynamic historyData = await DashboardAdminBloc.getHistory(
+        date: _selectedDateFilter,
         keyword: keywordQuery,
+        page: page,
       );
 
-      // Defensive JSON Parsing Data Kunjungan
       List<dynamic> visitList = [];
-      int unreadCount = 0;
-      List<dynamic> unreadNotifs = [];
+      int current = 1;
+      int last = 1;
+      int total = 0;
+      int perPage = 10;
 
-      if (data is Map) {
-        final Map<String, dynamic> rootMap =
-            (data.containsKey('data') && data['data'] is Map)
-                ? Map<String, dynamic>.from(data['data'])
-                : Map<String, dynamic>.from(data);
-
-        final dynamic visitsData = rootMap['visits'];
-
-        if (visitsData is Map && visitsData.containsKey('data')) {
-          visitList = visitsData['data'] is List ? visitsData['data'] : [];
-        } else if (visitsData is List) {
-          visitList = visitsData;
-        } else if (rootMap['data'] is List) {
-          visitList = rootMap['data'];
+      if (historyData is Map) {
+        if (historyData.containsKey('data')) {
+          final dataProp = historyData['data'];
+          if (dataProp is List) {
+            visitList = dataProp;
+          }
+        } else {
+          visitList = historyData['data'] ?? [];
         }
-
-        // Parsing Notifikasi
-        final statistics = rootMap['statistics'] ?? {};
-        final notifData = rootMap['notifications'];
-
-        List<dynamic> notifList = [];
-        if (notifData is Map && notifData.containsKey('data')) {
-          notifList = notifData['data'] ?? [];
-        } else if (notifData is List) {
-          notifList = notifData;
-        }
-
-        unreadNotifs = notifList.where((item) {
-          return item['read_at'] == null;
-        }).toList();
-
-        unreadCount =
-            statistics['unread_notifications'] ?? unreadNotifs.length;
-      } else if (data is List) {
-        visitList = List<dynamic>.from(data);
+        current = historyData['current_page'] ?? 1;
+        last = historyData['last_page'] ?? 1;
+        total = historyData['total'] ?? visitList.length;
+        perPage = historyData['per_page'] ?? 10;
       }
 
-      // Filter Tanggal Lokal (Client-Side Filtering)
-      if (_selectedDateFilter != null && _selectedDateFilter!.isNotEmpty) {
-        visitList = visitList.where((item) {
-          if (item is! Map) return false;
-          final scheduledAt = item['scheduled_at']?.toString() ??
-              item['created_at']?.toString() ??
-              '';
-          return scheduledAt.startsWith(_selectedDateFilter!);
-        }).toList();
+      // 2. Ambil data notifikasi jika di halaman pertama
+      List<dynamic> unreadNotifs = _notifications;
+      int unreadCount = _unreadNotifCount;
+
+      if (page == 1) {
+        try {
+          final dynamic dashboardData = await DashboardAdminBloc.getDashboard(dateFilter: 'all');
+          if (dashboardData is Map) {
+            final statistics = dashboardData['statistics'] ?? {};
+            final notifData = dashboardData['notifications'];
+
+            List<dynamic> notifList = [];
+            if (notifData is Map && notifData.containsKey('data')) {
+              notifList = notifData['data'] ?? [];
+            } else if (notifData is List) {
+              notifList = notifData;
+            }
+
+            unreadNotifs = notifList.where((item) {
+              return item['read_at'] == null;
+            }).toList();
+
+            unreadCount = statistics['unread_notifications'] ?? unreadNotifs.length;
+          }
+        } catch (ne) {
+          debugPrint("Gagal memuat notifikasi riwayat: $ne");
+        }
       }
 
       if (!mounted) return;
       setState(() {
         _daftarRiwayat = visitList;
+        _currentPage = current;
+        _lastPage = last;
+        _totalData = total;
+        _perPage = perPage;
         _notifications = unreadNotifs;
         _unreadNotifCount = unreadCount;
         _isLoading = false;
@@ -376,7 +382,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Refresh Data',
-            onPressed: _fetchRiwayatData,
+            onPressed: () => _fetchRiwayatData(page: _currentPage),
           ),
 
           // ================= 2. DROPDOWN NOTIFIKASI =================
@@ -611,7 +617,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchRiwayatData,
+        onRefresh: () => _fetchRiwayatData(page: _currentPage),
         color: corporateGreen,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -868,7 +874,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  "No. ${index + 1} • $visitCode",
+                                  "No. ${((_currentPage - 1) * _perPage) + index + 1} • $visitCode",
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -1009,10 +1015,158 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                     );
                   },
                 ),
+              if (!_isLoading && _errorMessage == null && _daftarRiwayat.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPaginationControl(),
+              ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildPaginationControl() {
+    int startItem = _totalData == 0 ? 0 : ((_currentPage - 1) * _perPage) + 1;
+    int endItem = (_currentPage * _perPage) > _totalData
+        ? _totalData
+        : (_currentPage * _perPage);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Menampilkan $startItem-$endItem dari $_totalData data",
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF778195),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                "Hal $_currentPage dari $_lastPage",
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172033),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.first_page, size: 18),
+                onPressed: _currentPage > 1 ? () => _fetchRiwayatData(page: 1) : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 18),
+                onPressed: _currentPage > 1
+                    ? () => _fetchRiwayatData(page: _currentPage - 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              const SizedBox(width: 6),
+              ..._buildPageNumbers(),
+              const SizedBox(width: 6),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchRiwayatData(page: _currentPage + 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+              IconButton(
+                icon: const Icon(Icons.last_page, size: 18),
+                onPressed: _currentPage < _lastPage
+                    ? () => _fetchRiwayatData(page: _lastPage)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                color: corporateGreen,
+                disabledColor: Colors.grey.shade300,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildPageNumbers() {
+    List<Widget> pageButtons = [];
+    int start = _currentPage - 1;
+    int end = _currentPage + 1;
+
+    if (start < 1) {
+      start = 1;
+      end = start + 2;
+    }
+    if (end > _lastPage) {
+      end = _lastPage;
+      start = end - 2;
+      if (start < 1) start = 1;
+    }
+
+    for (int i = start; i <= end; i++) {
+      final bool isCurrent = (i == _currentPage);
+      pageButtons.add(
+        InkWell(
+          onTap: isCurrent ? null : () => _fetchRiwayatData(page: i),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isCurrent ? corporateGreen : const Color(0xFFF4F7FC),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: isCurrent ? corporateGreen : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Text(
+              "$i",
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isCurrent ? Colors.white : const Color(0xFF172033),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return pageButtons;
   }
 }
