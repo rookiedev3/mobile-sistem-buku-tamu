@@ -1,17 +1,8 @@
-// lib/ui/guest_category_tab.dart
+// lib/ui/admin/master_data/guest_category_tab.dart
 import 'package:flutter/material.dart';
 import 'package:mobile_flutter/bloc/guest_category_bloc.dart';
 import 'package:mobile_flutter/model/guest_category.dart';
 import '../master_data/core/shared_widgets.dart';
-
-const List<String> _pilihanWarna = [
-  '#013220', '#1463ff', '#ca8a04', '#7c3aed', '#0284c7', '#c2410c', '#21a86b', '#dc2626',
-];
-
-Color _hexToColor(String hex) {
-  final h = hex.replaceAll('#', '');
-  return Color(int.parse('FF$h', radix: 16));
-}
 
 class GuestCategoryTab extends StatefulWidget {
   const GuestCategoryTab({Key? key}) : super(key: key);
@@ -92,7 +83,6 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               child: ListTile(
-                                leading: CircleAvatar(radius: 12, backgroundColor: _hexToColor(item.color)),
                                 title: Text(item.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -145,8 +135,6 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
 
   void _showFormGuestCategory(BuildContext context, GuestCategory? item) {
     final namaCtrl = TextEditingController(text: item?.name ?? '');
-    // Warna tetap dipertahankan pada data lama jika melakukan edit (menggunakan item.color default), atau menggunakan warna pertama
-    String warnaTerpilih = item?.color ?? _pilihanWarna.first;
 
     showDialog(
       context: context,
@@ -162,23 +150,40 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Batal", style: TextStyle(fontSize: 11))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text("Batal", style: TextStyle(fontSize: 11, color: Colors.grey)),
+          ),
           ElevatedButton(
-            style: btnStyle(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
             onPressed: () async {
               try {
                 if (item == null) {
-                  await GuestCategoryBloc.tambahGuestCategory(namaCtrl.text, warnaTerpilih);
+                  await GuestCategoryBloc.tambahGuestCategory(namaCtrl.text, "");
                 } else {
-                  await GuestCategoryBloc.updateGuestCategory(item.id, namaCtrl.text, warnaTerpilih);
+                  await GuestCategoryBloc.updateGuestCategory(item.id, namaCtrl.text, "");
                 }
                 Navigator.pop(dialogContext);
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(item == null ? 'Guest category berhasil ditambahkan' : 'Guest category berhasil diperbarui')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(item == null
+                        ? 'Guest category berhasil ditambahkan'
+                        : 'Guest category berhasil diperbarui'),
+                  ),
+                );
                 _fetchData();
               } catch (e) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text(e.toString().replaceAll('Exception: ', '')),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
