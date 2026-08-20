@@ -332,7 +332,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                                 controller: _whatsappController,
                                 keyboardType: TextInputType.phone,
                                 style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                                decoration: _inputDecoration("081234567890"),
+                                decoration: _inputDecoration("Masukkan nomor WhatsApp anda"),
                                 validator: (val) => val == null || val.isEmpty ? "No WhatsApp wajib diisi" : null,
                               ),
 
@@ -345,7 +345,7 @@ class _TamuFormStep1State extends State<TamuFormStep1> {
                                 controller: _emailController,
                                 keyboardType: TextInputType.emailAddress,
                                 style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                                decoration: _inputDecoration("email@domain.com").copyWith(
+                                decoration: _inputDecoration("Masukkan alamat email anda").copyWith(
                                   errorStyle: const TextStyle(
                                     color: Colors.redAccent,
                                     fontWeight: FontWeight.bold,

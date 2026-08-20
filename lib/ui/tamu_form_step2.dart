@@ -180,7 +180,7 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     super.dispose();
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
@@ -357,72 +357,91 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
 
                               const SizedBox(height: 10),
 
-                              // 5. Tanggal & Jam Kunjungan (Pilih Tanggal + Pilih Jam)
-                              const Text("Tanggal & Jam Kunjungan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                              const SizedBox(height: 4),
-                              TextFormField(
-                                controller: _tanggalController,
-                                readOnly: true,
-                                style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                                decoration: _inputDecoration().copyWith(
-                                  hintText: "Pilih tanggal & jam kunjungan",
-                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                                  suffixIcon: const Icon(
-                                    Icons.access_time_rounded,
-                                    size: 18,
-                                    color: Color(0xFF778195),
-                                  ),
-                                ),
-                                validator: (val) => val == null || val.isEmpty ? "Tanggal & jam kunjungan wajib diisi" : null,
-                                onTap: () async {
-                                  // 1. Pilih Tanggal
-                                  DateTime? pickedDate = await showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime.now(),
-                                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                                    lastDate: DateTime(2030),
-                                    builder: (context, child) {
-                                      return Dialog(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Container(
-                                          constraints: const BoxConstraints(maxWidth: 340, maxHeight: 480),
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                  );
+                             // 5. Tanggal & Jam Kunjungan (Pilih Tanggal + Pilih Jam)
+const Text("Tanggal & Jam Kunjungan *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+const SizedBox(height: 4),
+TextFormField(
+  controller: _tanggalController,
+  readOnly: true,
+  style: const TextStyle(color: Color(0xFF172033), fontSize: 12),
+  decoration: _inputDecoration().copyWith(
+    hintText: "Pilih tanggal & jam",
+    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    suffixIcon: const Icon(
+      Icons.access_time_rounded,
+      size: 16,
+      color: Color(0xFF778195),
+    ),
+  ),
+  validator: (val) => val == null || val.isEmpty ? "Tanggal & jam kunjungan wajib diisi" : null,
+  onTap: () async {
+    // 1. Pilih Tanggal dengan pembatas ukuran agar tidak overflow di HP kecil
+  DateTime? pickedDate = await showDatePicker(
+  context: context,
+  initialDate: DateTime.now(),
+  firstDate: DateTime.now().subtract(const Duration(days: 1)),
+  lastDate: DateTime(2030),
+  builder: (context, child) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        datePickerTheme: DatePickerThemeData(
+          // Menghilangkan border pada hari ini dengan membuat warnanya transparan
+          todayBorder: BorderSide.none,
+        ),
+      ),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 360,
+            maxHeight: 520,
+          ),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(0.85),
+            ),
+            child: child!,
+          ),
+        ),
+      ),
+    );
+  },
+);
 
-                                  if (pickedDate == null || !mounted) return;
+    if (pickedDate == null || !mounted) return;
 
-                                  // 2. Pilih Jam setelah tanggal dipilih
-                                  TimeOfDay? pickedTime = await showTimePicker(
-                                    context: context,
-                                    initialTime: TimeOfDay.now(),
-                                  );
+    // 2. Pilih Jam setelah tanggal dipilih
+    TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(0.9)),
+          child: child!,
+        );
+      },
+    );
 
-                                  if (pickedTime != null && mounted) {
-                                    setState(() {
-                                      _selectedDateTime = DateTime(
-                                        pickedDate.year,
-                                        pickedDate.month,
-                                        pickedDate.day,
-                                        pickedTime.hour,
-                                        pickedTime.minute,
-                                      );
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _selectedDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
 
-                                      final String formattedDate =
-                                          "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                                      final String formattedTime =
-                                          "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+        final String formattedDate =
+            "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+        final String formattedTime =
+            "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
 
-                                      _tanggalController.text = "$formattedDate $formattedTime";
-                                    });
-                                  }
-                                },
-                              ),
-
+        _tanggalController.text = "$formattedDate $formattedTime";
+      });
+    }
+  },
+),
                               const SizedBox(height: 10),
 
                               // 6. Sumber Mengetahui
@@ -522,7 +541,8 @@ class _TamuFormStep2State extends State<TamuFormStep2> {
     return InputDecoration(
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      // Mengubah padding horizontal agar lebih leluasa di layar HP kecil
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       errorStyle: const TextStyle(
         color: Colors.redAccent,
         fontWeight: FontWeight.bold,
