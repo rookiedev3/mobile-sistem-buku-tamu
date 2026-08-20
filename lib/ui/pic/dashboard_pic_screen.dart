@@ -1,8 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 import 'package:mobile_flutter/model/pic_model.dart';
 import 'package:mobile_flutter/bloc/pic_bloc.dart';
 import 'package:mobile_flutter/bloc/logout_bloc.dart';
+
+/// Formatter buat nampilin angka pakai titik ribuan saat diketik,
+/// contoh: user ngetik "100000" -> tampil "100.000".
+/// Value yang tersimpan di controller.text TETAP string berformat titik,
+/// jadi wajib di-strip titiknya lagi sebelum di-parse ke num (lihat
+/// bagian onPressed tombol Simpan di _showCatatHasilDialog).
+class _RibuanInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) return const TextEditingValue(text: '');
+
+    final formatted = digitsOnly.replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]}.',
+    );
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+String _formatRibuan(num value) {
+  if (value <= 0) return '';
+  return value.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
+}
 
 class DashboardPICScreen extends StatefulWidget {
   const DashboardPICScreen({Key? key}) : super(key: key);
@@ -319,8 +353,7 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
 
   void _showCatatHasilDialog(BuildContext context, PicVisitModel item) {
     final ringkasanCtrl = TextEditingController(text: item.meetingResult ?? '');
-    String prospekSelected =
-        _prospekLabelFromLevel(item.potentialLevel) ?? 'Warm Lead';
+    String? prospekSelected = _prospekLabelFromLevel(item.potentialLevel);
     final followUpDate = item.followUpDate;
     final followUpCtrl = TextEditingController(
       text: followUpDate != null
@@ -328,14 +361,16 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
           : '',
     );
     final estimasiCtrl =
-        TextEditingController(text: item.estimatedValue?.toString() ?? '');
+        TextEditingController(text: _formatRibuan(item.estimatedValue ?? 0));
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          final isDateOptional = _isFollowUpOptional(prospekSelected);
-          final showEstimasi = _showEstimasiField(prospekSelected);
+          final isDateOptional =
+              prospekSelected != null && _isFollowUpOptional(prospekSelected!);
+          final showEstimasi =
+              prospekSelected != null && _showEstimasiField(prospekSelected!);
           final isDeal = prospekSelected == 'Deal';
 
           if (isDateOptional && followUpCtrl.text.isNotEmpty) {
@@ -441,11 +476,41 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
                   ),
                   const SizedBox(height: 8),
                   if (showEstimasi) ...[
-                    _dialogField(
+                    Text(
                       isDeal
                           ? "Estimasi Nilai Deal (Rp) *"
                           : "Estimasi Nilai (Rp)",
-                      estimasiCtrl,
+                      style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF778195)),
+                    ),
+                    const SizedBox(height: 3),
+                    TextField(
+                      controller: estimasiCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_RibuanInputFormatter()],
+                      style: const TextStyle(fontSize: 11),
+                      decoration: InputDecoration(
+                        prefixText: 'Rp ',
+                        prefixStyle: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF172033),
+                            fontWeight: FontWeight.bold),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 6, horizontal: 8),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0))),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE2E8F0))),
+                        filled: true,
+                        fillColor: const Color(0xFFF4F7FC),
+                        isDense: true,
+                      ),
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -547,53 +612,74 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
                     style: TextStyle(fontSize: 11, color: Color(0xFF778195))),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: corporateGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0),
-                onPressed: () {
-                  final level = _levelFromProspekLabel(prospekSelected);
-                  final estimasiValue = num.tryParse(estimasiCtrl.text);
+  style: ElevatedButton.styleFrom(
+      backgroundColor: corporateGreen,
+      foregroundColor: Colors.white,
+      elevation: 0),
+  onPressed: () {
+    // === VALIDASI CATATAN / RINGKASAN DISKUSI ===
+    if (ringkasanCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Catatan / Ringkasan Diskusi wajib diisi.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-                  if (level == 'deal' &&
-                      (estimasiValue == null || estimasiValue <= 0)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Estimasi nilai Deal wajib diisi (lebih dari Rp 0).'),
-                          backgroundColor: Colors.red),
-                    );
-                    return;
-                  }
+    if (prospekSelected == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Pilih Potensi Klien terlebih dahulu.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-                  if (!_isFollowUpOptional(prospekSelected) &&
-                      followUpCtrl.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Tanggal follow-up wajib dipilih.'),
-                          backgroundColor: Colors.red),
-                    );
-                    return;
-                  }
+    final level = _levelFromProspekLabel(prospekSelected!);
 
-                  Navigator.pop(context);
+    if (!_isFollowUpOptional(prospekSelected!) &&
+        followUpCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Tanggal follow-up wajib dipilih.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-                  _completeMeeting(
-                    item,
-                    meetingResult: ringkasanCtrl.text.isNotEmpty
-                        ? ringkasanCtrl.text
-                        : '-',
-                    potentialLevel: level,
-                    followUpAt:
-                        !_isFollowUpOptional(prospekSelected) &&
-                                followUpCtrl.text.isNotEmpty
-                            ? followUpCtrl.text
-                            : null,
-                    estimatedValue: showEstimasi ? estimasiValue : null,
-                  );
-                },
-                child: const Text("Simpan", style: TextStyle(fontSize: 11)),
-              ),
+    num? estimasiValue;
+    if (showEstimasi) {
+      final rawDigits = estimasiCtrl.text.replaceAll('.', '');
+      estimasiValue =
+          rawDigits.isNotEmpty ? num.tryParse(rawDigits) : null;
+    }
+
+    // === VALIDASI ESTIMASI NILAI KHUSUS "DEAL" ===
+    if (isDeal && (estimasiValue == null || estimasiValue <= 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Estimasi Nilai Deal wajib diisi.'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    _completeMeeting(
+      item,
+      meetingResult: ringkasanCtrl.text.trim(),
+      potentialLevel: level,
+      followUpAt: !_isFollowUpOptional(prospekSelected!) &&
+              followUpCtrl.text.isNotEmpty
+          ? followUpCtrl.text
+          : null,
+      estimatedValue: showEstimasi ? estimasiValue : null,
+    );
+  },
+  child: const Text("Simpan", style: TextStyle(fontSize: 11)),
+),
             ],
           );
         },
@@ -693,6 +779,17 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
               fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
+          // ================= TOMBOL RELOAD =================
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: "Muat ulang",
+            onPressed: () {
+              _loadTab(
+                _tabController.index,
+                page: _currentPagePerTab[_tabController.index] ?? 1,
+              );
+            },
+          ),
           // ================= DROPDOWN NOTIFIKASI =================
           PopupMenuButton<String>(
             icon: Stack(
@@ -1011,12 +1108,12 @@ class _DashboardPICScreenState extends State<DashboardPICScreen>
                               value: _filterKategori,
                               isDense: true,
                               style: const TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   color: Color(0xFF172033),
                                   fontWeight: FontWeight.bold),
                               items: ['Semua Kategori', 'VIP', 'Reguler']
-                                  .map((String val) {
-                                return DropdownMenuItem<String>(
+                                  .map((val) {
+                                return DropdownMenuItem(
                                     value: val, child: Text(val));
                               }).toList(),
                               onChanged: _onFilterKategoriChanged,

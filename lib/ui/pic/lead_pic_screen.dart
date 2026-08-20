@@ -346,6 +346,16 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
           final isLocked = _isFollowUpLocked(tahapSelected);
 
           Future<void> handleSimpan() async {
+            if (observasiCtrl.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Hasil observasi wajib diisi.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              return;
+            }
+
             final cleanValueText = valueCtrl.text.replaceAll('.', '').trim();
             final estValue = cleanValueText.isEmpty ? null : num.tryParse(cleanValueText);
 
@@ -374,7 +384,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
               await PicLeadBloc.updateFollowUp(
                 leadId: item.id,
                 status: tahapSelected,
-                result: observasiCtrl.text.isNotEmpty ? observasiCtrl.text : null,
+                result: observasiCtrl.text.trim(),
                 estimatedValue: estValue,
                 dueAt: !_isFollowUpLocked(tahapSelected) && followUpCtrl.text.isNotEmpty ? followUpCtrl.text : null,
               ).timeout(
@@ -531,15 +541,10 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                     onTap: (isLocked || isSaving)
                         ? null
                         : () async {
-                            // 🔒 firstDate = hari ini → tanggal kebelakang (masa lalu)
-                            // otomatis di-block/disable di kalender.
+                            // firstDate = hari ini, tanggal kebelakang otomatis di-block.
                             final now = DateTime.now();
                             final today = DateTime(now.year, now.month, now.day);
 
-                            // Kalau followUp yang lagi tersimpan sudah lewat
-                            // (lead overdue), jangan pakai tanggal itu sebagai
-                            // initialDate — nanti crash karena initialDate wajib
-                            // >= firstDate. Fallback ke hari ini.
                             DateTime initial = today;
                             final existing = _followUpInputValue(item.followUpAt);
                             if (existing.isNotEmpty) {
@@ -689,8 +694,6 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                           labelColor: Colors.white,
                           unselectedLabelColor: const Color(0xFF778195),
                           labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          // NOTE: gak boleh `const` lagi karena isinya sekarang
-                          // dinamis (ikut _counts yang berubah tiap fetch).
                           tabs: [
                             Tab(text: "Semua(${_counts['all'] ?? 0})"),
                             Tab(text: "Aktif(${_counts['active'] ?? 0})"),
@@ -778,7 +781,6 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
       );
     }
 
-    // === PAGINATION: page-based (prev/next), tanpa garis pemisah ===
     return Column(
       children: [
         Expanded(
@@ -897,8 +899,6 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
                 ),
               ),
               const SizedBox(width: 6),
-              // Deal/Lost = pipeline sudah final -> tombol update dikunci,
-              // gak perlu nunggu backend nolak dulu buat kasih tau user.
               ElevatedButton.icon(
                 onPressed: isLocked ? null : () => _showUpdateTahapanDialog(context, item),
                 icon: Icon(Icons.update, size: 12, color: isLocked ? Colors.grey[400] : Colors.white),
