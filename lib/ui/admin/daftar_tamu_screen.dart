@@ -59,10 +59,10 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       // 1. Ambil data direktori tamu dengan pagination
       final Map<String, dynamic> responseData =
           await DashboardAdminBloc.getGuests(
-        vipStatus: vipParam,
-        keyword: _searchController.text.trim(),
-        page: page,
-      );
+            vipStatus: vipParam,
+            keyword: _searchController.text.trim(),
+            page: page,
+          );
 
       List<dynamic> guestList = [];
       int current = 1;
@@ -170,6 +170,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   }
 
   /// Mengubah Status VIP Tamu ke Backend API Laravel
+  /// Mengubah Status VIP Tamu ke Backend API Laravel
   Future<void> _toggleVipStatus(int guestId, bool currentIsVip) async {
     final bool newVipStatus = !currentIsVip;
     final String statusTargetText = newVipStatus ? "VIP" : "Reguler";
@@ -202,6 +203,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
     if (confirm != true) return;
 
+    setState(() => _isLoading = true);
+
     try {
       await DashboardAdminBloc.updateGuestVip(
         guestId: guestId,
@@ -212,7 +215,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Status tamu berhasil diubah menjadi $statusTargetText"),
+          content: Text(
+            "Status tamu berhasil diubah menjadi $statusTargetText",
+          ),
           backgroundColor: corporateGreen,
         ),
       );
@@ -220,6 +225,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       _fetchGuestsData(page: _currentPage);
     } catch (e) {
       if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Gagal mengubah status VIP: $e"),
@@ -242,8 +250,9 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       String finalUrl = photoUrl;
 
       if (!finalUrl.startsWith('http')) {
-        final cleanPath =
-            finalUrl.startsWith('/') ? finalUrl.substring(1) : finalUrl;
+        final cleanPath = finalUrl.startsWith('/')
+            ? finalUrl.substring(1)
+            : finalUrl;
         finalUrl = '${ApiUrl.baseUrl}/storage/$cleanPath';
       }
 
@@ -290,11 +299,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     return CircleAvatar(
       radius: radius,
       backgroundColor: const Color(0xFFF4F7FC),
-      child: Icon(
-        Icons.person,
-        size: iconSize,
-        color: corporateGreen,
-      ),
+      child: Icon(Icons.person, size: iconSize, color: corporateGreen),
     );
   }
 
@@ -315,7 +320,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   // Pop-up Detail Tamu
   void _showDetailTamuDialog(BuildContext context, Map<String, dynamic> tamu) {
     final int guestId = tamu["id"] ?? 0;
-    final bool isVip = (tamu["is_vip"] == 1 ||
+    final bool isVip =
+        (tamu["is_vip"] == 1 ||
         tamu["is_vip"] == true ||
         tamu["status"] == "VIP");
     final String statusLabel = isVip ? "VIP" : "Reguler";
@@ -407,8 +413,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(
-                            color:
-                                isVip ? Colors.grey : Colors.amber.shade800,
+                            color: isVip ? Colors.grey : Colors.amber.shade800,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -428,8 +433,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color:
-                                isVip ? Colors.grey[700] : Colors.amber[800],
+                            color: isVip ? Colors.grey[700] : Colors.amber[800],
                           ),
                         ),
                       ),
@@ -468,20 +472,27 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   // Pop-up Ubah Profil Tamu
   void _showEditTamuDialog(BuildContext context, Map<String, dynamic> tamu) {
     final int guestId = tamu["id"] ?? 0;
-    final TextEditingController namaController =
-        TextEditingController(text: tamu["name"] ?? tamu["nama"] ?? "");
-    final TextEditingController waController =
-        TextEditingController(text: tamu["phone"] ?? tamu["wa"] ?? "");
-    final TextEditingController emailController =
-        TextEditingController(text: tamu["email"] ?? "");
+    final TextEditingController namaController = TextEditingController(
+      text: tamu["name"] ?? tamu["nama"] ?? "",
+    );
+    final TextEditingController waController = TextEditingController(
+      text: tamu["phone"] ?? tamu["wa"] ?? "",
+    );
+    final TextEditingController emailController = TextEditingController(
+      text: tamu["email"] ?? "",
+    );
     final TextEditingController instansiController = TextEditingController(
-        text: tamu["company_name"] ?? tamu["instansi"] ?? "");
-    final TextEditingController jabatanController =
-        TextEditingController(text: tamu["position"] ?? tamu["jabatan"] ?? "");
-    final TextEditingController alamatController =
-        TextEditingController(text: tamu["address"] ?? tamu["alamat"] ?? "");
+      text: tamu["company_name"] ?? tamu["instansi"] ?? "",
+    );
+    final TextEditingController jabatanController = TextEditingController(
+      text: tamu["position"] ?? tamu["jabatan"] ?? "",
+    );
+    final TextEditingController alamatController = TextEditingController(
+      text: tamu["address"] ?? tamu["alamat"] ?? "",
+    );
 
-    bool isVip = (tamu["is_vip"] == 1 ||
+    bool isVip =
+        (tamu["is_vip"] == 1 ||
         tamu["is_vip"] == true ||
         tamu["status"] == "VIP");
     String statusTamu = isVip ? 'VIP' : 'Reguler';
@@ -1327,8 +1338,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                   final String title = notif['title'] ?? 'Notifikasi';
                   final String body = notif['body'] ?? '-';
                   final String time = notif['created_at'] ?? '-';
-                  final bool isRead = notif['read_at'] != null ||
-                      (notif['is_read'] ?? false);
+                  final bool isRead =
+                      notif['read_at'] != null || (notif['is_read'] ?? false);
 
                   items.add(
                     PopupMenuItem<String>(
@@ -1426,10 +1437,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                   ),
                   title: const Text(
                     "Konfirmasi Keluar",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   content: const Text(
                     "Apakah Anda yakin ingin keluar?",
@@ -1656,7 +1664,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                         final tamu = _daftarTamu[index] as Map<String, dynamic>;
 
                         final int guestId = tamu["id"] ?? (index + 1);
-                        final String nama = tamu["name"] ?? tamu["nama"] ?? "Tamu";
+                        final String nama =
+                            tamu["name"] ?? tamu["nama"] ?? "Tamu";
                         final String phone = tamu["phone"] ?? tamu["wa"] ?? "-";
                         final String instansi =
                             tamu["company_name"] ?? tamu["instansi"] ?? "-";
@@ -1667,7 +1676,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                         );
                         final int totalKunjungan =
                             tamu["visits_count"] ?? tamu["totalKunjungan"] ?? 0;
-                        final bool isVip = (tamu["is_vip"] == 1 ||
+                        final bool isVip =
+                            (tamu["is_vip"] == 1 ||
                             tamu["is_vip"] == true ||
                             tamu["status"] == "VIP");
                         final String statusText = isVip ? "VIP" : "Reguler";

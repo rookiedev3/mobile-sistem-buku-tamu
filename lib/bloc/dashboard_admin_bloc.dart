@@ -345,8 +345,11 @@ class DashboardAdminBloc {
   }) async {
     String apiUrl = ApiUrl.adminToggleVip(guestId);
 
+    // Pastikan SELURUH value di dalam Map berupa String agar tidak error
     Map<String, String> body = {
       'is_vip': isVip ? "1" : "0",
+      '_method':
+          'PATCH', // Spoofing HTTP PATCH jika backend menggunakan Route::patch
     };
 
     try {
@@ -440,9 +443,7 @@ class DashboardAdminBloc {
       var jsonObj = json.decode(response.body);
 
       if (jsonObj['status'] == false || jsonObj['success'] == false) {
-        throw Exception(
-          jsonObj['message'] ?? "Gagal menyimpan janji temu.",
-        );
+        throw Exception(jsonObj['message'] ?? "Gagal menyimpan janji temu.");
       }
 
       return jsonObj['data'] ?? {};
