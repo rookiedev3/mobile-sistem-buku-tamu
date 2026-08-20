@@ -104,7 +104,9 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
   /// Filter Staff / PIC Berdasarkan Cabang
   List<OptionItem> get _filteredStaff {
     if (_selectedCabangId == null) return [];
-    return _listStaff.where((item) => item.branchId == _selectedCabangId).toList();
+    return _listStaff
+        .where((item) => item.branchId == _selectedCabangId)
+        .toList();
   }
 
   /// Picker Foto dari Kamera atau Galeri
@@ -125,14 +127,17 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
       final String pathLower = image.path.toLowerCase();
       final String? mimeType = image.mimeType?.toLowerCase();
 
-      final bool isValidFormat = 
+      final bool isValidFormat =
           fileNameLower.endsWith('.jpg') ||
           fileNameLower.endsWith('.jpeg') ||
           fileNameLower.endsWith('.png') ||
           pathLower.endsWith('.jpg') ||
           pathLower.endsWith('.jpeg') ||
           pathLower.endsWith('.png') ||
-          (mimeType != null && (mimeType == 'image/jpeg' || mimeType == 'image/jpg' || mimeType == 'image/png'));
+          (mimeType != null &&
+              (mimeType == 'image/jpeg' ||
+                  mimeType == 'image/jpg' ||
+                  mimeType == 'image/png'));
 
       if (!isValidFormat) {
         if (!mounted) return;
@@ -293,7 +298,9 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 18),
-                    onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.pop(context),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -381,6 +388,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
   }
 
   /// =============== STEP 1: IDENTITAS TAMU & FOTO (OPSIONAL) ===============
+  /// =============== STEP 1: IDENTITAS TAMU & FOTO (OPSIONAL) ===============
   Widget _buildStep1DataTamu() {
     return Form(
       key: _step1FormKey,
@@ -396,6 +404,8 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ),
           ),
           const SizedBox(height: 12),
+
+          // 1. Nama Lengkap (Wajib)
           TextFormField(
             controller: _namaController,
             style: const TextStyle(fontSize: 12),
@@ -415,17 +425,29 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ),
           ),
           const SizedBox(height: 10),
+
+          // 2. Asal Instansi / Perusahaan (Wajib)
           TextFormField(
             controller: _instansiController,
             style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Asal instansi / perusahaan wajib diisi!';
+              }
+              return null;
+            },
             decoration: const InputDecoration(
-              labelText: "Asal Instansi / Perusahaan",
+              labelText: "Asal Instansi / Perusahaan *",
               labelStyle: TextStyle(fontSize: 11),
               border: OutlineInputBorder(),
               isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
             ),
           ),
           const SizedBox(height: 10),
+
+          // 3. Alamat (Opsional)
           TextFormField(
             controller: _alamatController,
             style: const TextStyle(fontSize: 12),
@@ -437,34 +459,20 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ),
           ),
           const SizedBox(height: 10),
+
+          // 4. Jabatan (Wajib)
           TextFormField(
             controller: _jabatanController,
             style: const TextStyle(fontSize: 12),
-            decoration: const InputDecoration(
-              labelText: "Jabatan",
-              labelStyle: TextStyle(fontSize: 11),
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            style: const TextStyle(fontSize: 12),
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: (val) {
-              if (val != null && val.trim().isNotEmpty) {
-                final cleanVal = val.trim();
-                final phoneRegex = RegExp(r'^(?:\+62|62|08)[0-9]{8,13}$');
-                if (!phoneRegex.hasMatch(cleanVal)) {
-                  return 'Nomor HP harus diawali 08, 62, atau +62 (10-15 digit)';
-                }
+              if (val == null || val.trim().isEmpty) {
+                return 'Jabatan wajib diisi!';
               }
               return null;
             },
             decoration: const InputDecoration(
-              labelText: "No. WhatsApp / Telepon",
+              labelText: "Jabatan *",
               labelStyle: TextStyle(fontSize: 11),
               border: OutlineInputBorder(),
               isDense: true,
@@ -472,22 +480,52 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ),
           ),
           const SizedBox(height: 10),
+
+          // 5. No. WhatsApp / Telepon (Wajib + Validasi Regex)
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'No. WhatsApp / Telepon wajib diisi!';
+              }
+              final cleanVal = val.trim();
+              final phoneRegex = RegExp(r'^(?:\+62|62|08)[0-9]{8,13}$');
+              if (!phoneRegex.hasMatch(cleanVal)) {
+                return 'Nomor HP harus diawali 08, 62, atau +62 (10-15 digit)';
+              }
+              return null;
+            },
+            decoration: const InputDecoration(
+              labelText: "No. WhatsApp / Telepon *",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 6. Email (Wajib + Validasi Regex)
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(fontSize: 12),
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: (val) {
-              if (val != null && val.trim().isNotEmpty) {
-                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                if (!emailRegex.hasMatch(val.trim())) {
-                  return 'Format email tidak valid!';
-                }
+              if (val == null || val.trim().isEmpty) {
+                return 'Email wajib diisi!';
+              }
+              final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+              if (!emailRegex.hasMatch(val.trim())) {
+                return 'Format email tidak valid!';
               }
               return null;
             },
             decoration: const InputDecoration(
-              labelText: "Email",
+              labelText: "Email *",
               labelStyle: TextStyle(fontSize: 11),
               border: OutlineInputBorder(),
               isDense: true,
@@ -495,9 +533,15 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             ),
           ),
           const SizedBox(height: 14),
+
+          // 7. Foto Tamu (Opsional)
           const Text(
             "Foto Tamu (Opsional)",
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF172033),
+            ),
           ),
           const SizedBox(height: 8),
           Center(
@@ -517,9 +561,16 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                   : const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.camera_alt_outlined, size: 30, color: Colors.grey),
+                        Icon(
+                          Icons.camera_alt_outlined,
+                          size: 30,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 4),
-                        Text("Foto Opsional", style: TextStyle(fontSize: 9, color: Colors.grey)),
+                        Text(
+                          "Foto Opsional",
+                          style: TextStyle(fontSize: 9, color: Colors.grey),
+                        ),
                       ],
                     ),
             ),
@@ -560,7 +611,9 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
     if (_isLoadingMasterData) {
       return const Padding(
         padding: EdgeInsets.all(24.0),
-        child: Center(child: CircularProgressIndicator(color: Color(0xFF006B3F))),
+        child: Center(
+          child: CircularProgressIndicator(color: Color(0xFF006B3F)),
+        ),
       );
     }
 
@@ -583,7 +636,8 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             isExpanded: true,
             style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
             autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (val) => val == null ? 'Cabang kantor wajib dipilih!' : null,
+            validator: (val) =>
+                val == null ? 'Cabang kantor wajib dipilih!' : null,
             decoration: const InputDecoration(
               labelText: "Cabang Kantor *",
               labelStyle: TextStyle(fontSize: 11),
@@ -611,16 +665,20 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             isExpanded: true,
             style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
             autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (val) => val == null ? 'Staff / PIC wajib dipilih!' : null,
+            validator: (val) =>
+                val == null ? 'Staff / PIC wajib dipilih!' : null,
             decoration: InputDecoration(
               labelText: "Tujuan Bertemu (Staff / PIC) *",
               labelStyle: const TextStyle(fontSize: 11),
               hintText: _selectedCabangId == null
                   ? "Pilih cabang terlebih dahulu"
                   : (_filteredStaff.isEmpty
-                      ? "Tidak ada PIC di cabang ini"
-                      : "Pilih Staff / PIC"),
-              hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                        ? "Tidak ada PIC di cabang ini"
+                        : "Pilih Staff / PIC"),
+              hintStyle: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9CA3AF),
+              ),
               border: const OutlineInputBorder(),
               isDense: true,
               errorStyle: const TextStyle(fontSize: 10, color: Colors.red),
@@ -641,7 +699,8 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             isExpanded: true,
             style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
             autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (val) => val == null ? 'Jenis kunjungan wajib dipilih!' : null,
+            validator: (val) =>
+                val == null ? 'Jenis kunjungan wajib dipilih!' : null,
             decoration: const InputDecoration(
               labelText: "Jenis Kunjungan *",
               labelStyle: TextStyle(fontSize: 11),
@@ -796,20 +855,20 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
 
     String productName = _selectedProdukId != null
         ? _listProduk
-            .firstWhere(
-              (e) => e.id == _selectedProdukId,
-              orElse: () => OptionItem(id: 0, name: '-'),
-            )
-            .name
+              .firstWhere(
+                (e) => e.id == _selectedProdukId,
+                orElse: () => OptionItem(id: 0, name: '-'),
+              )
+              .name
         : '-';
 
     String sourceName = _selectedSumberId != null
         ? _listSumber
-            .firstWhere(
-              (e) => e.id == _selectedSumberId,
-              orElse: () => OptionItem(id: 0, name: '-'),
-            )
-            .name
+              .firstWhere(
+                (e) => e.id == _selectedSumberId,
+                orElse: () => OptionItem(id: 0, name: '-'),
+              )
+              .name
         : '-';
 
     return Column(
@@ -896,7 +955,11 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             const Expanded(
               child: Text(
                 "Saya menyatakan bahwa data janji tamu yang diisi di atas adalah benar.",
-                style: TextStyle(fontSize: 10, color: Color(0xFF475569), height: 1.3),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF475569),
+                  height: 1.3,
+                ),
               ),
             ),
           ],
@@ -932,7 +995,10 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
               style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
             ),
           ),
-          const Text(": ", style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+          const Text(
+            ": ",
+            style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+          ),
           Expanded(
             child: Text(
               (value == null || value.trim().isEmpty) ? '-' : value,

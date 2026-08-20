@@ -579,17 +579,17 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                     ),
                     const SizedBox(height: 6),
                     _buildTextField(
-                      "Email",
+                      "Email *",
                       emailController,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 6),
                     _buildTextField(
-                      "Instansi / Perusahaan",
+                      "Instansi / Perusahaan *",
                       instansiController,
                     ),
                     const SizedBox(height: 6),
-                    _buildTextField("Jabatan", jabatanController),
+                    _buildTextField("Jabatan *", jabatanController),
                     const SizedBox(height: 6),
                     const Text(
                       "Status Tamu",
@@ -707,11 +707,17 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                   onPressed: isSubmitting
                       ? null
                       : () async {
+                          // Validasi Wajib untuk Nama, No WA, Email, Instansi, dan Jabatan
                           if (namaController.text.trim().isEmpty ||
-                              waController.text.trim().isEmpty) {
+                              waController.text.trim().isEmpty ||
+                              emailController.text.trim().isEmpty ||
+                              instansiController.text.trim().isEmpty ||
+                              jabatanController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Nama dan No. WA wajib diisi!'),
+                                content: Text(
+                                  'Nama, No. WA, Email, Instansi, dan Jabatan wajib diisi!',
+                                ),
                                 backgroundColor: Colors.red,
                               ),
                             );
@@ -1719,8 +1725,7 @@ class FormTambahTamuDialog extends StatefulWidget {
 
 class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
   final Color corporateGreen = const Color(0xFF006B3F);
-  final GlobalKey<FormState> _formKey =
-      GlobalKey<FormState>(); // Key Form Validation
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>(); // Key Form Validation
   bool _isSubmitting = false;
 
   // Controllers Identitas Tamu
@@ -1776,7 +1781,6 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
     }
   }
 
-  /// Picker Foto Kamera / Galeri
   /// Picker Foto dengan Validasi Format (JPG, JPEG, PNG) & Ukuran Maksimal 2 MB
   Future<void> _pickPhoto(ImageSource source) async {
     try {
@@ -1790,7 +1794,6 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
 
       if (image == null) return;
 
-      // 1. Validasi Format Gambar Menggunakan Extension & MimeType (Web, Android & iOS)
       final String fileNameLower = image.name.toLowerCase();
       final String pathLower = image.path.toLowerCase();
       final String? mimeType = image.mimeType?.toLowerCase();
@@ -1815,7 +1818,6 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
         return;
       }
 
-      // 2. Validasi Ukuran File (Maksimal 2 MB)
       final int fileSizeInBytes = await image.length();
       const int maxSizeBytes = 2 * 1024 * 1024; // 2 MB
 
@@ -1833,7 +1835,6 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
         return;
       }
 
-      // 3. Simpan State Jika Lolos Validasi
       final bytes = await image.readAsBytes();
       setState(() {
         _pickedPhoto = image;
@@ -1852,7 +1853,6 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
 
   /// Submit Data Tamu Baru
   Future<void> _submitForm() async {
-    // Validasi semua TextFormField di dalam Form
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -1903,7 +1903,7 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
         width: 420,
         child: SingleChildScrollView(
           child: Form(
-            key: _formKey, // Membungkus inputan dengan Form Key
+            key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1940,7 +1940,7 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // Validasi Nama Wajib
+                // 1. Validasi Nama (Wajib)
                 _buildTextField(
                   "Nama Lengkap *",
                   _namaController,
@@ -1953,7 +1953,7 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
                 ),
                 const SizedBox(height: 10),
 
-                // Validasi Nomor HP (08 / 62 / +62)
+                // 2. Validasi Nomor HP (Wajib & Format)
                 _buildTextField(
                   "No. WhatsApp / Telepon *",
                   _waController,
@@ -1972,19 +1972,20 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
                 ),
                 const SizedBox(height: 10),
 
-                // Validasi Format Email Opsional
+                // 3. Validasi Email (Wajib & Format)
                 _buildTextField(
-                  "Email",
+                  "Email *",
                   _emailController,
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value != null && value.trim().isNotEmpty) {
-                      final emailRegex = RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      );
-                      if (!emailRegex.hasMatch(value.trim())) {
-                        return 'Format email tidak valid!';
-                      }
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email wajib diisi!';
+                    }
+                    final emailRegex = RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    );
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return 'Format email tidak valid!';
                     }
                     return null;
                   },
@@ -2028,13 +2029,32 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
                       ),
                 const SizedBox(height: 10),
 
+                // 4. Validasi Asal Instansi (Wajib)
                 _buildTextField(
-                  "Asal Instansi / Perusahaan",
+                  "Asal Instansi / Perusahaan *",
                   _instansiController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Asal instansi wajib diisi!';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 10),
-                _buildTextField("Jabatan", _jabatanController),
+
+                // 5. Validasi Jabatan (Wajib)
+                _buildTextField(
+                  "Jabatan *",
+                  _jabatanController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Jabatan wajib diisi!';
+                    }
+                    return null;
+                  },
+                ),
                 const SizedBox(height: 10),
+
                 DropdownButtonFormField<String>(
                   value: _statusTamu,
                   isExpanded: true,
@@ -2218,8 +2238,7 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
       keyboardType: keyboardType,
       style: const TextStyle(fontSize: 12),
       validator: validator,
-      autovalidateMode: AutovalidateMode
-          .onUserInteraction, // Error merah langsung muncul saat diketik
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(fontSize: 11),
@@ -2228,7 +2247,7 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
         errorStyle: const TextStyle(
           fontSize: 10,
           color: Colors.red,
-        ), // Style teks error merah
+        ),
       ),
     );
   }
