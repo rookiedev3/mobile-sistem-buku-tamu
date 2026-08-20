@@ -156,7 +156,7 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: const Color(0xFF006B3F), // Diubah ke warna hijau corporate
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               elevation: 0,
