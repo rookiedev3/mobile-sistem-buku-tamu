@@ -21,7 +21,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
   String _selectedStatus = 'Semua'; // Semua / VIP / Reguler -> mapped ke vip_status di API
   final List<String> _statusOptions = ['Semua', 'VIP', 'Reguler'];
 
-  // ⬅️ BARU: filter tanggal, disamakan dengan DaftarKunjunganManagerScreen
+  // ⬅️ Filter tanggal, disamakan dengan DaftarKunjunganManagerScreen
   String _dariTanggal = '';
   String _sampaiTanggal = '';
 
@@ -61,8 +61,8 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
       final result = await KunjunganBloc.list(
         vipStatus: vipParam,
         keyword: _searchQuery.isNotEmpty ? _searchQuery : null,
-        startDate: _dariTanggal.isEmpty ? null : _dariTanggal, // ⬅️ BARU
-        endDate: _sampaiTanggal.isEmpty ? null : _sampaiTanggal, // ⬅️ BARU
+        startDate: _dariTanggal.isEmpty ? null : _dariTanggal,
+        endDate: _sampaiTanggal.isEmpty ? null : _sampaiTanggal,
         page: _currentPage,
       );
       setState(() {
@@ -77,13 +77,29 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     }
   }
 
-  // ⬅️ BARU: date picker, disamakan dengan DaftarKunjunganManagerScreen._pilihTanggal
+  // ⬅️ DIUBAH: date picker sekarang saling membatasi.
+  // - Pilih "Dari Tgl" → maksimal cuma sampai "Sampai Tgl" (kalau sudah diisi).
+  // - Pilih "Sampai Tgl" → minimal cuma dari "Dari Tgl" (kalau sudah diisi).
   Future<void> _pilihTanggal(BuildContext context, bool isDari) async {
+    DateTime firstDate = DateTime(2025);
+    DateTime lastDate = DateTime(2030);
+
+    if (isDari && _sampaiTanggal.isNotEmpty) {
+      lastDate = DateTime.parse(_sampaiTanggal);
+    }
+    if (!isDari && _dariTanggal.isNotEmpty) {
+      firstDate = DateTime.parse(_dariTanggal);
+    }
+
+    DateTime initial = DateTime.now();
+    if (initial.isBefore(firstDate)) initial = firstDate;
+    if (initial.isAfter(lastDate)) initial = lastDate;
+
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2030),
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -114,7 +130,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     }
   }
 
-  // ⬅️ BARU: reset filter, termasuk tanggal
+  // ⬅️ Reset filter, termasuk tanggal
   void _resetFilter() {
     setState(() {
       _searchQuery = '';
@@ -139,7 +155,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     );
   }
 
-  // ⬅️ BARU: badge "Tahap" yang sadar akan status kunjungan asli (dibatalkan/dsb),
+  // ⬅️ Badge "Tahap" yang sadar akan status kunjungan asli (dibatalkan/dsb),
   // bukan cuma leadStatus. Sebelumnya kunjungan yang dibatalkan (leadStatus == null,
   // karena gak pernah convert jadi lead) selalu jatuh ke fallback _leadBadges['new']
   // dan nongol "Baru" alih-alih "Dibatalkan".
@@ -172,11 +188,14 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
 
+  // ⬅️ DIUBAH: sekarang ikut nampilin jam (dari check_in_at), bukan cuma tanggal.
   String _formatWaktu(String? iso) {
     if (iso == null) return '-';
     try {
       final dt = DateTime.parse(iso).toLocal();
-      return '${dt.day} ${_bulanIndo[dt.month - 1]} ${dt.year}';
+      final tanggal = '${dt.day} ${_bulanIndo[dt.month - 1]} ${dt.year}';
+      final jam = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
+      return '$tanggal, $jam';
     } catch (_) {
       return '-';
     }
@@ -327,7 +346,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     );
   }
 
-  // ⬅️ DIUBAH: sekarang cek status kunjungan asli dulu (dibatalkan → "Dibatalkan"),
+  // ⬅️ Cek status kunjungan asli dulu (dibatalkan → "Dibatalkan"),
   // baru fallback ke leadStatus follow-up terakhir kalau bukan dibatalkan.
   String _pipelineTerakhirText(Kunjungan item) {
     final s = item.status.toLowerCase().trim();
@@ -435,8 +454,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // ⬅️ DIUBAH: filter tanggal jadi field "Dari Tgl" / "Sampai Tgl" pakai showDatePicker,
-                    // sama polanya dengan DaftarKunjunganManagerScreen (sebelumnya cuma tombol snackbar placeholder).
                     Row(
                       children: [
                         Expanded(
@@ -523,7 +540,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                       ],
                     ),
 
-                    // ⬅️ BARU: tombol reset filter, muncul kalau ada filter tanggal/status/keyword aktif
                     if (_dariTanggal.isNotEmpty || _sampaiTanggal.isNotEmpty || _selectedStatus != 'Semua' || _searchQuery.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Align(
@@ -587,7 +603,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                   itemCount: filteredList.length,
                   itemBuilder: (context, index) {
                     final item = filteredList[index];
-                    final tahap = _tahapBadge(item); // ⬅️ DIUBAH: dari _getBadge(item.leadStatus)
+                    final tahap = _tahapBadge(item);
                     final catatan = item.followUps.isNotEmpty
                         ? (item.followUps.last.result ?? 'Belum ada catatan.')
                         : (item.meetingResult ?? item.notes ?? 'Belum ada catatan.');
@@ -622,8 +638,6 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
                                 ],
                               ),
-                              // ⬅️ DIUBAH: pakai _tahapBadge(item) supaya kunjungan yang dibatalkan
-                              // nunjukin "Dibatalkan", bukan "Baru".
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -639,49 +653,49 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                           ),
                           const SizedBox(height: 10),
 
-                          // Tamu, Jabatan & Instansi
-                        // Baris 2: Perusahaan + bintang VIP
-Row(
-  children: [
-    Expanded(
-      child: Text(
-        item.companyName ?? '-',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF172033),
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-    if (item.isVip) ...[
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB), // Background #fffbeb
-          borderRadius: BorderRadius.circular(20), // Border radius 20px
-          border: Border.all(
-            color: const Color(0xFFFDE68A), // Border #fde68a
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'VIP',
-          style: TextStyle(
-            fontSize: 10, // Font size 10px
-            fontWeight: FontWeight.w700, // Font weight 700
-            color: Color(0xFFB45309), // Color #b45309
-          ),
-        ),
-      ),
-    ],
-  ],
-),
-const SizedBox(height: 4),
-                          const SizedBox(height: 6),
+                          // Baris: Nama Tamu + bintang VIP
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.guestName ?? '-',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF172033),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (item.isVip) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+                                  ),
+                                  child: const Text(
+                                    'VIP',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
 
-                          // Waktu
+                          // Baris: Jabatan - Instansi/Perusahaan
+                          Text(
+                            [item.guestPosition, item.companyName]
+                                .where((e) => e != null && e.isNotEmpty)
+                                .join(' - '),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Waktu (sekarang termasuk jam, dari check_in_at)
                           Row(
                             children: [
                               const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF778195)),

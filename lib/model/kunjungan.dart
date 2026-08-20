@@ -37,6 +37,7 @@ class Kunjungan {
   final String? guestName;
   final String? guestPosition;
   final String? companyName;
+  final String? position;
   final bool isVip;
   final String? categoryName;
   final String? categoryColor;
@@ -60,6 +61,7 @@ class Kunjungan {
     this.guestName,
     this.guestPosition,
     this.companyName,
+    this.position,
     required this.isVip,
     this.categoryName,
     this.categoryColor,
@@ -81,38 +83,38 @@ class Kunjungan {
   String? get catatanTerakhir =>
       followUps.isNotEmpty ? (followUps.first.result) : null;
 
-  factory Kunjungan.fromJson(Map<String, dynamic> json) {
-    return Kunjungan(
-      id: json['id'],
-      visitCode: json['visit_code'] ?? '-',
-      guestName: json['guest_name'],
-      guestPosition: json['guest_position'],
-      companyName: json['company_name'],
-      isVip: json['is_vip'] == true,
-      categoryName: json['category_name'],
-      categoryColor: json['category_color'],
-      assignedUser: json['assigned_user'],
-      purpose: json['purpose'],
-      branchName: json['branch_name'],
-      scheduledAt: json['scheduled_at'],
-      checkInAt: json['check_in_at'],
-      checkOutAt: json['check_out_at'],
-      status: json['status'] ?? '-',
-      notes: json['notes'],
-      meetingResult: json['meeting_result'],
-      leadStatus: json['lead_status'],
-      estimatedValue: json['estimated_value'] != null
-          ? double.tryParse(json['estimated_value'].toString())
-          : null,
-      followUpAt: json['follow_up_at'],
-      followUps: (json['follow_ups'] as List?)
-              ?.map((f) => FollowUp.fromJson(f))
-              .toList() ??
-          [],
-    );
-  }
+   factory Kunjungan.fromJson(Map<String, dynamic> json) {
+  return Kunjungan(
+    id: json['id'],
+    visitCode: json['visit_code'] ?? '-',
+    guestName: json['guest_name'],
+    guestPosition: json['guest_position'],
+    companyName: json['company_name'],
+    position: json['position'],
+    isVip: json['is_vip'] == true,
+    categoryName: json['category_name'],
+    categoryColor: json['category_color'],
+    assignedUser: json['assigned_user'],
+    purpose: json['purpose'],
+    branchName: json['branch_name'],
+    scheduledAt: json['scheduled_at'],
+    checkInAt: json['check_in_at'],
+    checkOutAt: json['check_out_at'],
+    status: json['status'] ?? '-',
+    notes: json['notes'],
+    meetingResult: json['meeting_result'],
+    leadStatus: json['lead_status'],
+    estimatedValue: json['estimated_value'] != null
+        ? double.tryParse(json['estimated_value'].toString())
+        : null,
+    followUpAt: json['follow_up_at'],
+    followUps: (json['follow_ups'] as List?)
+            ?.map((f) => FollowUp.fromJson(f))
+            .toList() ??
+        [],
+  );
 }
-
+}
 // Dulu class KunjunganResponse ditulis manual (parsing data.data secara
 // khusus). Sekarang cukup jadi alias dari PaginatedResponse<Kunjungan>,
 // parsing-nya dipindah ke KunjunganBloc.list() lewat

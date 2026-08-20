@@ -87,8 +87,10 @@ class RecentActivity {
   final String? companyName;
   final String? newStatus;
   final String? changedAt;
+  final String? jabatan;        // ← TAMBAHAN
+  final String? waktu;
 
-  RecentActivity({this.guestName, this.companyName, this.newStatus, this.changedAt});
+  RecentActivity({this.guestName, this.companyName, this.newStatus, this.changedAt, this.jabatan, this.waktu});
 
   factory RecentActivity.fromJson(Map<String, dynamic> json) {
     return RecentActivity(
@@ -96,6 +98,8 @@ class RecentActivity {
       companyName: json['company_name'],
       newStatus: json['new_status'],
       changedAt: json['changed_at'],
+      jabatan: json['jabatan'],
+      waktu: json['waktu'],
     );
   }
 }
@@ -186,12 +190,14 @@ class ActivityLogItem {
   final String? companyName;
   final String? newStatus;
   final String? changedAt;
+  final String? jabatan;
 
-  ActivityLogItem({this.guestName, this.companyName, this.newStatus, this.changedAt});
+  ActivityLogItem({this.guestName, this.companyName, this.newStatus, this.changedAt, this.jabatan});
 
   factory ActivityLogItem.fromJson(Map<String, dynamic> json) {
     return ActivityLogItem(
       guestName: json['guest_name'],
+      jabatan: json['jabatan'],
       companyName: json['company_name'],
       newStatus: json['new_status'],
       changedAt: json['changed_at'],

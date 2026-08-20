@@ -285,16 +285,16 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
                         color: Colors.green,
                         onTap: () => setState(() { _filterStatus = 'Meeting Selesai'; _loadData(); }),
                       ),
-_buildCardStatistik(
-  title: "Menjadi Lead",
-  value: "${summary.menjadiLeadHariIni} Lead",
-  icon: Icons.trending_up_rounded,
-  color: Colors.purple,
-  onTap: () => setState(() {
-    _filterLeadOnly = true;
-    _loadData();
-  }),
-),
+                      _buildCardStatistik(
+                        title: "Menjadi Lead",
+                        value: "${summary.menjadiLeadHariIni} Lead",
+                        icon: Icons.trending_up_rounded,
+                        color: Colors.purple,
+                        onTap: () => setState(() {
+                          _filterLeadOnly = true;
+                          _loadData();
+                        }),
+                      ),
                       _buildCardStatistik(
                         title: "Produk Diminati",
                         value: data.topProduct.name ?? '-',
@@ -337,7 +337,6 @@ _buildCardStatistik(
                         children: [
                           Row(
                             children: [
-                              // Icon(Icons.bolt_rounded, size: 16, color: corporateGreen),
                               const SizedBox(width: 4),
                               const Text("Aktivitas Terbaru", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                             ],
@@ -375,13 +374,14 @@ _buildCardStatistik(
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  "${log.guestName ?? '-'} (${log.companyName ?? '-'})",
+                                                  "${log.guestName ?? '-'} (${log.companyName ?? '-'}) (${log.jabatan ?? '-'})",
                                                   style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
-                                              Text(_formatWaktuLalu(log.changedAt), style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                                              // ← DIUBAH: pakai jam terjadwal (scheduled_at) via log.waktu, bukan changedAt
+                                              Text(_formatJam(log.waktu), style: const TextStyle(fontSize: 8, color: Colors.grey)),
                                             ],
                                           ),
                                           const SizedBox(height: 2),
@@ -564,7 +564,12 @@ _buildCardStatistik(
                                               ],
                                             ],
                                           ),
-                                          Text(item.jabatan ?? '-', style: const TextStyle(fontSize: 8, color: Colors.grey)),
+Text(
+  [item.instansi, item.jabatan]
+      .where((e) => e != null && e.isNotEmpty)
+      .join(' - '),
+  style: const TextStyle(fontSize: 8, color: Colors.grey),
+),
                                         ],
                                       )),
                                       DataCell(Text(_formatJam(item.waktu), style: const TextStyle(fontSize: 9))),
@@ -575,7 +580,6 @@ _buildCardStatistik(
                                         onTap: () => _showDetailCatatan(context, item),
                                         child: Row(
                                           children: const [
-                                            // Icon(Icons.speaker_notes, size: 12, color: Colors.blue),
                                             SizedBox(width: 2),
                                             Text("Lihat", style: TextStyle(fontSize: 9, color: Colors.blue, decoration: TextDecoration.underline)),
                                           ],
@@ -606,32 +610,6 @@ _buildCardStatistik(
           },
         ),
       ),
-//       bottomNavigationBar: BottomNavigationBar(
-//   currentIndex: _currentIndex,
-//   selectedItemColor: corporateGreen,
-//   unselectedItemColor: const Color(0xFF778195),
-//   backgroundColor: Colors.white,
-//   type: BottomNavigationBarType.fixed,
-//   selectedFontSize: 9,
-//   unselectedFontSize: 9,
-//   onTap: (index) {
-//     setState(() => _currentIndex = index);
-//     if (index == 0) {
-//       // Sudah di Dashboard
-//     } else {
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('Navigasi ke menu indeks $index (Segera Hadir)')),
-//       );
-//     }
-//   },
-//   items: const [
-//     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded, size: 16), label: 'Dashboard'),
-//     BottomNavigationBarItem(icon: Icon(Icons.assignment_rounded, size: 16), label: 'Kunjungan'),
-//     BottomNavigationBarItem(icon: Icon(Icons.group_rounded, size: 16), label: 'Database'),
-//     BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded, size: 16), label: 'Lead & FU'),
-//     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded, size: 16), label: 'Laporan'),
-//   ],
-// ),
     );
   }
 
