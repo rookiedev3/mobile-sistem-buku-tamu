@@ -17,6 +17,10 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
   int _currentStep = 0;
   bool _isSubmitting = false;
 
+  // Global Keys untuk Validasi Form Per Langkah
+  final GlobalKey<FormState> _step1FormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _step2FormKey = GlobalKey<FormState>();
+
   // STEP 1: Controllers Identitas Tamu & Foto (Opsional)
   final TextEditingController _namaController = TextEditingController();
   final TextEditingController _instansiController = TextEditingController();
@@ -106,20 +110,65 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
   /// Picker Foto dari Kamera atau Galeri
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
         source: source,
         maxWidth: 800,
         maxHeight: 800,
         imageQuality: 85,
       );
 
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        setState(() {
-          _pickedImageFile = image;
-          _imageBytes = bytes;
-        });
+      if (image == null) return;
+
+      // 1. Validasi Format Gambar Menggunakan Extension & MimeType (Mendukung Web, Android & iOS)
+      final String fileNameLower = image.name.toLowerCase();
+      final String pathLower = image.path.toLowerCase();
+      final String? mimeType = image.mimeType?.toLowerCase();
+
+      final bool isValidFormat = 
+          fileNameLower.endsWith('.jpg') ||
+          fileNameLower.endsWith('.jpeg') ||
+          fileNameLower.endsWith('.png') ||
+          pathLower.endsWith('.jpg') ||
+          pathLower.endsWith('.jpeg') ||
+          pathLower.endsWith('.png') ||
+          (mimeType != null && (mimeType == 'image/jpeg' || mimeType == 'image/jpg' || mimeType == 'image/png'));
+
+      if (!isValidFormat) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format gambar harus berupa JPG, JPEG, atau PNG!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
       }
+
+      // 2. Validasi Ukuran File (Maksimal 2 MB)
+      final int fileSizeInBytes = await image.length();
+      const int maxSizeBytes = 2 * 1024 * 1024; // 2 MB
+
+      if (fileSizeInBytes > maxSizeBytes) {
+        if (!mounted) return;
+        final double sizeInMb = fileSizeInBytes / (1024 * 1024);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ukuran gambar (${sizeInMb.toStringAsFixed(2)} MB) melebihi batas 2 MB!',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // 3. Simpan state jika lolos validasi
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _pickedImageFile = image;
+        _imageBytes = bytes;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -294,26 +343,13 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
                         ? null
                         : () {
                             if (_currentStep == 0) {
-                              if (_namaController.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Nama lengkap tamu wajib diisi!')),
-                                );
-                                return;
+                              if (_step1FormKey.currentState!.validate()) {
+                                setState(() => _currentStep = 1);
                               }
-                              setState(() => _currentStep = 1);
                             } else if (_currentStep == 1) {
-                              if (_selectedCabangId == null ||
-                                  _selectedStaffId == null ||
-                                  _selectedPurposeId == null ||
-                                  _tanggalController.text.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Harap lengkapi kolom wajib (*)')),
-                                );
-                                return;
+                              if (_step2FormKey.currentState!.validate()) {
+                                setState(() => _currentStep = 2);
                               }
-                              setState(() => _currentStep = 2);
                             } else {
                               _submitForm();
                             }
@@ -346,142 +382,176 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
 
   /// =============== STEP 1: IDENTITAS TAMU & FOTO (OPSIONAL) ===============
   Widget _buildStep1DataTamu() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Langkah 1: Identitas Tamu",
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF006B3F),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _namaController,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Nama Lengkap Tamu *",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _instansiController,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Asal Instansi / Perusahaan",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _alamatController,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Alamat",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _jabatanController,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Jabatan",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "No. WhatsApp / Telepon",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Email",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          "Foto Tamu (Opsional)",
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-        ),
-        const SizedBox(height: 8),
-        Center(
-          child: Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+    return Form(
+      key: _step1FormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Langkah 1: Identitas Tamu",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF006B3F),
             ),
-            child: _imageBytes != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-                  )
-                : const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt_outlined, size: 30, color: Colors.grey),
-                      SizedBox(height: 4),
-                      Text("Foto Opsional", style: TextStyle(fontSize: 9, color: Colors.grey)),
-                    ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _namaController,
+            style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Nama lengkap tamu wajib diisi!';
+              }
+              return null;
+            },
+            decoration: const InputDecoration(
+              labelText: "Nama Lengkap Tamu *",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _instansiController,
+            style: const TextStyle(fontSize: 12),
+            decoration: const InputDecoration(
+              labelText: "Asal Instansi / Perusahaan",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _alamatController,
+            style: const TextStyle(fontSize: 12),
+            decoration: const InputDecoration(
+              labelText: "Alamat",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _jabatanController,
+            style: const TextStyle(fontSize: 12),
+            decoration: const InputDecoration(
+              labelText: "Jabatan",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val != null && val.trim().isNotEmpty) {
+                final cleanVal = val.trim();
+                final phoneRegex = RegExp(r'^(?:\+62|62|08)[0-9]{8,13}$');
+                if (!phoneRegex.hasMatch(cleanVal)) {
+                  return 'Nomor HP harus diawali 08, 62, atau +62 (10-15 digit)';
+                }
+              }
+              return null;
+            },
+            decoration: const InputDecoration(
+              labelText: "No. WhatsApp / Telepon",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val != null && val.trim().isNotEmpty) {
+                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                if (!emailRegex.hasMatch(val.trim())) {
+                  return 'Format email tidak valid!';
+                }
+              }
+              return null;
+            },
+            decoration: const InputDecoration(
+              labelText: "Email",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            "Foto Tamu (Opsional)",
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: _imageBytes != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                    )
+                  : const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.camera_alt_outlined, size: 30, color: Colors.grey),
+                        SizedBox(height: 4),
+                        Text("Foto Opsional", style: TextStyle(fontSize: 9, color: Colors.grey)),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt, size: 14),
+                  label: const Text("Kamera", style: TextStyle(fontSize: 10)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: corporateGreen),
                   ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickImage(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library, size: 14),
+                  label: const Text("Galeri", style: TextStyle(fontSize: 10)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: corporateGreen),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _pickImage(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt, size: 14),
-                label: const Text("Kamera", style: TextStyle(fontSize: 10)),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: corporateGreen),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _pickImage(ImageSource.gallery),
-                icon: const Icon(Icons.photo_library, size: 14),
-                label: const Text("Galeri", style: TextStyle(fontSize: 10)),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: corporateGreen),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -494,190 +564,210 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Langkah 2: Detail Kunjungan Tamu",
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF006B3F),
+    return Form(
+      key: _step2FormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Langkah 2: Detail Kunjungan Tamu",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF006B3F),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          value: _selectedCabangId,
-          isExpanded: true,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
-          decoration: const InputDecoration(
-            labelText: "Cabang Kantor *",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: _listCabang.map((OptionItem item) {
-            return DropdownMenuItem<int>(
-              value: item.id,
-              child: Text(item.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (val) {
-            setState(() {
-              _selectedCabangId = val;
-              _selectedStaffId = null;
-            });
-          },
-        ),
-        const SizedBox(height: 10),
-        DropdownButtonFormField<int>(
-          key: ValueKey(_selectedCabangId),
-          value: _selectedStaffId,
-          isExpanded: true,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
-          decoration: InputDecoration(
-            labelText: "Tujuan Bertemu (Staff / PIC) *",
-            labelStyle: const TextStyle(fontSize: 11),
-            hintText: _selectedCabangId == null
-                ? "Pilih cabang terlebih dahulu"
-                : (_filteredStaff.isEmpty
-                    ? "Tidak ada PIC di cabang ini"
-                    : "Pilih Staff / PIC"),
-            hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: _filteredStaff.map((OptionItem item) {
-            return DropdownMenuItem<int>(
-              value: item.id,
-              child: Text(item.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (_selectedCabangId == null || _filteredStaff.isEmpty)
-              ? null
-              : (val) => setState(() => _selectedStaffId = val),
-        ),
-        const SizedBox(height: 10),
-        DropdownButtonFormField<int>(
-          value: _selectedPurposeId,
-          isExpanded: true,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
-          decoration: const InputDecoration(
-            labelText: "Jenis Kunjungan *",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: _listPurposes.map((OptionItem item) {
-            return DropdownMenuItem<int>(
-              value: item.id,
-              child: Text(item.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedPurposeId = val),
-        ),
-        const SizedBox(height: 10),
-        DropdownButtonFormField<int>(
-          value: _selectedProdukId,
-          isExpanded: true,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
-          decoration: const InputDecoration(
-            labelText: "Produk / Layanan yang Diminati",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: _listProduk.map((OptionItem item) {
-            return DropdownMenuItem<int>(
-              value: item.id,
-              child: Text(item.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedProdukId = val),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _tanggalController,
-          readOnly: true,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Tanggal & Jam Kunjungan *",
-            labelStyle: TextStyle(fontSize: 11),
-            hintText: "Pilih tanggal & jam",
-            hintStyle: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-            border: OutlineInputBorder(),
-            isDense: true,
-            suffixIcon: Icon(Icons.access_time_rounded, size: 18),
-          ),
-          onTap: () async {
-            DateTime? pickedDate = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime.now().subtract(const Duration(days: 1)),
-              lastDate: DateTime(2030),
-            );
-
-            if (pickedDate == null || !mounted) return;
-
-            TimeOfDay? pickedTime = await showTimePicker(
-              context: context,
-              initialTime: TimeOfDay.now(),
-            );
-
-            if (pickedTime != null && mounted) {
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            value: _selectedCabangId,
+            isExpanded: true,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) => val == null ? 'Cabang kantor wajib dipilih!' : null,
+            decoration: const InputDecoration(
+              labelText: "Cabang Kantor *",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+            items: _listCabang.map((OptionItem item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.name, style: const TextStyle(fontSize: 12)),
+              );
+            }).toList(),
+            onChanged: (val) {
               setState(() {
-                _selectedDateTime = DateTime(
-                  pickedDate.year,
-                  pickedDate.month,
-                  pickedDate.day,
-                  pickedTime.hour,
-                  pickedTime.minute,
-                );
-
-                final String formattedDate =
-                    "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
-                final String formattedTime =
-                    "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
-
-                _tanggalController.text = "$formattedDate $formattedTime";
+                _selectedCabangId = val;
+                _selectedStaffId = null;
               });
-            }
-          },
-        ),
-        const SizedBox(height: 10),
-        DropdownButtonFormField<int>(
-          value: _selectedSumberId,
-          isExpanded: true,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
-          decoration: const InputDecoration(
-            labelText: "Sumber Mengetahui IT Solution",
-            labelStyle: TextStyle(fontSize: 11),
-            border: OutlineInputBorder(),
-            isDense: true,
+            },
           ),
-          items: _listSumber.map((OptionItem item) {
-            return DropdownMenuItem<int>(
-              value: item.id,
-              child: Text(item.name, style: const TextStyle(fontSize: 12)),
-            );
-          }).toList(),
-          onChanged: (val) => setState(() => _selectedSumberId = val),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _detailController,
-          maxLines: 2,
-          style: const TextStyle(fontSize: 12),
-          decoration: const InputDecoration(
-            labelText: "Detail Kunjungan",
-            labelStyle: TextStyle(fontSize: 11),
-            hintText: "Tuliskan keterangan detail keperluan Anda...",
-            hintStyle: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-            border: OutlineInputBorder(),
-            isDense: true,
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            key: ValueKey(_selectedCabangId),
+            value: _selectedStaffId,
+            isExpanded: true,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) => val == null ? 'Staff / PIC wajib dipilih!' : null,
+            decoration: InputDecoration(
+              labelText: "Tujuan Bertemu (Staff / PIC) *",
+              labelStyle: const TextStyle(fontSize: 11),
+              hintText: _selectedCabangId == null
+                  ? "Pilih cabang terlebih dahulu"
+                  : (_filteredStaff.isEmpty
+                      ? "Tidak ada PIC di cabang ini"
+                      : "Pilih Staff / PIC"),
+              hintStyle: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              border: const OutlineInputBorder(),
+              isDense: true,
+              errorStyle: const TextStyle(fontSize: 10, color: Colors.red),
+            ),
+            items: _filteredStaff.map((OptionItem item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.name, style: const TextStyle(fontSize: 12)),
+              );
+            }).toList(),
+            onChanged: (_selectedCabangId == null || _filteredStaff.isEmpty)
+                ? null
+                : (val) => setState(() => _selectedStaffId = val),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            value: _selectedPurposeId,
+            isExpanded: true,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) => val == null ? 'Jenis kunjungan wajib dipilih!' : null,
+            decoration: const InputDecoration(
+              labelText: "Jenis Kunjungan *",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+            items: _listPurposes.map((OptionItem item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.name, style: const TextStyle(fontSize: 12)),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedPurposeId = val),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            value: _selectedProdukId,
+            isExpanded: true,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
+            decoration: const InputDecoration(
+              labelText: "Produk / Layanan yang Diminati",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _listProduk.map((OptionItem item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.name, style: const TextStyle(fontSize: 12)),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedProdukId = val),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _tanggalController,
+            readOnly: true,
+            style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Tanggal & jam kunjungan wajib dipilih!';
+              }
+              return null;
+            },
+            decoration: const InputDecoration(
+              labelText: "Tanggal & Jam Kunjungan *",
+              labelStyle: TextStyle(fontSize: 11),
+              hintText: "Pilih tanggal & jam",
+              hintStyle: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              border: OutlineInputBorder(),
+              isDense: true,
+              suffixIcon: Icon(Icons.access_time_rounded, size: 18),
+              errorStyle: TextStyle(fontSize: 10, color: Colors.red),
+            ),
+            onTap: () async {
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                lastDate: DateTime(2030),
+              );
+
+              if (pickedDate == null || !mounted) return;
+
+              TimeOfDay? pickedTime = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay.now(),
+              );
+
+              if (pickedTime != null && mounted) {
+                setState(() {
+                  _selectedDateTime = DateTime(
+                    pickedDate.year,
+                    pickedDate.month,
+                    pickedDate.day,
+                    pickedTime.hour,
+                    pickedTime.minute,
+                  );
+
+                  final String formattedDate =
+                      "${pickedDate.day.toString().padLeft(2, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.year}";
+                  final String formattedTime =
+                      "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+
+                  _tanggalController.text = "$formattedDate $formattedTime";
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            value: _selectedSumberId,
+            isExpanded: true,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF172033)),
+            decoration: const InputDecoration(
+              labelText: "Sumber Mengetahui IT Solution",
+              labelStyle: TextStyle(fontSize: 11),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _listSumber.map((OptionItem item) {
+              return DropdownMenuItem<int>(
+                value: item.id,
+                child: Text(item.name, style: const TextStyle(fontSize: 12)),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedSumberId = val),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            controller: _detailController,
+            maxLines: 2,
+            style: const TextStyle(fontSize: 12),
+            decoration: const InputDecoration(
+              labelText: "Detail Kunjungan",
+              labelStyle: TextStyle(fontSize: 11),
+              hintText: "Tuliskan keterangan detail keperluan Anda...",
+              hintStyle: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile_flutter/bloc/check_in_bloc.dart';
 import 'package:mobile_flutter/bloc/dashboard_admin_bloc.dart';
 import 'package:mobile_flutter/helpers/api_url.dart';
+import 'package:mobile_flutter/model/check_in.dart';
 import 'package:mobile_flutter/ui/homepage_screen.dart';
 
 class DaftarTamuScreen extends StatefulWidget {
@@ -22,14 +26,14 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   int _currentPage = 1;
   int _lastPage = 1;
   int _totalData = 0;
-  int _perPage = 10;
+  final int _perPage = 10;
 
   // State Notifikasi
   int _unreadNotifCount = 0;
   List<dynamic> _notifications = [];
 
   // State Filter & Search
-  String _filterKategori = 'Semua Tamu'; // 'Semua Tamu', 'VIP', 'Reguler'
+  String _filterKategori = 'Semua Tamu';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -56,13 +60,14 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       if (_filterKategori == 'VIP') vipParam = '1';
       if (_filterKategori == 'Reguler') vipParam = '0';
 
-      // 1. Ambil data direktori tamu dengan pagination
       final Map<String, dynamic> responseData =
           await DashboardAdminBloc.getGuests(
             vipStatus: vipParam,
             keyword: _searchController.text.trim(),
             page: page,
           );
+
+      if (!mounted) return;
 
       List<dynamic> guestList = [];
       int current = 1;
@@ -81,18 +86,18 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         }
       }
 
-      // Fallback metadata pagination jika berada di root response JSON
       if (responseData.containsKey('current_page')) {
         current = responseData['current_page'] ?? 1;
         last = responseData['last_page'] ?? 1;
         total = responseData['total'] ?? guestList.length;
       }
 
-      // 2. Ambil data notifikasi dari dashboard backend
       int unreadCount = 0;
       List<dynamic> unreadNotifs = [];
       try {
         final dashboardData = await DashboardAdminBloc.getDashboard();
+        if (!mounted) return;
+
         final statistics = dashboardData['statistics'] ?? {};
         final notifData = dashboardData['notifications'];
 
@@ -112,6 +117,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         debugPrint('Gagal memuat notifikasi: $e');
       }
 
+      if (!mounted) return;
+
       setState(() {
         _daftarTamu = guestList;
         _currentPage = current;
@@ -122,6 +129,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
@@ -147,7 +155,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       await DashboardAdminBloc.markNotificationAsRead(notifId);
     } catch (e) {
       debugPrint('Gagal menandai notifikasi dibaca: $e');
-      _fetchGuestsData(page: _currentPage);
+      if (mounted) _fetchGuestsData(page: _currentPage);
     }
   }
 
@@ -165,11 +173,10 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
       await DashboardAdminBloc.markAllNotificationsAsRead();
     } catch (e) {
       debugPrint('Gagal menandai semua notifikasi dibaca: $e');
-      _fetchGuestsData(page: _currentPage);
+      if (mounted) _fetchGuestsData(page: _currentPage);
     }
   }
 
-  /// Mengubah Status VIP Tamu ke Backend API Laravel
   /// Mengubah Status VIP Tamu ke Backend API Laravel
   Future<void> _toggleVipStatus(int guestId, bool currentIsVip) async {
     final bool newVipStatus = !currentIsVip;
@@ -242,7 +249,17 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     Map<String, dynamic> tamu, {
     double radius = 16,
     double iconSize = 18,
+    XFile? localPhoto,
   }) {
+    if (localPhoto != null) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundImage: kIsWeb
+            ? NetworkImage(localPhoto.path)
+            : FileImage(File(localPhoto.path)) as ImageProvider,
+      );
+    }
+
     final String? photoUrl =
         tamu["photo_url"] ?? tamu["photo_path"] ?? tamu["photo"];
 
@@ -530,7 +547,12 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                     Center(
                       child: Stack(
                         children: [
-                          _buildAvatar(tamu, radius: 32, iconSize: 36),
+                          _buildAvatar(
+                            tamu,
+                            radius: 32,
+                            iconSize: 36,
+                            localPhoto: pickedPhoto,
+                          ),
                           Positioned(
                             bottom: 0,
                             right: 0,
@@ -725,6 +747,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                             );
                           } catch (e) {
                             setStateDialog(() => isSubmitting = false);
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Gagal memperbarui profil: $e'),
@@ -752,251 +775,26 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
           },
         );
       },
-    );
+    ).then((_) {
+      namaController.dispose();
+      waController.dispose();
+      emailController.dispose();
+      instansiController.dispose();
+      jabatanController.dispose();
+      alamatController.dispose();
+    });
   }
 
-  // Pop-up Tambah Tamu Baru
-  void _showTambahTamuDialog(BuildContext context) {
-    final TextEditingController namaController = TextEditingController();
-    final TextEditingController waController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController instansiController = TextEditingController();
-    final TextEditingController jabatanController = TextEditingController();
-    final TextEditingController alamatController = TextEditingController();
-
-    String statusTamu = 'Reguler';
-    XFile? pickedPhoto;
-    bool isSubmitting = false;
-
-    showDialog(
+  // Pop-up Tambah Tamu Baru (Memanggil Widget Dialog Baru)
+  void _showTambahTamuDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  Icon(
-                    Icons.person_add_rounded,
-                    color: corporateGreen,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "Tambah Tamu Baru",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTextField("Nama Lengkap *", namaController),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "No. WhatsApp *",
-                      waController,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "Email",
-                      emailController,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "Instansi / Perusahaan",
-                      instansiController,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField("Jabatan", jabatanController),
-                    const SizedBox(height: 6),
-                    const Text(
-                      "Status Tamu",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF778195),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F7FC),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: statusTamu,
-                          isExpanded: true,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF172033),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          items: ['Reguler', 'VIP'].map((val) {
-                            return DropdownMenuItem(
-                              value: val,
-                              child: Text(val),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setStateDialog(() => statusTamu = val);
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField("Alamat", alamatController),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final ImagePicker picker = ImagePicker();
-                            final XFile? image = await picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (image != null) {
-                              setStateDialog(() => pickedPhoto = image);
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.upload_file,
-                            size: 12,
-                            color: Color(0xFF006B3F),
-                          ),
-                          label: const Text(
-                            "Upload Foto",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF006B3F),
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: corporateGreen),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (pickedPhoto != null)
-                          const Text(
-                            "Terlampir ✓",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    "Batal",
-                    style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: corporateGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                  ),
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          if (namaController.text.trim().isEmpty ||
-                              waController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Nama dan No. WA wajib diisi!'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
-
-                          setStateDialog(() => isSubmitting = true);
-
-                          try {
-                            await DashboardAdminBloc.storeGuest(
-                              name: namaController.text.trim(),
-                              phone: waController.text.trim(),
-                              email: emailController.text.trim(),
-                              companyName: instansiController.text.trim(),
-                              position: jabatanController.text.trim(),
-                              address: alamatController.text.trim(),
-                              isVip: statusTamu == 'VIP',
-                              photoFile: pickedPhoto,
-                            );
-
-                            if (!mounted) return;
-                            Navigator.pop(context);
-                            _fetchGuestsData(page: 1);
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Tamu baru berhasil ditambahkan!',
-                                ),
-                                backgroundColor: Color(0xFF006B3F),
-                              ),
-                            );
-                          } catch (e) {
-                            setStateDialog(() => isSubmitting = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Gagal menyimpan: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text("Simpan", style: TextStyle(fontSize: 11)),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => const FormTambahTamuDialog(),
     );
+
+    if (result == true && mounted) {
+      _fetchGuestsData(page: 1);
+    }
   }
 
   Widget _buildTextField(
@@ -1075,7 +873,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     );
   }
 
-  /// ================= WIDGET PAGINATION CONTROL =================
+  /// Pagination Control
   Widget _buildPaginationControl() {
     int startItem = _totalData == 0 ? 0 : ((_currentPage - 1) * _perPage) + 1;
     int endItem = (_currentPage * _perPage) > _totalData
@@ -1126,7 +924,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // First Page
               IconButton(
                 icon: const Icon(Icons.first_page, size: 18),
                 onPressed: _currentPage > 1
@@ -1137,7 +934,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 color: corporateGreen,
                 disabledColor: Colors.grey.shade300,
               ),
-              // Previous Page
               IconButton(
                 icon: const Icon(Icons.chevron_left, size: 18),
                 onPressed: _currentPage > 1
@@ -1149,10 +945,8 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 disabledColor: Colors.grey.shade300,
               ),
               const SizedBox(width: 6),
-              // Dynamic Page Numbers
               ..._buildPageNumbers(),
               const SizedBox(width: 6),
-              // Next Page
               IconButton(
                 icon: const Icon(Icons.chevron_right, size: 18),
                 onPressed: _currentPage < _lastPage
@@ -1163,7 +957,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                 color: corporateGreen,
                 disabledColor: Colors.grey.shade300,
               ),
-              // Last Page
               IconButton(
                 icon: const Icon(Icons.last_page, size: 18),
                 onPressed: _currentPage < _lastPage
@@ -1181,7 +974,7 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
     );
   }
 
-  /// Membuat Tombol Nomor Halaman Secara Dinamis
+  /// Dynamic Page Number Calculation
   List<Widget> _buildPageNumbers() {
     List<Widget> pageButtons = [];
     int start = _currentPage - 1;
@@ -1189,12 +982,11 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
     if (start < 1) {
       start = 1;
-      end = start + 2;
+      end = (start + 2).clamp(1, _lastPage);
     }
     if (end > _lastPage) {
       end = _lastPage;
-      start = end - 2;
-      if (start < 1) start = 1;
+      start = (end - 2).clamp(1, _lastPage);
     }
 
     for (int i = start; i <= end; i++) {
@@ -1244,14 +1036,11 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
           ),
         ),
         actions: [
-          // ================= 1. TOMBOL REFRESH DATA =================
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Refresh Data',
             onPressed: () => _fetchGuestsData(page: _currentPage),
           ),
-
-          // ================= 2. DROPDOWN NOTIFIKASI =================
           PopupMenuButton<String>(
             icon: Stack(
               children: [
@@ -1281,7 +1070,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
             itemBuilder: (BuildContext context) {
               List<PopupMenuEntry<String>> items = [];
 
-              // Header Dropdown Notifikasi
               items.add(
                 PopupMenuItem<String>(
                   enabled: false,
@@ -1318,7 +1106,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
 
               items.add(const PopupMenuDivider());
 
-              // Render Notifikasi dari Backend
               if (_notifications.isEmpty) {
                 items.add(
                   const PopupMenuItem<String>(
@@ -1423,8 +1210,6 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
               _markNotificationAsRead(notifId);
             },
           ),
-
-          // ================= 3. TOMBOL LOGOUT =================
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Keluar',
@@ -1913,14 +1698,537 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
                         );
                       },
                     ),
-
-                    // Component Pagination di Bawah Daftar Tamu
                     _buildPaginationControl(),
                   ],
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ================= WIDGET FORM TAMBAH TAMU DIALOG =================
+class FormTambahTamuDialog extends StatefulWidget {
+  const FormTambahTamuDialog({super.key});
+
+  @override
+  State<FormTambahTamuDialog> createState() => _FormTambahTamuDialogState();
+}
+
+class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
+  final Color corporateGreen = const Color(0xFF006B3F);
+  final GlobalKey<FormState> _formKey =
+      GlobalKey<FormState>(); // Key Form Validation
+  bool _isSubmitting = false;
+
+  // Controllers Identitas Tamu
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _waController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _instansiController = TextEditingController();
+  final TextEditingController _jabatanController = TextEditingController();
+  final TextEditingController _alamatController = TextEditingController();
+
+  String _statusTamu = 'Reguler';
+  XFile? _pickedPhoto;
+  Uint8List? _imageBytes;
+
+  // Master Data Guest Categories dari Table guest_categories
+  List<OptionItem> _guestCategories = [];
+  int? _selectedGuestCategoryId;
+  bool _isLoadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGuestCategories();
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _waController.dispose();
+    _emailController.dispose();
+    _instansiController.dispose();
+    _jabatanController.dispose();
+    _alamatController.dispose();
+    super.dispose();
+  }
+
+  /// Memuat Kategori Tamu dari Table guest_categories via CheckInBloc
+  Future<void> _fetchGuestCategories() async {
+    try {
+      CheckInMasterData masterData = await CheckInBloc.getFormData();
+      if (!mounted) return;
+      setState(() {
+        _guestCategories = masterData.guestCategories;
+        if (_guestCategories.isNotEmpty) {
+          _selectedGuestCategoryId = _guestCategories.first.id;
+        }
+        _isLoadingCategories = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingCategories = false);
+      debugPrint("Gagal memuat guest categories: $e");
+    }
+  }
+
+  /// Picker Foto Kamera / Galeri
+  /// Picker Foto dengan Validasi Format (JPG, JPEG, PNG) & Ukuran Maksimal 2 MB
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      // 1. Validasi Format Gambar Menggunakan Extension & MimeType (Web, Android & iOS)
+      final String fileNameLower = image.name.toLowerCase();
+      final String pathLower = image.path.toLowerCase();
+      final String? mimeType = image.mimeType?.toLowerCase();
+
+      final bool isValidFormat = 
+          fileNameLower.endsWith('.jpg') ||
+          fileNameLower.endsWith('.jpeg') ||
+          fileNameLower.endsWith('.png') ||
+          pathLower.endsWith('.jpg') ||
+          pathLower.endsWith('.jpeg') ||
+          pathLower.endsWith('.png') ||
+          (mimeType != null && (mimeType == 'image/jpeg' || mimeType == 'image/jpg' || mimeType == 'image/png'));
+
+      if (!isValidFormat) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format gambar harus berupa JPG, JPEG, atau PNG!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // 2. Validasi Ukuran File (Maksimal 2 MB)
+      final int fileSizeInBytes = await image.length();
+      const int maxSizeBytes = 2 * 1024 * 1024; // 2 MB
+
+      if (fileSizeInBytes > maxSizeBytes) {
+        if (!mounted) return;
+        final double sizeInMb = fileSizeInBytes / (1024 * 1024);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ukuran gambar (${sizeInMb.toStringAsFixed(2)} MB) melebihi batas 2 MB!',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // 3. Simpan State Jika Lolos Validasi
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _pickedPhoto = image;
+        _imageBytes = bytes;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengambil foto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Submit Data Tamu Baru
+  Future<void> _submitForm() async {
+    // Validasi semua TextFormField di dalam Form
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await DashboardAdminBloc.storeGuest(
+        name: _namaController.text.trim(),
+        phone: _waController.text.trim(),
+        email: _emailController.text.trim(),
+        companyName: _instansiController.text.trim(),
+        position: _jabatanController.text.trim(),
+        address: _alamatController.text.trim(),
+        guestCategoryId: _selectedGuestCategoryId,
+        isVip: _statusTamu == 'VIP',
+        photoFile: _pickedPhoto,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tamu baru berhasil ditambahkan!'),
+          backgroundColor: Color(0xFF006B3F),
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.all(20),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey, // Membungkus inputan dengan Form Key
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Tambah Tamu Baru",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF172033),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                Text(
+                  "Identitas Tamu",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: corporateGreen,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Validasi Nama Wajib
+                _buildTextField(
+                  "Nama Lengkap *",
+                  _namaController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Nama lengkap wajib diisi!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Validasi Nomor HP (08 / 62 / +62)
+                _buildTextField(
+                  "No. WhatsApp / Telepon *",
+                  _waController,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'No. WhatsApp wajib diisi!';
+                    }
+                    final cleanValue = value.trim();
+                    final phoneRegex = RegExp(r'^(?:\+62|62|08)[0-9]{8,13}$');
+                    if (!phoneRegex.hasMatch(cleanValue)) {
+                      return 'Nomor HP harus diawali 08, 62, atau +62 (10-15 digit)';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Validasi Format Email Opsional
+                _buildTextField(
+                  "Email",
+                  _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value != null && value.trim().isNotEmpty) {
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      );
+                      if (!emailRegex.hasMatch(value.trim())) {
+                        return 'Format email tidak valid!';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Dropdown Input Kategori Tamu
+                _isLoadingCategories
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: LinearProgressIndicator(
+                          color: Color(0xFF006B3F),
+                        ),
+                      )
+                    : DropdownButtonFormField<int>(
+                        value: _selectedGuestCategoryId,
+                        isExpanded: true,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF172033),
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: "Kategori Tamu",
+                          labelStyle: TextStyle(fontSize: 11),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: _guestCategories.map((OptionItem category) {
+                          return DropdownMenuItem<int>(
+                            value: category.id,
+                            child: Text(
+                              category.name,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null)
+                            setState(() => _selectedGuestCategoryId = val);
+                        },
+                      ),
+                const SizedBox(height: 10),
+
+                _buildTextField(
+                  "Asal Instansi / Perusahaan",
+                  _instansiController,
+                ),
+                const SizedBox(height: 10),
+                _buildTextField("Jabatan", _jabatanController),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: _statusTamu,
+                  isExpanded: true,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF172033),
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: "Status Tamu",
+                    labelStyle: TextStyle(fontSize: 11),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: ['Reguler', 'VIP'].map((val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Text(val, style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _statusTamu = val);
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildTextField("Alamat", _alamatController),
+                const SizedBox(height: 14),
+                const Text(
+                  "Foto Tamu (Opsional)",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF172033),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: _pickedPhoto != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: kIsWeb
+                                ? Image.network(
+                                    _pickedPhoto!.path,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.file(
+                                    File(_pickedPhoto!.path),
+                                    fit: BoxFit.cover,
+                                  ),
+                          )
+                        : const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.camera_alt_outlined,
+                                size: 30,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                "Foto Opsional",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickPhoto(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt, size: 14),
+                        label: const Text(
+                          "Kamera",
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: corporateGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickPhoto(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library, size: 14),
+                        label: const Text(
+                          "Galeri",
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: corporateGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: corporateGreen),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
+                      child: Text(
+                        "Batal",
+                        style: TextStyle(fontSize: 11, color: corporateGreen),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: corporateGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _isSubmitting ? null : _submitForm,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "Simpan",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Helper untuk membuat TextFormField dengan pesan error merah secara otomatis
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontSize: 12),
+      validator: validator,
+      autovalidateMode: AutovalidateMode
+          .onUserInteraction, // Error merah langsung muncul saat diketik
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 11),
+        border: const OutlineInputBorder(),
+        isDense: true,
+        errorStyle: const TextStyle(
+          fontSize: 10,
+          color: Colors.red,
+        ), // Style teks error merah
       ),
     );
   }

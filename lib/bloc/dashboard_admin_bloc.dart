@@ -244,6 +244,7 @@ class DashboardAdminBloc {
     String? companyName,
     String? position,
     String? address,
+    int? guestCategoryId,
     required bool isVip,
     XFile? photoFile,
   }) async {
@@ -256,6 +257,7 @@ class DashboardAdminBloc {
       "email": email ?? "",
       "company_name": companyName ?? "",
       "position": position ?? "",
+      if (guestCategoryId != null) 'guest_category_id': guestCategoryId.toString(),
       "address": address ?? "",
     };
 
