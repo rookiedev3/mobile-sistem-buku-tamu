@@ -31,7 +31,7 @@ class _LeadScreenState extends State<LeadScreen> {
   late Future<LeadPipelineResponse> _futureLeads;
 
   static const Map<String, Map<String, dynamic>> _leadBadges = {
-    'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
+    'new':        {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
     'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
     'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi '},
     'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal '},
@@ -423,7 +423,7 @@ class _LeadScreenState extends State<LeadScreen> {
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('Semua Status')),
-                          DropdownMenuItem(value: 'vip', child: Text('⭐ VIP')),
+                          DropdownMenuItem(value: 'vip', child: Text(' VIP')),
                           DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
                         ],
                         onChanged: (value) {
@@ -513,9 +513,28 @@ class _LeadScreenState extends State<LeadScreen> {
                                           ),
                                         ),
                                       ),
+                                      // 🔄 DIUBAH: Badge VIP disamakan persis dengan halaman PIC
                                       if (lead.isVip) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(20),
+                                            // border: Border.all(
+                                            //   color: const Color(0xFFFDE68A),
+                                            //   width: 0,
+                                            // ),
+                                          ),
+                                          child: const Text(
+                                            'VIP',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFFB45309),
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ],
                                   ),
