@@ -1,5 +1,7 @@
 // lib/ui/admin/manajemen_pengguna_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dashboard_admin_screen.dart';
 import 'daftar_tamu_screen.dart';
 import 'riwayat_screen.dart';
@@ -12,6 +14,99 @@ import 'package:mobile_flutter/model/branch.dart';
 import 'package:mobile_flutter/model/user_list_response.dart';
 
 const List<String> _roleOptions = ['pic', 'manager', 'owner', 'admin', 'security', 'tamu'];
+
+// ================= VALIDATION HELPERS =================
+final RegExp _emailRegex = RegExp(r'^[\w\.\-\+]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
+
+String? _validateNama(String? val) {
+  if (val == null || val.trim().isEmpty) return 'Nama wajib diisi';
+  if (val.trim().length < 3) return 'Nama minimal 3 karakter';
+  return null;
+}
+
+String? _validateEmail(String? val) {
+  if (val == null || val.trim().isEmpty) return 'Email wajib diisi';
+  if (!_emailRegex.hasMatch(val.trim())) return 'Format email tidak valid';
+  return null;
+}
+
+// DIUBAH: sebelumnya hanya menerima digit murni, jadi menolak nomor yang
+// sudah dinormalisasi backend ke format "+62xxxxxxxxxx" (lihat
+// UserController::normalizePhone()). Sekarang boleh diawali satu '+',
+// sisanya wajib digit.
+String? _validatePhone(String? val) {
+  if (val == null || val.trim().isEmpty) return 'No. WhatsApp/HP wajib diisi';
+  final trimmed = val.trim();
+  if (!RegExp(r'^\+?[0-9]+$').hasMatch(trimmed)) {
+    return 'No. HP hanya boleh berupa angka (boleh diawali +)';
+  }
+  final digitsOnly = trimmed.startsWith('+') ? trimmed.substring(1) : trimmed;
+  if (digitsOnly.length < 9 || digitsOnly.length > 15) return 'No. HP harus 9-15 digit';
+  return null;
+}
+
+// TAMBAHAN: formatter khusus nomor HP — hanya izinkan digit dan SATU
+// tanda '+' di posisi paling depan (kalau user coba ketik '+' di tengah,
+// otomatis dibuang). FilteringTextInputFormatter.digitsOnly yang lama
+// selalu membuang semua '+', termasuk yang datang dari data existing
+// (format "+62...") saat mode edit.
+class _PhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final raw = newValue.text;
+    final hasLeadingPlus = raw.startsWith('+');
+    final digitsOnly = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final filtered = hasLeadingPlus ? '+$digitsOnly' : digitsOnly;
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(offset: filtered.length),
+    );
+  }
+}
+
+String? _validatePasswordRequired(String? val) {
+  if (val == null || val.isEmpty) return 'Password wajib diisi';
+  if (val.length < 6) return 'Password minimal 6 karakter';
+  return null;
+}
+
+String? _validatePasswordOptional(String? val) {
+  if (val == null || val.isEmpty) return null; // opsional saat edit
+  if (val.length < 6) return 'Password minimal 6 karakter';
+  return null;
+}
+
+/// Mengambil pesan error yang enak dibaca, meski exception-nya berisi body JSON mentah
+/// dengan prefix apa pun (mis. "Exception: ", "Invalid Input: ") dan detail validasi
+/// yang bisa ada di key "errors" ATAU "data".
+String _friendlyErrorMessage(Object e) {
+  String raw = e.toString().replaceAll('Exception: ', '').trim();
+  final jsonStart = raw.indexOf('{');
+  if (jsonStart != -1) {
+    final jsonPart = raw.substring(jsonStart);
+    try {
+      final decoded = jsonDecode(jsonPart);
+      if (decoded is Map) {
+        for (final key in ['errors', 'data']) {
+          final detail = decoded[key];
+          if (detail is Map && detail.isNotEmpty) {
+            final firstVal = detail.values.first;
+            if (firstVal is List && firstVal.isNotEmpty) return firstVal.first.toString();
+            if (firstVal != null) return firstVal.toString();
+          }
+        }
+        if (decoded['message'] != null) return decoded['message'].toString();
+      }
+    } catch (_) {
+      // bukan JSON valid, biarkan fallback ke pesan generik di bawah
+    }
+    return 'Terjadi kesalahan, silakan coba lagi';
+  }
+  return raw.isEmpty ? 'Terjadi kesalahan, silakan coba lagi' : raw;
+}
 
 class ManajemenPenggunaScreen extends StatefulWidget {
   const ManajemenPenggunaScreen({Key? key}) : super(key: key);
@@ -63,7 +158,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data: ${e.toString().replaceAll('Exception: ', '')}')),
+        SnackBar(content: Text('Gagal memuat data: ${_friendlyErrorMessage(e)}')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -77,6 +172,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
   }
 
   void _showTambahPenggunaDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
     final namaController = TextEditingController();
     final emailController = TextEditingController();
     final waController = TextEditingController();
@@ -101,49 +197,73 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                 ],
               ),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTextField("Nama Lengkap", namaController),
-                    const SizedBox(height: 6),
-                    _buildTextField("Email", emailController, keyboardType: TextInputType.emailAddress),
-                    const SizedBox(height: 6),
-                    _buildTextField("No. WhatsApp / HP", waController, keyboardType: TextInputType.phone),
-                    const SizedBox(height: 6),
-                    _buildTextField("Password", passwordController, obscureText: true),
-                    const SizedBox(height: 6),
-                    const Text("Role / Hak Akses", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
-                    const SizedBox(height: 3),
-                    _dropdownBox<String>(
-                      value: selectedRole,
-                      items: _roleOptions,
-                      labelBuilder: (r) => r[0].toUpperCase() + r.substring(1),
-                      onChanged: (val) => setStateDialog(() => selectedRole = val!),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text("Cabang Branch", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
-                    const SizedBox(height: 3),
-                    _daftarBranch.isEmpty
-                        ? const Text("Belum ada data branch", style: TextStyle(fontSize: 11, color: Colors.red))
-                        : _dropdownBox<int>(
-                            value: selectedBranchId,
-                            items: _daftarBranch.map((b) => b.id).toList(),
-                            labelBuilder: (id) => _daftarBranch.firstWhere((b) => b.id == id).name,
-                            onChanged: (val) => setStateDialog(() => selectedBranchId = val),
+                child: Form(
+                  key: formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        "Nama Lengkap",
+                        namaController,
+                        validator: _validateNama,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "Email",
+                        emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "No. WhatsApp / HP",
+                        waController,
+                        keyboardType: TextInputType.phone,
+                        validator: _validatePhone,
+                        inputFormatters: [_PhoneInputFormatter()],
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "Password",
+                        passwordController,
+                        obscureText: true,
+                        validator: _validatePasswordRequired,
+                      ),
+                      const SizedBox(height: 6),
+                      const Text("Role / Hak Akses", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                      const SizedBox(height: 3),
+                      _dropdownBox<String>(
+                        value: selectedRole,
+                        items: _roleOptions,
+                        labelBuilder: (r) => r[0].toUpperCase() + r.substring(1),
+                        onChanged: (val) => setStateDialog(() => selectedRole = val!),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text("Cabang Branch", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                      const SizedBox(height: 3),
+                      _daftarBranch.isEmpty
+                          ? const Text("Belum ada data branch", style: TextStyle(fontSize: 11, color: Colors.red))
+                          : _dropdownBox<int>(
+                              value: selectedBranchId,
+                              items: _daftarBranch.map((b) => b.id).toList(),
+                              labelBuilder: (id) => _daftarBranch.firstWhere((b) => b.id == id).name,
+                              onChanged: (val) => setStateDialog(() => selectedBranchId = val),
+                            ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: userAktif,
+                            activeColor: corporateGreen,
+                            onChanged: (val) => setStateDialog(() => userAktif = val ?? true),
                           ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: userAktif,
-                          activeColor: corporateGreen,
-                          onChanged: (val) => setStateDialog(() => userAktif = val ?? true),
-                        ),
-                        const Text("User Aktif", style: TextStyle(fontSize: 10, color: Color(0xFF475569))),
-                      ],
-                    ),
-                  ],
+                          const Text("User Aktif", style: TextStyle(fontSize: 10, color: Color(0xFF475569))),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -162,18 +282,19 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                   onPressed: isSaving
                       ? null
                       : () async {
-                          if (namaController.text.isEmpty || emailController.text.isEmpty || passwordController.text.isEmpty) {
+                          if (!formKey.currentState!.validate()) return;
+                          if (_daftarBranch.isNotEmpty && selectedBranchId == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Nama, email, dan password wajib diisi')),
+                              const SnackBar(content: Text('Cabang wajib dipilih')),
                             );
                             return;
                           }
                           setStateDialog(() => isSaving = true);
                           try {
                             final res = await UserBloc.create(
-                              name: namaController.text,
-                              email: emailController.text,
-                              phone: waController.text,
+                              name: namaController.text.trim(),
+                              email: emailController.text.trim(),
+                              phone: waController.text.trim(),
                               password: passwordController.text,
                               role: selectedRole,
                               branchId: selectedBranchId,
@@ -191,7 +312,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                           } catch (e) {
                             setStateDialog(() => isSaving = false);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                              SnackBar(content: Text(_friendlyErrorMessage(e)), backgroundColor: Colors.red),
                             );
                           }
                         },
@@ -208,6 +329,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
   }
 
   void _showEditPenggunaDialog(BuildContext context, UserModel user) {
+    final formKey = GlobalKey<FormState>();
     final namaController = TextEditingController(text: user.name);
     final emailController = TextEditingController(text: user.email);
     final waController = TextEditingController(text: user.phone);
@@ -232,49 +354,73 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                 ],
               ),
               content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTextField("Nama Lengkap", namaController),
-                    const SizedBox(height: 6),
-                    _buildTextField("Email", emailController, keyboardType: TextInputType.emailAddress),
-                    const SizedBox(height: 6),
-                    _buildTextField("No. WhatsApp / HP", waController, keyboardType: TextInputType.phone),
-                    const SizedBox(height: 6),
-                    _buildTextField("Password Baru (Opsional)", passwordBaruController, obscureText: true),
-                    const SizedBox(height: 6),
-                    const Text("Role / Hak Akses", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
-                    const SizedBox(height: 3),
-                    _dropdownBox<String>(
-                      value: selectedRole,
-                      items: _roleOptions,
-                      labelBuilder: (r) => r[0].toUpperCase() + r.substring(1),
-                      onChanged: (val) => setStateDialog(() => selectedRole = val!),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text("Cabang Branch", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
-                    const SizedBox(height: 3),
-                    _daftarBranch.isEmpty
-                        ? const Text("Belum ada data branch", style: TextStyle(fontSize: 11, color: Colors.red))
-                        : _dropdownBox<int>(
-                            value: _daftarBranch.any((b) => b.id == selectedBranchId) ? selectedBranchId : null,
-                            items: _daftarBranch.map((b) => b.id).toList(),
-                            labelBuilder: (id) => _daftarBranch.firstWhere((b) => b.id == id).name,
-                            onChanged: (val) => setStateDialog(() => selectedBranchId = val),
+                child: Form(
+                  key: formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        "Nama Lengkap",
+                        namaController,
+                        validator: _validateNama,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "Email",
+                        emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "No. WhatsApp / HP",
+                        waController,
+                        keyboardType: TextInputType.phone,
+                        validator: _validatePhone,
+                        inputFormatters: [_PhoneInputFormatter()],
+                      ),
+                      const SizedBox(height: 6),
+                      _buildTextField(
+                        "Password Baru (Opsional)",
+                        passwordBaruController,
+                        obscureText: true,
+                        validator: _validatePasswordOptional,
+                      ),
+                      const SizedBox(height: 6),
+                      const Text("Role / Hak Akses", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                      const SizedBox(height: 3),
+                      _dropdownBox<String>(
+                        value: selectedRole,
+                        items: _roleOptions,
+                        labelBuilder: (r) => r[0].toUpperCase() + r.substring(1),
+                        onChanged: (val) => setStateDialog(() => selectedRole = val!),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text("Cabang Branch", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
+                      const SizedBox(height: 3),
+                      _daftarBranch.isEmpty
+                          ? const Text("Belum ada data branch", style: TextStyle(fontSize: 11, color: Colors.red))
+                          : _dropdownBox<int>(
+                              value: _daftarBranch.any((b) => b.id == selectedBranchId) ? selectedBranchId : null,
+                              items: _daftarBranch.map((b) => b.id).toList(),
+                              labelBuilder: (id) => _daftarBranch.firstWhere((b) => b.id == id).name,
+                              onChanged: (val) => setStateDialog(() => selectedBranchId = val),
+                            ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: userAktif,
+                            activeColor: corporateGreen,
+                            onChanged: (val) => setStateDialog(() => userAktif = val ?? true),
                           ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: userAktif,
-                          activeColor: corporateGreen,
-                          onChanged: (val) => setStateDialog(() => userAktif = val ?? true),
-                        ),
-                        const Text("User Aktif", style: TextStyle(fontSize: 10, color: Color(0xFF475569))),
-                      ],
-                    ),
-                  ],
+                          const Text("User Aktif", style: TextStyle(fontSize: 10, color: Color(0xFF475569))),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -293,13 +439,14 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                   onPressed: isSaving
                       ? null
                       : () async {
+                          if (!formKey.currentState!.validate()) return;
                           setStateDialog(() => isSaving = true);
                           try {
                             final res = await UserBloc.updateUser(
                               id: user.id!,
-                              name: namaController.text,
-                              email: emailController.text,
-                              phone: waController.text,
+                              name: namaController.text.trim(),
+                              email: emailController.text.trim(),
+                              phone: waController.text.trim(),
                               password: passwordBaruController.text,
                               role: selectedRole,
                               branchId: selectedBranchId,
@@ -317,7 +464,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                           } catch (e) {
                             setStateDialog(() => isSaving = false);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                              SnackBar(content: Text(_friendlyErrorMessage(e)), backgroundColor: Colors.red),
                             );
                           }
                         },
@@ -360,7 +507,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+        SnackBar(content: Text(_friendlyErrorMessage(e)), backgroundColor: Colors.red),
       );
     }
   }
@@ -391,21 +538,32 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text, bool obscureText = false}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    bool obscureText = false,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
         const SizedBox(height: 3),
-        TextField(
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          validator: validator,
+          inputFormatters: inputFormatters,
           style: const TextStyle(fontSize: 11),
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Colors.red)),
+            errorStyle: const TextStyle(fontSize: 9.5),
             filled: true,
             fillColor: const Color(0xFFF4F7FC),
             isDense: true,
@@ -726,34 +884,6 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                 ),
               ),
             ),
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   selectedItemColor: const Color(0xFF006B3F),
-      //   unselectedItemColor: const Color(0xFF778195),
-      //   backgroundColor: Colors.white,
-      //   type: BottomNavigationBarType.fixed,
-      //   selectedFontSize: 10,
-      //   unselectedFontSize: 10,
-      //   onTap: (index) {
-      //     setState(() => _currentIndex = index);
-      //     if (index == 0) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DashboardAdminScreen()));
-      //     } else if (index == 1) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const DaftarTamuScreen()));
-      //     } else if (index == 2) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const RiwayatScreen()));
-      //     } else if (index == 3) {
-      //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const JanjiTamuScreen()));
-      //     }
-      //   },
-      //   items: const [
-      //     BottomNavigationBarItem(icon: Icon(Icons.home_rounded, size: 20), label: 'Beranda'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.people_outline_rounded, size: 20), label: 'Daftar Tamu'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.history_rounded, size: 20), label: 'Riwayat'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.calendar_month_outlined, size: 20), label: 'Janji Tamu'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings_outlined, size: 20), label: 'Pengguna'),
-      //   ],
-      // ),
     );
   }
 

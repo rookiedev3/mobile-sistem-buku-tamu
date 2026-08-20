@@ -1,7 +1,28 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:mobile_flutter/bloc/registrasi_bloc.dart';
 import 'package:mobile_flutter/helpers/title_case_formatter.dart';
+
+// TAMBAHAN: formatter khusus nomor HP — hanya izinkan digit dan SATU
+// tanda '+' di posisi paling depan.
+class _PhoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final raw = newValue.text;
+    final hasLeadingPlus = raw.startsWith('+');
+    final digitsOnly = raw.replaceAll(RegExp(r'[^0-9]'), '');
+    final filtered = hasLeadingPlus ? '+$digitsOnly' : digitsOnly;
+    return TextEditingValue(
+      text: filtered,
+      selection: TextSelection.collapsed(offset: filtered.length),
+    );
+  }
+}
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -16,6 +37,9 @@ final Map<String, int> _cabangIdMap = {
 };
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  // TAMBAHAN: form key untuk validasi client-side
+  final _formKey = GlobalKey<FormState>();
+
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
   final _whatsappController = TextEditingController();
@@ -29,14 +53,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedCabang;
   final List<String> _listCabang = ['Cabang Sleman', 'Cabang Magelang'];
 
+  // DIUBAH: bukan final lagi, mulai dari 'disabled' supaya error TIDAK
+  // muncul saat user masih mengetik. Baru diaktifkan (jadi onUserInteraction)
+  // sesaat setelah tombol "Daftar Sekarang" ditekan pertama kali — setelah
+  // itu error akan update live saat user membetulkan input.
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
+
+  // TAMBAHAN: validator Nama Lengkap
+  String? _validateNama(String? value) {
+    final nama = (value ?? '').trim();
+    if (nama.isEmpty) {
+      return 'Nama lengkap wajib diisi';
+    }
+    if (nama.length < 3) {
+      return 'Nama minimal 3 karakter';
+    }
+    return null;
+  }
+
+  // TAMBAHAN: validator Email — cek kosong & format dasar user@domain.tld
+  String? _validateEmail(String? value) {
+    final email = (value ?? '').trim();
+    if (email.isEmpty) {
+      return 'Email wajib diisi';
+    }
+    final emailRegex = RegExp(r'^[\w\.\-]+@[\w\-]+\.[A-Za-z]{2,}$');
+    if (!emailRegex.hasMatch(email)) {
+      return 'Format email tidak valid';
+    }
+    return null;
+  }
+
+  // TAMBAHAN: validator No. WhatsApp — cek kosong, hanya angka (boleh diawali +),
+  // dan panjang wajar (9-15 digit)
+  String? _validateWhatsapp(String? value) {
+    final phone = (value ?? '').trim();
+    if (phone.isEmpty) {
+      return 'No. WhatsApp wajib diisi';
+    }
+    final phoneRegex = RegExp(r'^\+?[0-9]{9,15}$');
+    if (!phoneRegex.hasMatch(phone)) {
+      return 'Nomor WhatsApp tidak valid';
+    }
+    return null;
+  }
+
+  // TAMBAHAN: validator Password — wajib diisi + minimal 6 karakter
+  String? _validatePassword(String? value) {
+    final password = value ?? '';
+    if (password.isEmpty) {
+      return 'Password wajib diisi';
+    }
+    if (password.length < 6) {
+      return 'Password minimal 6 karakter';
+    }
+    return null;
+  }
+
+  // TAMBAHAN: validator Konfirmasi Password — wajib diisi + harus sama dengan Password
+  String? _validateConfirmPassword(String? value) {
+    final confirm = value ?? '';
+    if (confirm.isEmpty) {
+      return 'Konfirmasi password wajib diisi';
+    }
+    if (confirm != _passwordController.text) {
+      return 'Password dan Konfirmasi Password tidak sama';
+    }
+    return null;
+  }
+
   Future<void> _handleRegister() async {
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password dan Konfirmasi Password tidak sama!')),
-      );
+    // DIUBAH: begitu tombol Daftar Sekarang ditekan, baru aktifkan mode
+    // auto-validate. Sebelum ini error tidak akan tampil sendiri saat
+    // mengetik; setelah tombol ditekan sekali, semua field yang salah
+    // langsung dicek dan (kalau user lanjut mengedit) error-nya update live.
+    setState(() {
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
+
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) {
       return;
     }
 
+    // Validasi terpisah untuk dropdown cabang (bukan TextFormField, jadi
+    // tetap dicek manual, tapi tetap sebelum proses ke API)
     if (_selectedCabang == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pilih cabang penempatan dulu')),
@@ -65,12 +166,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
+      // DIUBAH: bersihkan pesan error dari backend supaya tidak nampilin
+      // JSON mentah — sama pola dengan login_screen.dart.
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        SnackBar(content: Text(_humanizeError(e))),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // DIUBAH: helper untuk menerjemahkan error dari RegistrasiBloc jadi pesan
+  // yang enak dibaca. Sebelumnya pakai regex dan cuma cek prefix "Exception: ",
+  // jadi tembus kalau prefix-nya beda (mis. "Invalid Input: ") atau detail
+  // validasinya ada di field lain (mis. "data" bukan "errors"). Sekarang:
+  // 1) cari kurung kurawal pertama supaya prefix apa pun ikut terpotong,
+  // 2) pakai jsonDecode (bukan regex) supaya lebih tahan terhadap variasi
+  //    struktur JSON dari backend, dan
+  // 3) cek beberapa kemungkinan key ("errors" ATAU "data") yang isinya
+  //    Map<field, List<pesan>>, sesuai yang dipakai backend saat ini.
+  String _humanizeError(Object e) {
+    var msg = e.toString().replaceAll('Exception: ', '').trim();
+
+    final jsonStart = msg.indexOf('{');
+    if (jsonStart != -1) {
+      final jsonPart = msg.substring(jsonStart);
+      try {
+        final decoded = jsonDecode(jsonPart);
+        if (decoded is Map) {
+          // Coba ambil pesan validasi pertama dari "errors" atau "data",
+          // masing-masing berupa Map<String, List<String>>.
+          for (final key in ['errors', 'data']) {
+            final detail = decoded[key];
+            if (detail is Map && detail.isNotEmpty) {
+              final firstVal = detail.values.first;
+              if (firstVal is List && firstVal.isNotEmpty) {
+                return firstVal.first.toString();
+              }
+              if (firstVal != null) {
+                return firstVal.toString();
+              }
+            }
+          }
+          if (decoded['message'] != null) {
+            return decoded['message'].toString();
+          }
+        }
+      } catch (_) {
+        // bukan JSON valid, biarkan fallback ke pesan generik di bawah
+      }
+      msg = 'Pendaftaran gagal. Silakan periksa kembali data Anda.';
+    }
+
+    if (msg.isEmpty) {
+      msg = 'Terjadi kesalahan saat mendaftar. Silakan coba lagi.';
+    }
+
+    return msg;
   }
 
   @override
@@ -120,271 +272,380 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Logo Perusahaan
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.12),
-                                blurRadius: 12,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Image.asset(
-                            'assets/images/logo_perusahaan.jpg',
-                            width: 36,
-                            height: 36,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16), // Jarak disesuaikan agar pas
-
-                      // Judul & Deskripsi
-                      const Center(
-                        child: Text(
-                          "Daftar Akun Pegawai",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Center(
-                        child: Text(
-                          "Buat akun baru untuk akses sistem internal.",
-                          style: TextStyle(fontSize: 13, color: Colors.white70),
-                        ),
-                      ),
-
-                      const SizedBox(height: 20), // Jarak ke form input disesuaikan
-
-                      // Nama Lengkap
-                      const Text("Nama Lengkap", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4), // Jarak label ke input dibuat pas (tidak renggang, tidak mepet)
-                      TextField(
-                        controller: _namaController,
-                        inputFormatters: [TitleCaseTextFormatter()],
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: "Masukkan nama lengkap Anda",
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12), // Jarak antar kolom dibuat ideal (~12)
-
-                      // Email
-                      const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: "Masukkan email Anda",
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // No. WhatsApp
-                      const Text("No. WhatsApp", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _whatsappController,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: "Masukkan nomor WhatsApp Anda",
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Pilih Cabang
-                      const Text("Pilih Cabang", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      DropdownButtonFormField<String>(
-                        value: _selectedCabang,
-                        dropdownColor: Colors.white,
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        hint: const Text("Pilih cabang penempatan", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                        items: _listCabang.map((String cabang) {
-                          return DropdownMenuItem<String>(
-                            value: cabang,
-                            child: Text(cabang, style: const TextStyle(fontSize: 13, color: Color(0xFF172033))),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedCabang = newValue;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Password
-                      const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: "Masukkan password Anda",
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              size: 18,
-                              color: const Color(0xFF778195),
+                  // DIUBAH: bungkus dengan Form supaya TextFormField bisa divalidasi
+                  child: Form(
+                    key: _formKey,
+                    autovalidateMode: _autovalidateMode,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Logo Perusahaan
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.12),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
                             ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Konfirmasi Password
-                      const Text("Konfirmasi Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      TextField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
-                        decoration: InputDecoration(
-                          hintText: "Masukkan kembali password Anda",
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                              size: 18,
-                              color: const Color(0xFF778195),
+                            child: Image.asset(
+                              'assets/images/logo_perusahaan.jpg',
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.contain,
                             ),
-                            onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
-                      ),
 
-                      const SizedBox(height: 20), // Jarak ke tombol daftar
+                        const SizedBox(height: 16), // Jarak disesuaikan agar pas
 
-                      // Tombol Daftar Sekarang
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFC7AB6B), // Warna background baru  
-                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
+                        // Judul & Deskripsi
+                        const Center(
+                          child: Text(
+                            "Daftar Akun Pegawai",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Center(
+                          child: Text(
+                            "Buat akun baru untuk akses sistem internal.",
+                            style: TextStyle(fontSize: 13, color: Colors.white70),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20), // Jarak ke form input disesuaikan
+
+                        // Nama Lengkap
+                        const Text("Nama Lengkap", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4), // Jarak label ke input dibuat pas (tidak renggang, tidak mepet)
+                        // DIUBAH: TextField -> TextFormField + validator nama
+                        TextFormField(
+                          controller: _namaController,
+                          inputFormatters: [TitleCaseTextFormatter()],
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          validator: _validateNama,
+                          decoration: InputDecoration(
+                            hintText: "Masukkan nama lengkap Anda",
+                            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
                             ),
-                            elevation: 0,
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
-                          onPressed: _isLoading ? null : _handleRegister,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xFF006B3F),
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text(
-                                  "Daftar Sekarang",
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                ),
                         ),
-                      ),
 
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 12), // Jarak antar kolom dibuat ideal (~12)
 
-                      // Tombol "Kembali ke Login" di Paling Bawah Sendiri
-                      Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(context);
+                        // Email
+                        const Text("Email", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4),
+                        // DIUBAH: TextField -> TextFormField + validator email
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          validator: _validateEmail,
+                          decoration: InputDecoration(
+                            hintText: "Masukkan email Anda",
+                            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // No. WhatsApp
+                        const Text("No. WhatsApp", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4),
+                        // DIUBAH: TextField -> TextFormField + validator whatsapp.
+                        // TAMBAHAN inputFormatters: sebelumnya cuma keyboardType.phone,
+                        // yang cuma ganti tampilan keyboard tanpa benar-benar memblokir
+                        // huruf/simbol lain kalau diketik atau di-paste. Sekarang hanya
+                        // digit dan satu '+' di depan yang bisa masuk.
+                        TextFormField(
+                          controller: _whatsappController,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          validator: _validateWhatsapp,
+                          inputFormatters: [_PhoneInputFormatter()],
+                          decoration: InputDecoration(
+                            hintText: "Masukkan nomor WhatsApp Anda",
+                            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Pilih Cabang
+                        const Text("Pilih Cabang", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4),
+                        // DIUBAH: ditambah validator supaya konsisten dengan field lain
+                        // (dropdown ini tetap dicek manual juga sebelum _handleRegister
+                        // lanjut ke API, tapi validator ini bikin errornya tampil
+                        // langsung di bawah dropdown, bukan cuma via SnackBar)
+                        DropdownButtonFormField<String>(
+                          value: _selectedCabang,
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          hint: const Text("Pilih cabang penempatan", style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
+                          validator: (value) => value == null ? 'Cabang penempatan wajib dipilih' : null,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          items: _listCabang.map((String cabang) {
+                            return DropdownMenuItem<String>(
+                              value: cabang,
+                              child: Text(cabang, style: const TextStyle(fontSize: 13, color: Color(0xFF172033))),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              _selectedCabang = newValue;
+                            });
                           },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.arrow_back_ios, size: 12, color: Colors.white60),
-                              SizedBox(width: 4),
-                              Text(
-                                "Kembali ke Login",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white60,
-                                ),
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Password
+                        const Text("Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4),
+                        // DIUBAH: TextField -> TextFormField + validator password.
+                        // onChanged ditambahkan supaya field Konfirmasi Password
+                        // ikut divalidasi ulang begitu Password diubah setelah
+                        // form pernah disubmit (mencegah error "tidak sama" nyangkut).
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          validator: _validatePassword,
+                          onChanged: (_) => _formKey.currentState?.validate(),
+                          decoration: InputDecoration(
+                            hintText: "Masukkan password Anda",
+                            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                size: 18,
+                                color: const Color(0xFF778195),
                               ),
-                            ],
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                         ),
-                      ),
-                    ],
+
+                        const SizedBox(height: 12),
+
+                        // Konfirmasi Password
+                        const Text("Konfirmasi Password", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                        const SizedBox(height: 4),
+                        // DIUBAH: TextField -> TextFormField + validator konfirmasi password
+                        // (menggantikan pengecekan manual "password != confirm" yang
+                        // sebelumnya cuma dicek via SnackBar di _handleRegister)
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: _obscureConfirmPassword,
+                          style: const TextStyle(color: Color(0xFF172033), fontSize: 13),
+                          validator: _validateConfirmPassword,
+                          decoration: InputDecoration(
+                            hintText: "Masukkan kembali password Anda",
+                            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                                size: 18,
+                                color: const Color(0xFF778195),
+                              ),
+                              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                            ),
+                            errorStyle: const TextStyle(
+                              color: Color(0xFFFFD9D9),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20), // Jarak ke tombol daftar
+
+                        // Tombol Daftar Sekarang
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFC7AB6B), // Warna background baru  
+                               foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: _isLoading ? null : _handleRegister,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF006B3F),
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text(
+                                    "Daftar Sekarang",
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Tombol "Kembali ke Login" di Paling Bawah Sendiri
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.arrow_back_ios, size: 12, color: Colors.white60),
+                                SizedBox(width: 4),
+                                Text(
+                                  "Kembali ke Login",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white60,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
