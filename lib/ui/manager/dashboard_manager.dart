@@ -278,40 +278,40 @@ class _DashboardManagerState extends State<DashboardManager> {
           ),
 
           //button logout sementara
-       IconButton(
-  icon: const Icon(Icons.logout, color: Colors.white),
-  onPressed: () {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-        content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context), // Tutup dialog
-            child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            onPressed: () async {
-              Navigator.pop(context); // tutup dialog dulu
-              await LogoutBloc.logout(); // hapus token & remember_me
-              if (context.mounted) {
-                LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
-              }
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  title: const Text("Konfirmasi Keluar", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  content: const Text("Apakah Anda yakin ingin keluar?", style: TextStyle(fontSize: 11)),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context), // Tutup dialog
+                      child: const Text("Batal", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context); // tutup dialog dulu
+                        await LogoutBloc.logout(); // hapus token & remember_me
+                        if (context.mounted) {
+                          LogoutBloc.keluarKeHomepage(context); // redirect ke Homepage
+                        }
+                      },
+                      child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
+                    ),
+                  ],
+                ),
+              );
             },
-            child: const Text("Ya, Keluar", style: TextStyle(fontSize: 10)),
           ),
-        ],
-      ),
-    );
-  },
-),
         ],
       ),
       body: RefreshIndicator(
@@ -422,25 +422,6 @@ class _DashboardManagerState extends State<DashboardManager> {
           },
         ),
       ),
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   selectedItemColor: const Color(0xFF006B3F),
-      //   unselectedItemColor: const Color(0xFF778195),
-      //   backgroundColor: Colors.white,
-      //   type: BottomNavigationBarType.fixed,
-      //   onTap: (index) {
-      //     setState(() => _currentIndex = index);
-      //     if (index == 1) {
-      //       Navigator.push(context, MaterialPageRoute(builder: (context) => const PipelineScreen()));
-      //     }
-      //   },
-      //   items: const [
-      //     BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Beranda'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.timeline_rounded), label: 'Pipeline'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.people_alt_rounded), label: 'Guest'),
-      //     BottomNavigationBarItem(icon: Icon(Icons.analytics_rounded), label: 'Reports'),
-      //   ],
-      // ),
     );
   }
 
@@ -517,7 +498,7 @@ class _DashboardManagerState extends State<DashboardManager> {
                 if (newValue != null) {
                   setState(() {
                     _selectedFilter = newValue;
-                    _loadData(); // trigger fetch ulang ke backend dengan vip_status baru
+                    _loadData();
                   });
                 }
               },
@@ -529,148 +510,138 @@ class _DashboardManagerState extends State<DashboardManager> {
   }
 
   Widget _buildVisitCard(VisitModel item) {
-  Color badgeColor;
-  Color textColor;
-  switch (item.status?.toLowerCase()) {
-    case 'meeting':
-    case 'sedang meeting':
-      badgeColor = Colors.green.withOpacity(0.1);
-      textColor = Colors.green[700]!;
-      break;
-    case 'dikonfirmasi':
-    case 'confirmed':
-      badgeColor = Colors.blue.withOpacity(0.1);
-      textColor = Colors.blue[700]!;
-      break;
-    case 'menunggu':
-    case 'pending':
-      badgeColor = Colors.orange.withOpacity(0.1);
-      textColor = Colors.orange[800]!;
-      break;
-    default:
-      badgeColor = Colors.grey.withOpacity(0.1);
-      textColor = Colors.grey[700]!;
-  }
+    Color badgeColor;
+    Color textColor;
+    switch (item.status?.toLowerCase()) {
+      case 'meeting':
+      case 'sedang meeting':
+        badgeColor = Colors.green.withOpacity(0.1);
+        textColor = Colors.green[700]!;
+        break;
+      case 'dikonfirmasi':
+      case 'confirmed':
+        badgeColor = Colors.blue.withOpacity(0.1);
+        textColor = Colors.blue[700]!;
+        break;
+      case 'menunggu':
+      case 'pending':
+        badgeColor = Colors.orange.withOpacity(0.1);
+        textColor = Colors.orange[800]!;
+        break;
+      default:
+        badgeColor = Colors.grey.withOpacity(0.1);
+        textColor = Colors.grey[700]!;
+    }
 
-  return Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Baris 1: Token & Status
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              item.visitCode ?? 'VST-${item.id.toString().padLeft(4, '0')}',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(6)),
-              child: Text(item.status ?? '-',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Baris 2: Perusahaan + bintang VIP
-       // Baris 2: Perusahaan + bintang VIP
-Row(
-  children: [
-    Expanded(
-      child: Text(
-        item.companyName ?? '-',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF172033),
-        ),
-        overflow: TextOverflow.ellipsis,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-    ),
-    if (item.isVip) ...[
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB), // Background #fffbeb
-          borderRadius: BorderRadius.circular(20), // Border radius 20px
-          border: Border.all(
-            color: const Color(0xFFFDE68A), // Border #fde68a
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'VIP',
-          style: TextStyle(
-            fontSize: 10, // Font size 10px
-            fontWeight: FontWeight.w700, // Font weight 700
-            color: Color(0xFFB45309), // Color #b45309
-          ),
-        ),
-      ),
-    ],
-  ],
-),
-const SizedBox(height: 4),
-
-        // Tamu & Jabatan
-        Text(
-          "Tamu: ${item.guestName ?? '-'}"
-          "${item.guestPosition != null ? ' (${item.guestPosition})' : ''}",
-          style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
-        ),
-        const SizedBox(height: 2),
-
-        // Waktu
-        Text(
-          "Waktu: ${_formatTime(item.displayTime)}",
-          style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
-        ),
-        const SizedBox(height: 6),
-
-        // Jenis Kunjungan
-        Row(
-          children: [
-            const Text("Jenis Kunjungan: ", style: TextStyle(fontSize: 11, color: Color(0xFF778195))),
-            Text(item.purposeName ?? '-',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        const Divider(color: Color(0xFFE2E8F0), height: 12),
-
-        // Keperluan & PIC (id + nama)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                "Keperluan: ${item.keperluan ?? '-'}",
-                style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
-                overflow: TextOverflow.ellipsis,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                item.visitCode ?? 'VST-${item.id.toString().padLeft(4, '0')}',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
               ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "PIC: #${item.assignedUserId ?? '-'} ${item.assignedUserName ?? ''}",
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF172033)),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: badgeColor, borderRadius: BorderRadius.circular(6)),
+                child: Text(item.status ?? '-',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textColor)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Baris 2: Perusahaan + Badge VIP yang stylenya disamakan persis dengan LeadPICScreen
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  item.companyName ?? '-',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF172033),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (item.isVip) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    "VIP",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber[800],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          Text(
+            "Tamu: ${item.guestName ?? '-'}"
+            "${item.guestPosition != null ? ' (${item.guestPosition})' : ''}",
+            style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+          ),
+          const SizedBox(height: 2),
+
+          Text(
+            "Waktu: ${_formatTime(item.displayTime)}",
+            style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+          ),
+          const SizedBox(height: 6),
+
+          Row(
+            children: [
+              const Text("Jenis Kunjungan: ", style: TextStyle(fontSize: 11, color: Color(0xFF778195))),
+              Text(item.purposeName ?? '-',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF006B3F))),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          const Divider(color: Color(0xFFE2E8F0), height: 12),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  "Keperluan: ${item.keperluan ?? '-'}",
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                "PIC: #${item.assignedUserId ?? '-'} ${item.assignedUserName ?? ''}",
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF172033)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   String _formatTime(String raw) {
     try {

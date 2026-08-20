@@ -38,7 +38,7 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
   List<OptionItem> _picList = [];
 
   static const Map<String, Map<String, dynamic>> _leadBadges = {
-    'new':         {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
+    'new':        {'bg': Color(0xFFF1F5F9), 'color': Color(0xFF475569), 'label': 'Baru'},
     'contacted':   {'bg': Color(0xFFDBEAFE), 'color': Color(0xFF1D4ED8), 'label': 'Dihubungi'},
     'negotiation': {'bg': Color(0xFFFEF3C7), 'color': Color(0xFFD97706), 'label': 'Negosiasi'},
     'deal':        {'bg': Color(0xFFDCFCE7), 'color': Color(0xFF15803D), 'label': 'Deal'},
@@ -120,60 +120,60 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
   }
 
   // Aksi Export Excel
-Future<void> _exportExcel() async {
-  final tabHandle = prepareExportTab();
-  try {
-    final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
-    final fileUrl = await LaporanBloc.exportExcel(
-      month: bulanIndex,
-      year: int.parse(_selectedTahun),
-      category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
-      branchId: _selectedCabangId,
-      picId: _selectedPicId,
-    );
-    await completeExport(tabHandle, fileUrl);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
+  Future<void> _exportExcel() async {
+    final tabHandle = prepareExportTab();
+    try {
+      final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
+      final fileUrl = await LaporanBloc.exportExcel(
+        month: bulanIndex,
+        year: int.parse(_selectedTahun),
+        category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+        branchId: _selectedCabangId,
+        picId: _selectedPicId,
       );
-    }
-  } catch (e) {
-    closeExportTab(tabHandle);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gagal export Excel: $e"), backgroundColor: Colors.red),
-      );
+      await completeExport(tabHandle, fileUrl);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Berhasil export Excel"), backgroundColor: Colors.teal),
+        );
+      }
+    } catch (e) {
+      closeExportTab(tabHandle);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal export Excel: $e"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
-}
 
   // Aksi Export PDF
-Future<void> _exportPdf() async {
-  final tabHandle = prepareExportTab();
-  try {
-    final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
-    final fileUrl = await LaporanBloc.exportPdf(
-      month: bulanIndex,
-      year: int.parse(_selectedTahun),
-      category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
-      branchId: _selectedCabangId,
-      picId: _selectedPicId,
-    );
-    await completeExport(tabHandle, fileUrl);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
+  Future<void> _exportPdf() async {
+    final tabHandle = prepareExportTab();
+    try {
+      final bulanIndex = _bulanList.indexOf(_selectedBulan) + 1;
+      final fileUrl = await LaporanBloc.exportPdf(
+        month: bulanIndex,
+        year: int.parse(_selectedTahun),
+        category: _selectedKategori == 'Semua Kategori' ? '' : _selectedKategori.toLowerCase(),
+        branchId: _selectedCabangId,
+        picId: _selectedPicId,
       );
-    }
-  } catch (e) {
-    closeExportTab(tabHandle);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gagal export PDF: $e"), backgroundColor: Colors.red),
-      );
+      await completeExport(tabHandle, fileUrl);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Berhasil export PDF"), backgroundColor: Colors.redAccent),
+        );
+      }
+    } catch (e) {
+      closeExportTab(tabHandle);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal export PDF: $e"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
-}
 
   String _formatDateTime(String? iso) {
     if (iso == null || iso.isEmpty) return '-';
@@ -584,15 +584,22 @@ Future<void> _exportPdf() async {
                                       if (item.isVip) ...[
                                         const SizedBox(width: 4),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: const Color(0xFFFFFBEB),
                                             borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(color: const Color(0xFFFDE68A)),
+                                            border: Border.all(
+                                              color: const Color(0xFFFDE68A),
+                                              width: 1,
+                                            ),
                                           ),
                                           child: const Text(
                                             'VIP',
-                                            style: TextStyle(fontSize: 7, fontWeight: FontWeight.w800, color: Color(0xFFB45309)),
+                                            style: TextStyle(
+                                              fontSize: 7,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFFB45309),
+                                            ),
                                           ),
                                         ),
                                       ],

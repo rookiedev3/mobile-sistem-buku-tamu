@@ -132,9 +132,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
   }
 
   // ← TAMBAHAN: badge "Tahap" yang benar-benar sadar akan status kunjungan asli
-  // (dibatalkan/dsb), bukan cuma leadStatus. Sebelumnya kunjungan yang dibatalkan
-  // (leadStatus == null, karena gak pernah convert jadi lead) selalu jatuh ke
-  // fallback _leadBadges['new'] dan nongol "Baru" alih-alih "Dibatalkan".
   Map<String, dynamic> _tahapBadge(Kunjungan item) {
     final s = item.status.toLowerCase().trim();
     final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
@@ -301,8 +298,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     );
   }
 
-  // ← DIUBAH: sekarang cek status kunjungan asli dulu (dibatalkan → "Dibatalkan"),
-  // baru fallback ke leadStatus follow-up terakhir kalau bukan dibatalkan.
   String _pipelineTerakhirText(Kunjungan item) {
     final s = item.status.toLowerCase().trim();
     final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
@@ -341,7 +336,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     );
   }
 
-  // ← TAMBAHAN: reset filter, termasuk tanggal
   void _resetFilter() {
     setState(() {
       _searchQuery = '';
@@ -354,9 +348,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
 
   @override
   Widget build(BuildContext context) {
-    // Filter pencarian client-side tambahan (selain keyword yang sudah dikirim ke API).
-    // Perlakukan hanya sebagai penghalus tampilan halaman aktif — bukan pengganti
-    // pencarian server-side, karena data yang ada di memori cuma 1 halaman.
     final filteredArsip = _daftarArsip.where((item) {
       final q = _searchQuery.toLowerCase();
       final matchesSearch = q.isEmpty ||
@@ -422,8 +413,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                     ),
                     const SizedBox(height: 12),
 
-                    // ← DIUBAH: filter tanggal jadi field "Dari Tgl" / "Sampai Tgl" pakai showDatePicker,
-                    // sama polanya dengan RiwayatPICScreen (sebelumnya cuma tombol snackbar placeholder).
                     Row(
                       children: [
                         Expanded(
@@ -510,7 +499,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                       ],
                     ),
 
-                    // ← TAMBAHAN: tombol reset filter, muncul kalau ada filter tanggal/status/keyword aktif
                     if (_dariTanggal.isNotEmpty || _sampaiTanggal.isNotEmpty || _selectedStatus != 'Semua' || _searchQuery.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Align(
@@ -598,10 +586,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                    // nomor urut ikut halaman aktif — konsisten dengan pola PipelineScreen.
-                                    // Catatan: perPage sekarang diambil dari result.perPage (backend), bukan
-                                    // hardcode 10. Kalau kamu mau pastikan angka ini akurat walau per_page
-                                    // backend berubah, simpan result.perPage ke state (lihat catatan di bawah).
                                     child: Text("No. ${index + 1 + (_currentPage - 1) * 10}",
                                         style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
                                   ),
@@ -609,8 +593,6 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                   Text(item.visitCode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
                                 ],
                               ),
-                              // ← DIUBAH: pakai _tahapBadge(item) supaya kunjungan yang
-                              // dibatalkan nunjukin "Dibatalkan", bukan "Baru".
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -630,45 +612,45 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                           ),
                           const SizedBox(height: 10),
 
-                         // Baris 2: Perusahaan + bintang VIP
-Row(
-  children: [
-    Expanded(
-      child: Text(
-        item.companyName ?? '-',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF172033),
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-    if (item.isVip) ...[
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB), // Background #fffbeb
-          borderRadius: BorderRadius.circular(20), // Border radius 20px
-          border: Border.all(
-            color: const Color(0xFFFDE68A), // Border #fde68a
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'VIP',
-          style: TextStyle(
-            fontSize: 10, // Font size 10px
-            fontWeight: FontWeight.w700, // Font weight 700
-            color: Color(0xFFB45309), // Color #b45309
-          ),
-        ),
-      ),
-    ],
-  ],
-),
-const SizedBox(height: 4),
+                          // Baris 2: Perusahaan + badge VIP baru (disamakan dengan PIC)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.companyName ?? '-',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF172033),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (item.isVip) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: const Color(0xFFFDE68A),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'VIP',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFB45309),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
 
                           Row(
                             children: [
