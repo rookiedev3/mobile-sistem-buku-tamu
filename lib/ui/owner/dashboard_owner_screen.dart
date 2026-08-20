@@ -102,7 +102,7 @@ class _DashboardOwnerScreenState extends State<DashboardOwnerScreen> {
       case 'lost':
         return {'bg': const Color(0xFFFEE2E2), 'color': const Color(0xFFB91C1C), 'label': 'Lost'};
       default:
-        return {'bg': const Color(0xFFF8FAFC), 'color': const Color(0xFF94A3B8), 'label': 'Bukan Lead'};
+        return {'bg': const Color(0xFFF8FAFC), 'color': const Color(0xFF94A3B8), 'label': 'Non Lead'};
     }
   }
 

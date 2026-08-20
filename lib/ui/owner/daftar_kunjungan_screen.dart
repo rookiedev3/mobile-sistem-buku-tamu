@@ -169,7 +169,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
 
     final key = item.leadStatus;
     if (key == null || key.isEmpty) {
-      return {'label': 'Bukan Lead', 'color': const Color(0xFF94A3B8)};
+      return {'label': 'Non Lead', 'color': const Color(0xFF94A3B8)};
     }
 
     return _leadBadges[key] ?? {'label': 'Baru', 'color': const Color(0xFF64748B)};
@@ -247,7 +247,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📝 Catatan Awal Kunjungan:",
+                  const Text(" Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -261,7 +261,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📌 Hasil Meeting:",
+                  const Text(" Hasil Meeting:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -275,7 +275,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("🔄 Riwayat Update Pipeline:",
+                  const Text(" Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   if (item.followUps.isEmpty)
@@ -359,7 +359,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
     } else {
       statusKey = item.leadStatus;
     }
-    if (statusKey == null || statusKey.isEmpty) return 'Bukan Lead';
+    if (statusKey == null || statusKey.isEmpty) return 'Non Lead';
     return (_leadBadges[statusKey] ?? _leadBadges['new']!)['label'] as String;
   }
 
