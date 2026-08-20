@@ -566,7 +566,7 @@ class _DashboardManagerState extends State<DashboardManager> {
             children: [
               Expanded(
                 child: Text(
-                  item.companyName ?? '-',
+                  item.guestName ?? '-',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -598,7 +598,7 @@ class _DashboardManagerState extends State<DashboardManager> {
           const SizedBox(height: 4),
 
           Text(
-            "Tamu: ${item.guestName ?? '-'}"
+            "Tamu: ${item.companyName ?? '-'}"
             "${item.guestPosition != null ? ' (${item.guestPosition})' : ''}",
             style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
           ),
@@ -643,11 +643,14 @@ class _DashboardManagerState extends State<DashboardManager> {
     );
   }
 
-  String _formatTime(String raw) {
+  // ================= DISAMAKAN DENGAN DASHBOARD OWNER (_formatJam) =================
+  String _formatTime(String? iso) {
+    if (iso == null) return '-';
     try {
-      return DateFormat('HH:mm').format(DateTime.parse(raw)) + ' WIB';
+      final dt = DateTime.parse(iso).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
     } catch (_) {
-      return raw;
+      return '-';
     }
   }
 

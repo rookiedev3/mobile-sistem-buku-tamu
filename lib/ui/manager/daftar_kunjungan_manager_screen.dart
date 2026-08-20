@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import '/bloc/kunjungan_bloc.dart';
 import '/model/kunjungan.dart';
 
+/// Catatan: screen ini disamakan dengan DaftarKunjunganScreen milik Owner —
+/// baik dari sisi filter/pencarian (date range saling membatasi), format
+/// waktu (ikut nampilin jam), badge follow-up di dialog riwayat, maupun
+/// tampilan card per item (nama tamu + jabatan-instansi) — supaya UX
+/// Manager & Owner konsisten untuk fitur yang sama.
 class DaftarKunjunganManagerScreen extends StatefulWidget {
   const DaftarKunjunganManagerScreen({Key? key}) : super(key: key);
 
@@ -11,27 +16,29 @@ class DaftarKunjunganManagerScreen extends StatefulWidget {
 }
 
 class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScreen> {
+  final Color corporateGreen = const Color(0xFF006B3F);
+
   String _searchQuery = '';
   String _selectedStatus = 'Semua'; // Semua / VIP / Reguler -> mapped ke vip_status di API
   final List<String> _statusOptions = ['Semua', 'VIP', 'Reguler'];
 
-  // ← TAMBAHAN: filter tanggal, samain pola RiwayatPICScreen
+  // Filter tanggal, disamakan dengan DaftarKunjunganScreen (Owner)
   String _dariTanggal = '';
   String _sampaiTanggal = '';
 
+  List<Kunjungan> _daftarKunjungan = [];
   int _currentPage = 1;
   int _lastPage = 1;
-
-  List<Kunjungan> _daftarArsip = [];
   bool _isLoading = true;
   String? _errorMessage;
 
+  // Samakan gaya badge dengan DaftarKunjunganScreen (Owner)
   final Map<String, Map<String, dynamic>> _leadBadges = {
-    'new': {'label': 'Baru', 'color': Color(0xFF64748B)},
-    'contacted': {'label': 'Dihubungi', 'color': Color(0xFF1B65E3)},
-    'negotiation': {'label': 'Negosiasi', 'color': Color(0xFFF59E0B)},
-    'deal': {'label': 'Deal / Berhasil', 'color': Color(0xFF006B3F)},
-    'lost': {'label': 'Lost', 'color': Color(0xFFDC2626)},
+    'new': {'label': 'Baru', 'color': const Color(0xFF64748B)},
+    'contacted': {'label': 'Dihubungi', 'color': const Color(0xFF1B65E3)},
+    'negotiation': {'label': 'Negosiasi', 'color': const Color(0xFFF59E0B)},
+    'deal': {'label': 'Deal / Berhasil', 'color': const Color(0xFF006B3F)},
+    'lost': {'label': 'Lost', 'color': const Color(0xFFDC2626)},
   };
 
   @override
@@ -60,7 +67,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
         page: _currentPage,
       );
       setState(() {
-        _daftarArsip = result.data;
+        _daftarKunjungan = result.data;
         _currentPage = result.currentPage;
         _lastPage = result.lastPage;
       });
@@ -71,13 +78,29 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     }
   }
 
-  // ← TAMBAHAN: date picker, samain pola RiwayatPICScreen._pilihTanggal
+  // DIUBAH: date picker sekarang saling membatasi (sama seperti Owner).
+  // - Pilih "Dari Tgl" → maksimal cuma sampai "Sampai Tgl" (kalau sudah diisi).
+  // - Pilih "Sampai Tgl" → minimal cuma dari "Dari Tgl" (kalau sudah diisi).
   Future<void> _pilihTanggal(BuildContext context, bool isDari) async {
+    DateTime firstDate = DateTime(2025);
+    DateTime lastDate = DateTime(2030);
+
+    if (isDari && _sampaiTanggal.isNotEmpty) {
+      lastDate = DateTime.parse(_sampaiTanggal);
+    }
+    if (!isDari && _dariTanggal.isNotEmpty) {
+      firstDate = DateTime.parse(_dariTanggal);
+    }
+
+    DateTime initial = DateTime.now();
+    if (initial.isBefore(firstDate)) initial = firstDate;
+    if (initial.isAfter(lastDate)) initial = lastDate;
+
     DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2030),
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -108,30 +131,35 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     }
   }
 
-  String _formatValue(double? value) {
-    if (value == null) return '-';
-    return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        )}';
+  // Reset filter, termasuk tanggal
+  void _resetFilter() {
+    setState(() {
+      _searchQuery = '';
+      _selectedStatus = 'Semua';
+      _dariTanggal = '';
+      _sampaiTanggal = '';
+    });
+    _fetchData(page: 1);
   }
 
-  static const List<String> _bulanIndo = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-  ];
-
-  String _formatWaktu(String? iso) {
-    if (iso == null) return '-';
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      return '${dt.day} ${_bulanIndo[dt.month - 1]} ${dt.year}';
-    } catch (_) {
-      return '-';
+  // Badge lookup aman: cocok baik backend kirim key mentah ('new', dst)
+  // maupun label jadi. Dipakai untuk badge follow-up di dalam dialog
+  // (status pipeline per-update), bukan untuk status kunjungan level-kartu.
+  Map<String, dynamic> _getBadge(String? status) {
+    if (status == null || status.isEmpty) {
+      return {'label': '-', 'color': Colors.grey};
     }
+    if (_leadBadges.containsKey(status)) return _leadBadges[status]!;
+    return _leadBadges.values.firstWhere(
+      (v) => v['label'] == status,
+      orElse: () => {'label': status, 'color': Colors.grey},
+    );
   }
 
-  // ← TAMBAHAN: badge "Tahap" yang benar-benar sadar akan status kunjungan asli
+  // Badge "Tahap" yang sadar akan status kunjungan asli (dibatalkan/dsb),
+  // bukan cuma leadStatus. Kunjungan yang dibatalkan (leadStatus == null,
+  // karena gak pernah convert jadi lead) sebelumnya selalu jatuh ke fallback
+  // _leadBadges['new'] dan nongol "Baru" alih-alih "Dibatalkan".
   Map<String, dynamic> _tahapBadge(Kunjungan item) {
     final s = item.status.toLowerCase().trim();
     final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
@@ -148,6 +176,34 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     return _leadBadges[key] ?? {'label': 'Baru', 'color': const Color(0xFF64748B)};
   }
 
+  String _formatValue(double? value) {
+    if (value == null) return '-';
+    return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        )}';
+  }
+
+  static const List<String> _bulanIndo = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
+  // DIUBAH: sekarang ikut nampilin jam (dari check_in_at), bukan cuma tanggal
+  // — sama seperti DaftarKunjunganScreen (Owner).
+  String _formatWaktu(String? iso) {
+    if (iso == null) return '-';
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      final tanggal = '${dt.day} ${_bulanIndo[dt.month - 1]} ${dt.year}';
+      final jam = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} WIB';
+      return '$tanggal, $jam';
+    } catch (_) {
+      return '-';
+    }
+  }
+
+  // --- POP-UP DIALOG RIWAYAT (disamakan dengan Owner) ---
   void _showCatatanDialog(BuildContext context, Kunjungan item) {
     showDialog(
       context: context,
@@ -238,6 +294,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                     )
                   else
                     ...item.followUps.map((fu) {
+                      final fuBadge = _getBadge(fu.status);
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
@@ -254,15 +311,8 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                               children: [
                                 Text('📅 ${_formatWaktu(fu.createdAt)}',
                                     style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                                if (fu.status != null)
-                                  Text(
-                                    'Tahap: ${(_leadBadges[fu.status] ?? _leadBadges['new']!)['label']}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: (_leadBadges[fu.status] ?? _leadBadges['new']!)['color'] as Color,
-                                    ),
-                                  ),
+                                Text('Tahap: ${fuBadge['label']}',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fuBadge['color'] as Color)),
                               ],
                             ),
                             const SizedBox(height: 6),
@@ -275,7 +325,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 Text('💰 ${_formatValue(fu.estimatedValue?.toDouble())}',
                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 if (fu.dueAt != null)
-                                  Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt!)}',
+                                  Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt)}',
                                       style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
                               ],
                             ),
@@ -298,6 +348,8 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     );
   }
 
+  // Cek status kunjungan asli dulu (dibatalkan → "Dibatalkan"),
+  // baru fallback ke leadStatus follow-up terakhir kalau bukan dibatalkan.
   String _pipelineTerakhirText(Kunjungan item) {
     final s = item.status.toLowerCase().trim();
     final isCancelled = s.contains('batal') || s.contains('cancel') || s.contains('tolak');
@@ -336,19 +388,10 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     );
   }
 
-  void _resetFilter() {
-    setState(() {
-      _searchQuery = '';
-      _selectedStatus = 'Semua';
-      _dariTanggal = '';
-      _sampaiTanggal = '';
-    });
-    _fetchData(page: 1);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final filteredArsip = _daftarArsip.where((item) {
+    // Filter pencarian client-side tambahan (selain keyword yang dikirim ke API) — sama seperti Owner
+    final filteredList = _daftarKunjungan.where((item) {
       final q = _searchQuery.toLowerCase();
       final matchesSearch = q.isEmpty ||
           (item.guestName ?? '').toLowerCase().contains(q) ||
@@ -360,10 +403,10 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF006B3F),
+        backgroundColor: corporateGreen,
         elevation: 0,
         title: const Text(
-          "Arsip Kunjungan Tamu",
+          "Daftar Kunjungan & Pipeline",
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
@@ -379,7 +422,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===================== FILTER =====================
+              // ===================== FILTER (sama seperti Owner) =====================
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -522,12 +565,12 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
               const SizedBox(height: 20),
 
               const Text(
-                "Hasil Arsip Kunjungan",
+                "Daftar Kunjungan & Pipeline",
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
               ),
               const SizedBox(height: 12),
 
-              // ===================== LIST =====================
+              // ===================== LIST (gaya card, sama seperti Owner) =====================
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 60),
@@ -546,24 +589,26 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                     ],
                   ),
                 )
-              else if (filteredArsip.isEmpty)
+              else if (filteredList.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
                   child: const Center(
-                    child: Text("Tidak ada arsip kunjungan yang cocok.", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                    child: Text("Tidak ada data kunjungan yang cocok.", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
                   ),
                 )
               else
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: filteredArsip.length,
+                  itemCount: filteredList.length,
                   itemBuilder: (context, index) {
-                    final item = filteredArsip[index];
-                    final catatan = item.catatanTerakhir ?? 'Belum ada catatan.';
+                    final item = filteredList[index];
                     final tahap = _tahapBadge(item);
+                    final catatan = item.followUps.isNotEmpty
+                        ? (item.followUps.last.result ?? 'Belum ada catatan.')
+                        : (item.meetingResult ?? item.notes ?? 'Belum ada catatan.');
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -571,13 +616,12 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2)),
-                        ],
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6, offset: const Offset(0, 2))],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // No + Token + Badge tahap pipeline
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -586,11 +630,14 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                    child: Text("No. ${index + 1 + (_currentPage - 1) * 10}",
-                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
+                                    child: Text(
+                                      "No. ${index + 1 + (_currentPage - 1) * 10}",
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195)),
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(item.visitCode, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
+                                  Text(item.visitCode,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF006B3F))),
                                 ],
                               ),
                               Container(
@@ -601,23 +648,19 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 ),
                                 child: Text(
                                   "Tahap: ${tahap['label']}",
-                                  style: TextStyle(
-                                    color: tahap['color'] as Color,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: TextStyle(color: tahap['color'] as Color, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 10),
 
-                          // Baris 2: Perusahaan + badge VIP baru (disamakan dengan PIC)
+                          // Baris: Nama Tamu + bintang VIP
                           Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  item.companyName ?? '-',
+                                  item.guestName ?? '-',
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -633,34 +676,39 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFFFBEB),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: const Color(0xFFFDE68A),
-                                      width: 1,
-                                    ),
+                                    border: Border.all(color: const Color(0xFFFDE68A), width: 1),
                                   ),
                                   child: const Text(
                                     'VIP',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFFB45309),
-                                    ),
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFB45309)),
                                   ),
                                 ),
                               ],
                             ],
                           ),
+                          const SizedBox(height: 2),
+
+                          // Baris: Jabatan - Instansi/Perusahaan
+                          Text(
+                            [item.guestPosition, item.companyName]
+                                .where((e) => e != null && e.isNotEmpty)
+                                .join(' - '),
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
+                          ),
                           const SizedBox(height: 4),
 
+                          // Waktu (sekarang termasuk jam, dari check_in_at)
                           Row(
                             children: [
                               const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF778195)),
                               const SizedBox(width: 6),
-                              Text("Waktu: ${_formatWaktu(item.checkInAt ?? item.scheduledAt)}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                              Text("Waktu: ${_formatWaktu(item.checkInAt ?? item.scheduledAt)}",
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
                             ],
                           ),
                           const SizedBox(height: 6),
 
+                          // Jenis Kunjungan & Value
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -668,31 +716,40 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 children: [
                                   const Icon(Icons.category_outlined, size: 14, color: Color(0xFF778195)),
                                   const SizedBox(width: 6),
-                                  Text("Jenis Kunjungan: ${item.categoryName ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                  Text("Jenis Kunjungan: ${item.categoryName ?? '-'}",
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
                                 ],
                               ),
-                              Text(_formatValue(item.estimatedValue), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                              Text(_formatValue(item.estimatedValue),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                             ],
                           ),
                           const SizedBox(height: 6),
 
+                          // Keperluan
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.description_outlined, size: 14, color: Color(0xFF778195)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text("Keperluan: ${item.purpose ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                              Row(
+                                children: [
+                                  const Icon(Icons.category_outlined, size: 14, color: Color(0xFF778195)),
+                                  const SizedBox(width: 6),
+                                  Text("Keperluan: ${item.purpose ?? '-'}",
+                                      style: const TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                ],
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
 
+                          // PIC / Sales
                           Row(
                             children: [
                               const Icon(Icons.badge_outlined, size: 14, color: Color(0xFF778195)),
                               const SizedBox(width: 6),
                               Expanded(
-                                child: Text("PIC/Sales: ${item.assignedUser ?? '-'}", style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                                child: Text("PIC/Sales: ${item.assignedUser ?? '-'}",
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
                               ),
                             ],
                           ),
@@ -702,6 +759,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                             child: Divider(height: 1, color: Color(0xFFE5E7EB)),
                           ),
 
+                          // Catatan terakhir & tombol Lihat Catatan (pop-up)
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -718,10 +776,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 onTap: () => _showCatatanDialog(context, item),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF006B3F).withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
+                                  decoration: BoxDecoration(color: const Color(0xFF006B3F).withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
                                   child: const Text("Lihat Catatan", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 ),
                               ),
@@ -733,15 +788,15 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                   },
                 ),
 
-              // ===================== KONTROL HALAMAN =====================
-              if (!_isLoading && _errorMessage == null && filteredArsip.isNotEmpty && _lastPage > 1) ...[
+              // Kontrol navigasi halaman
+              if (!_isLoading && _errorMessage == null && filteredList.isNotEmpty && _lastPage > 1) ...[
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left),
-                      color: const Color(0xFF006B3F),
+                      color: corporateGreen,
                       onPressed: _currentPage > 1 ? () => _fetchData(page: _currentPage - 1) : null,
                     ),
                     Text(
@@ -750,7 +805,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                     ),
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
-                      color: const Color(0xFF006B3F),
+                      color: corporateGreen,
                       onPressed: _currentPage < _lastPage ? () => _fetchData(page: _currentPage + 1) : null,
                     ),
                   ],

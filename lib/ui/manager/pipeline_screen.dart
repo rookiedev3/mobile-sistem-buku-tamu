@@ -57,6 +57,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
     return formatter.format(value);
   }
 
+  // ⬅️ DIUBAH: title dialog disamakan dengan LeadScreen (tanpa ikon note di depan)
   void _showCatatanDialog(BuildContext context, LeadModel lead) {
     showDialog(
       context: context,
@@ -65,7 +66,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           title: Row(
             children: [
-              const Icon(Icons.note_alt_rounded, color: Color(0xFF006B3F), size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Text("Riwayat – ${lead.guestName ?? 'Klien'}",
@@ -103,7 +103,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📝 Catatan Awal Kunjungan:",
+                  const Text(" Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -117,7 +117,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📌 Hasil Meeting Pertama:",
+                  const Text(" Hasil Meeting Pertama:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -131,7 +131,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("🔄 Riwayat Update Pipeline:",
+                  const Text(" Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   if (lead.followUps.isEmpty)
@@ -163,7 +163,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('📅 ${_formatDate(fu.createdAt)}',
+                                Text(' ${_formatDate(fu.createdAt)}',
                                     style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                                 Text('Tahap: ${badge['label']}',
                                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: badge['color'])),
@@ -176,10 +176,10 @@ class _PipelineScreenState extends State<PipelineScreen> {
                               spacing: 16,
                               runSpacing: 4,
                               children: [
-                                Text('💰 Estimasi Value: ${_rupiah(fu.estimatedValue)}',
+                                Text(' Estimasi Value: ${_rupiah(fu.estimatedValue)}',
                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 if (fu.dueAt != null)
-                                  Text('Tanggal Follow Up: ${_formatDate(fu.dueAt!)}',
+                                  Text('Target Due Date: ${_formatDate(fu.dueAt!)}',
                                       style: const TextStyle(fontSize: 10, color: Color(0xFF475569))),
                               ],
                             ),
@@ -216,10 +216,8 @@ class _PipelineScreenState extends State<PipelineScreen> {
     }
   }
 
-  String _formatFullDate(String raw) => _formatDate(raw);
-
   String _scheduleText(LeadModel lead) {
-    if (lead.status == 'deal') return 'Sudah Deal 🎉';
+    if (lead.status == 'deal') return 'Sudah Deal ';
     if (lead.status == 'lost') return 'Lead Hilang / Lost';
     if (lead.followUpAt != null) return _formatDate(lead.followUpAt!);
     return 'Tidak ada jadwal lanjutan';
@@ -260,7 +258,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
     } else if (diff == 0) {
       bg = const Color(0xFFFEF3C7);
       color = const Color(0xFFD97706);
-      label = ' Hari Ini';
+      label = 'Hari Ini';
     } else {
       bg = const Color(0xFFE6F4ED);
       color = const Color(0xFF006B3F);
@@ -274,6 +272,31 @@ class _PipelineScreenState extends State<PipelineScreen> {
     );
   }
 
+  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF778195), fontWeight: FontWeight.w500)),
+              Icon(icon, color: color, size: 20),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -281,13 +304,14 @@ class _PipelineScreenState extends State<PipelineScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF006B3F),
         elevation: 0,
-        title: const Text("Manajemen Lead & Follow Up",
+        title: const Text("Manajemen Lead & Follow-Up",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: RefreshIndicator(
+        // ⬅️ DIUBAH: tidak reset ke halaman 1 saat pull-to-refresh — disamakan dengan LeadScreen
         onRefresh: () async {
-          setState(() => _loadData(page: 1));
+          setState(() => _loadData());
           await _futurePipeline;
         },
         child: FutureBuilder<LeadPipelineResponse>(
@@ -309,7 +333,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         const SizedBox(height: 8),
                         Text('${snapshot.error}', textAlign: TextAlign.center),
                         const SizedBox(height: 12),
-                        ElevatedButton(onPressed: () => setState(() => _loadData(page: 1)), child: const Text('Coba Lagi')),
+                        ElevatedButton(onPressed: () => setState(() => _loadData()), child: const Text('Coba Lagi')),
                       ],
                     ),
                   ),
@@ -350,50 +374,44 @@ class _PipelineScreenState extends State<PipelineScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 38,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _categoryMap.length,
-                            itemBuilder: (context, index) {
-                              final label = _categoryMap.keys.elementAt(index);
-                              final key = _categoryMap[label]!;
-                              final isSelected = _selectedCategory == label;
-                              final count = counts[key] ?? 0;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: ChoiceChip(
-                                  label: Text(count > 0 ? '$label ($count)' : label),
-                                  selected: isSelected,
-                                  selectedColor: const Color(0xFF006B3F),
-                                  backgroundColor: Colors.white,
-                                  labelStyle: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : const Color(0xFF778195),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(color: isSelected ? const Color(0xFF006B3F) : const Color(0xFFE2E8F0)),
-                                  ),
-                                  onSelected: (_) => setState(() {
-                                    _selectedCategory = label;
-                                    _loadData(page: 1); // reset ke halaman 1 saat ganti kategori
-                                  }),
-                                ),
-                              );
-                            },
+                  SizedBox(
+                    height: 38,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _categoryMap.length,
+                      itemBuilder: (context, index) {
+                        final label = _categoryMap.keys.elementAt(index);
+                        final key = _categoryMap[label]!;
+                        final isSelected = _selectedCategory == label;
+                        final count = counts[key] ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(count > 0 ? '$label ($count)' : label),
+                            selected: isSelected,
+                            selectedColor: const Color(0xFF006B3F),
+                            backgroundColor: Colors.white,
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : const Color(0xFF778195),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(color: isSelected ? const Color(0xFF006B3F) : const Color(0xFFE2E8F0)),
+                            ),
+                            onSelected: (_) => setState(() {
+                              _selectedCategory = label;
+                              _currentPage = 1; // reset ke halaman 1 saat ganti kategori
+                              _loadData();
+                            }),
                           ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
                   const SizedBox(height: 10),
 
-                  // Filter status VIP
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -404,13 +422,14 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('Semua Status')),
-                          DropdownMenuItem(value: 'vip', child: Text(' VIP')),
+                          DropdownMenuItem(value: 'vip', child: Text('⭐ VIP')),
                           DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
                         ],
                         onChanged: (value) {
                           if (value != null) setState(() {
                             _vipFilter = value;
-                            _loadData(page: 1); // reset ke halaman 1 saat ganti filter VIP
+                            _currentPage = 1; // reset ke halaman 1 saat ganti filter VIP
+                            _loadData();
                           });
                         },
                       ),
@@ -458,7 +477,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                            // nomor urut dihitung dari halaman aktif, sama seperti pola web
                                             child: Text("No. ${index + 1 + (result.currentPage - 1) * 10}",
                                                 style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF778195))),
                                           ),
@@ -477,64 +495,59 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   ),
                                   const SizedBox(height: 10),
 
-                                 Row(
-  children: [
-    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
-    const SizedBox(width: 6),
-    Expanded(
-      child: Text.rich(
-        TextSpan(
-          children: [
-            const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-            TextSpan(
-              text: "${lead.guestName ?? '-'}${lead.guestPosition != null ? ' (${lead.guestPosition})' : ''}",
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-            ),
-          ],
-        ),
-      ),
-    ),
-    if (lead.isVip) ...[
-      const SizedBox(width: 6),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFBEB),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFFDE68A),
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'VIP',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFFB45309),
-          ),
-        ),
-      ),
-    ],
-  ],
-),
+                                  // ⬅️ DIUBAH: VIP sekarang ikon bintang (bukan badge pill), disamakan dengan LeadScreen
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                              TextSpan(
+                                                text: "${lead.guestName ?? '-'}"
+                                                    "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      if (lead.isVip) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                                      ],
+                                    ],
+                                  ),
                                   const SizedBox(height: 6),
 
-                                  if (lead.companyName != null && lead.companyName!.isNotEmpty) ...[
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(lead.companyName!,
-                                              style: const TextStyle(fontSize: 12, color: Color(0xFF778195)),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis),
+                                  // ⬅️ DIUBAH: baris Instansi sekarang selalu tampil dengan label,
+                                  // disamakan dengan LeadScreen (sebelumnya cuma muncul kalau ada isinya)
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.apartment_rounded, size: 14, color: Color(0xFF778195)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text.rich(
+                                          TextSpan(
+                                            children: [
+                                              const TextSpan(text: "Instansi: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+                                              TextSpan(
+                                                text: (lead.companyName != null && lead.companyName!.isNotEmpty)
+                                                    ? lead.companyName!
+                                                    : '-',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+                                              ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                  ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
 
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -559,7 +572,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                       const SizedBox(width: 6),
                                       const Text("Follow Up: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
                                       if (lead.followUpAt != null) ...[
-                                        Text(_formatFullDate(lead.followUpAt!),
+                                        Text(_formatDate(lead.followUpAt!),
                                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                                         const SizedBox(width: 6),
                                       ],
@@ -632,31 +645,6 @@ class _PipelineScreenState extends State<PipelineScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 12, color: Color(0xFF778195), fontWeight: FontWeight.w500)),
-              Icon(icon, color: color, size: 20),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
-        ],
       ),
     );
   }
