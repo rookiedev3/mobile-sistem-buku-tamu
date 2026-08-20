@@ -140,10 +140,29 @@ class _LeadSourceTabState extends State<LeadSourceTab> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(item == null ? "Tambah Lead Source" : "Edit Lead Source", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-        content: dialogField("Nama Lead Source", namaCtrl),
+        title: Text(
+          item == null ? "Tambah Lead Source" : "Edit Lead Source", 
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        // Membungkus content dengan ConstrainedBox dan SingleChildScrollView 
+        // agar tingginya pas mengikuti konten dan tidak memanjang ke bawah
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                dialogField("Nama Lead Source", namaCtrl),
+              ],
+            ),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text("Batal", style: TextStyle(fontSize: 11))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext), 
+            child: const Text("Batal", style: TextStyle(fontSize: 11)),
+          ),
           ElevatedButton(
             style: btnStyle(),
             onPressed: () async {
@@ -155,11 +174,20 @@ class _LeadSourceTabState extends State<LeadSourceTab> {
                 }
                 Navigator.pop(dialogContext);
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(item == null ? 'Lead source berhasil ditambahkan' : 'Lead source berhasil diperbarui')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(item == null 
+                      ? 'Lead source berhasil ditambahkan' 
+                      : 'Lead source berhasil diperbarui'),
+                  ),
+                );
                 _fetchData();
               } catch (e) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text(e.toString().replaceAll('Exception: ', '')), 
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
