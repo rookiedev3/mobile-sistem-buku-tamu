@@ -7,8 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '/helpers/api_url.dart'; // sesuaikan path import ApiUrl dengan struktur project kamu
 
-// ← TAMBAHAN: model wrapper buat response paginated, biar konsisten
-// sama pola _laporanResponse yang dipakai di screen laporan.
+// Model wrapper buat response paginated
 class RiwayatResponse {
   final List<Map<String, dynamic>> data;
   final int currentPage;
@@ -21,21 +20,15 @@ class RiwayatResponse {
   });
 
   factory RiwayatResponse.fromJson(Map<String, dynamic> json, {required int fallbackPage}) {
-    // Backend bisa taruh pagination di beberapa kemungkinan bentuk:
-    // 1) {"data": {"data": [...], "current_page": 1, "last_page": 3}}  ← pola dashboard()/leads()
-    // 2) {"data": [...], "meta": {"current_page": 1, "last_page": 3}}  ← pola Laravel paginate() umum
-    // 3) {"data": [...], "current_page": 1, "last_page": 3}            ← flat
     final dynamic rawData = json['data'];
 
     Map<String, dynamic> paginationSource = json;
     List rawList = [];
 
     if (rawData is Map<String, dynamic>) {
-      // Bentuk (1): pagination nempel di dalam 'data'
       paginationSource = rawData;
       rawList = (rawData['data'] as List?) ?? [];
     } else if (rawData is List) {
-      // Bentuk (2) / (3): 'data' cuma list, pagination di 'meta' atau di root
       rawList = rawData;
       if (json['meta'] is Map<String, dynamic>) {
         paginationSource = json['meta'] as Map<String, dynamic>;
@@ -70,17 +63,14 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
   String _dariTanggal = '';
   String _sampaiTanggal = '';
 
-  // Data dari API — sekarang dibungkus RiwayatResponse (data + pagination jadi satu)
   RiwayatResponse? _riwayatResponse;
 
-  // === PAGINATION STATE (page-based — bukan infinite scroll lagi) ===
-  static const int _perPage = 10; // sesuaikan kalau perlu
+  static const int _perPage = 10;
   int _currentPage = 1;
 
   bool _isLoading = false;
   String? _errorMessage;
 
-  // ← TAMBAHAN: badge warna per status pipeline, meniru $leadBadges di Blade
   final Map<String, Map<String, Color>> _statusColors = {
     'new':         {'bg': const Color(0xFFF1F5F9), 'fg': const Color(0xFF475569)},
     'contacted':   {'bg': const Color(0xFFDBEAFE), 'fg': const Color(0xFF1D4ED8)},
@@ -120,9 +110,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     return prefs.getString('token');
   }
 
-  // page default 1 → dipakai buat load awal, ganti filter/tanggal/kategori,
-  // pencarian, dan pull-to-refresh. Untuk pindah halaman manual (tombol
-  // prev/next), panggil lewat _gotoPage().
   Future<void> _fetchRiwayat({required int page}) async {
     setState(() {
       _isLoading = true;
@@ -151,16 +138,9 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
         },
       );
 
-      // TAMBAHAN SEMENTARA buat debug — hapus lagi kalau sudah beres:
-      print('RIWAYAT URL: $url');
-      print('RIWAYAT BODY: ${response.body}');
-
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         final parsed = RiwayatResponse.fromJson(body, fallbackPage: page);
-
-        // Debug: pastiin last_page beneran kebaca > 1 kalau datanya emang banyak
-        print('RIWAYAT PARSED → currentPage: ${parsed.currentPage}, lastPage: ${parsed.lastPage}, jumlahItem: ${parsed.data.length}');
 
         setState(() {
           _riwayatResponse = parsed;
@@ -179,7 +159,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     }
   }
 
-  // Dipanggil dari tombol prev/next.
   void _gotoPage(int page) {
     final lastPage = _riwayatResponse?.lastPage ?? 1;
     if (page < 1 || page > lastPage) return;
@@ -189,11 +168,10 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
   void _onSearchChanged(String value) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      _fetchRiwayat(page: 1); // pencarian baru → reset ke halaman 1
+      _fetchRiwayat(page: 1);
     });
   }
 
-  // ← TAMBAHAN: format angka jadi Rupiah, meniru helper rupiah() di Blade
   String _formatRupiah(dynamic value) {
     if (value == null) return '-';
     final number = value is String ? num.tryParse(value) : value as num?;
@@ -210,6 +188,26 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
 
   Map<String, Color> _colorForStatus(String? key) {
     return _statusColors[key] ?? _statusColors['non_lead']!;
+  }
+
+  // Widget helper untuk Badge Kategori VIP / Reguler
+  Widget _buildCategoryBadge(bool isVip) {
+    final String label = isVip ? "VIP" : "Reguler";
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: isVip ? Colors.amber.withOpacity(0.2) : Colors.grey.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: isVip ? Colors.amber[800] : Colors.grey[700],
+        ),
+      ),
+    );
   }
 
   // Pop-up Detail Catatan & Riwayat Kunjungan
@@ -235,10 +233,8 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (isVip) const Padding(
-                    padding: EdgeInsets.only(left: 4),
-                    child: Text("⭐", style: TextStyle(fontSize: 12)),
-                  ),
+                  const SizedBox(width: 6),
+                  _buildCategoryBadge(isVip),
                 ],
               ),
             ),
@@ -269,7 +265,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
               ),
               const SizedBox(height: 10),
 
-              // ← TAMBAHAN: Hasil Meeting Pertama (sebelumnya belum ditampilkan)
               const Text(" Hasil Meeting Pertama:",
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
               const SizedBox(height: 4),
@@ -301,73 +296,73 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                 )
               else
                 ...riwayatPipeline.map((riwayat) {
-  return Container(
-    width: double.infinity,
-    margin: const EdgeInsets.only(bottom: 8),
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: const Color(0xFFFDFDFD),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: const Color(0xFFE2E8F0)), // ← border seragam, aman dipakai bareng borderRadius
-    ),
-    child: IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: 4,
-            color: const Color(0xFF006B3F), // ← strip hijau kiri, terpisah dari border
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "📅 ${riwayat["tanggal"] ?? '-'}",
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
-                        ),
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFDFDFD),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            width: 4,
+                            color: const Color(0xFF006B3F),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          "📅 ${riwayat["tanggal"] ?? '-'}",
+                                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                        ),
+                                      ),
+                                      Text(
+                                        "Tahap: ${riwayat["tahap"] ?? '-'}",
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    riwayat["catatan"] ?? 'Tidak ada detail catatan pada pembaruan ini.',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF334155)),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 12,
+                                    children: [
+                                      Text(
+                                        " ${_formatRupiah(riwayat["estimasiValue"])}",
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
+                                      ),
+                                      if (riwayat["dueDate"] != null)
+                                        Text(
+                                          "Target: ${riwayat["dueDate"]}",
+                                          style: const TextStyle(fontSize: 10, color: Color(0xFF475569)),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        "Tahap: ${riwayat["tahap"] ?? '-'}",
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    riwayat["catatan"] ?? 'Tidak ada detail catatan pada pembaruan ini.',
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF334155)),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 12,
-                    children: [
-                      Text(
-                        " ${_formatRupiah(riwayat["estimasiValue"])}",
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
-                      ),
-                      if (riwayat["dueDate"] != null)
-                        Text(
-                          "Target: ${riwayat["dueDate"]}",
-                          style: const TextStyle(fontSize: 10, color: Color(0xFF475569)),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}).toList(),
+                    ),
+                  );
+                }).toList(),
             ],
           ),
         ),
@@ -401,7 +396,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     );
   }
 
-  // ← TAMBAHAN: helper parse string "yyyy-MM-dd" jadi DateTime (null kalau kosong/invalid)
   DateTime? _parseTanggal(String s) {
     if (s.isEmpty) return null;
     try {
@@ -412,9 +406,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     }
   }
 
-  // Fungsi Pilih Tanggal Filter
-  // ← DIUBAH: sekarang firstDate/lastDate dibatasi silang antara "Dari" & "Sampai",
-  // biar "Sampai Tanggal" gak bisa lebih awal dari "Dari Tanggal" (dan sebaliknya).
   Future<void> _pilihTanggal(BuildContext context, bool isDari) async {
     final DateTime batasAwal = DateTime(2025);
     final DateTime batasAkhir = DateTime(2030);
@@ -423,16 +414,13 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
     DateTime lastDate = batasAkhir;
 
     if (isDari) {
-      // Pilih "Dari Tanggal" → tidak boleh melewati "Sampai Tanggal" (kalau sudah diisi)
       final sampai = _parseTanggal(_sampaiTanggal);
       if (sampai != null) lastDate = sampai;
     } else {
-      // Pilih "Sampai Tanggal" → tidak boleh sebelum "Dari Tanggal" (kalau sudah diisi)
       final dari = _parseTanggal(_dariTanggal);
       if (dari != null) firstDate = dari;
     }
 
-    // initialDate wajib berada di antara firstDate & lastDate, kalau tidak showDatePicker error
     DateTime initialDate = DateTime.now();
     if (initialDate.isBefore(firstDate)) initialDate = firstDate;
     if (initialDate.isAfter(lastDate)) initialDate = lastDate;
@@ -460,11 +448,10 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
           _sampaiTanggal = formatted;
         }
       });
-      _fetchRiwayat(page: 1); // filter tanggal baru → reset ke halaman 1
+      _fetchRiwayat(page: 1);
     }
   }
 
-  // Reset Filter
   void _resetFilter() {
     setState(() {
       _searchController.clear();
@@ -496,7 +483,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Card Pencarian & Filter Lengkap
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -509,8 +495,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                   children: [
                     const Text("Filter & Pencarian Arsip Kunjungan", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
                     const SizedBox(height: 8),
-
-                    // Search Bar berdasarkan Nama / Instansi
                     TextField(
                       controller: _searchController,
                       onChanged: _onSearchChanged,
@@ -528,8 +512,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-
-                    // Filter Tanggal & Status (VIP / Reguler)
                     Row(
                       children: [
                         Expanded(
@@ -592,7 +574,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                               onChanged: (String? val) {
                                 if (val != null) {
                                   setState(() => _filterStatus = val);
-                                  _fetchRiwayat(page: 1); // ganti filter kategori → reset ke halaman 1
+                                  _fetchRiwayat(page: 1);
                                 }
                               },
                             ),
@@ -601,7 +583,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     Align(
                       alignment: Alignment.centerRight,
                       child: OutlinedButton.icon(
@@ -620,8 +601,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-
-              // Konten: loading / error / kosong / list + pagination
               if (_isLoading)
                 const Padding(
                   padding: EdgeInsets.only(top: 60),
@@ -629,7 +608,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                 )
               else if (_errorMessage != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 40),
+                  padding: EdgeInsets.only(top: 40),
                   child: Center(
                     child: Column(
                       children: [
@@ -682,7 +661,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                                 decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
                                 child: Text("Token: ${item["token"] ?? '-'}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                               ),
-                              // ← DIUBAH: badge status pipeline berwarna sesuai tahap, bukan cuma merah/hijau
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
@@ -698,32 +676,30 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                           ),
                           const SizedBox(height: 8),
 
-                          // ← DIUBAH: tampilkan bintang VIP di sebelah nama, seperti di Blade
+                          // Baris Nama Tamu & Badge Kategori VIP/Reguler (Menggantikan Emoticon)
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Flexible(
                                 child: Text(item["nama"] ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF172033))),
                               ),
-                              if (isVip) const Padding(
-                                padding: EdgeInsets.only(left: 4),
-                                child: Text("⭐", style: TextStyle(fontSize: 11)),
-                              ),
+                              const SizedBox(width: 6),
+                              _buildCategoryBadge(isVip),
                             ],
                           ),
-                          // ← DIUBAH: jabatan & instansi ditampilkan (sebelumnya sudah ada tapi urutannya disesuaikan dgn Blade: Instansi (Jabatan))
+                          const SizedBox(height: 4),
+
                           Text("${item["instansi"] ?? '-'} (${item["jabatan"] ?? '-'})", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
                           const SizedBox(height: 4),
                           Text("Waktu: ${item["waktu"] ?? '-'}", style: const TextStyle(fontSize: 10, color: Color(0xFF006B3F), fontWeight: FontWeight.w600)),
                           Text("Keperluan: ${item["keperluan"] ?? '-'}", style: const TextStyle(fontSize: 10, color: Color(0xFF778195))),
 
-                          // ← TAMBAHAN: tampilkan estimasi value langsung di kartu kalau ada
                           if (item["estimasiValue"] != null) ...[
                             const SizedBox(height: 2),
                             Text("Estimasi Value: ${_formatRupiah(item["estimasiValue"])}", style: TextStyle(fontSize: 10, color: corporateGreen, fontWeight: FontWeight.w600)),
                           ],
                           const SizedBox(height: 6),
 
-                          // ← DIUBAH: tombol catatan hanya aktif kalau isCompleted (samakan dgn Blade: dibatalkan/belum selesai tidak ada catatan)
                           if (item["isCompleted"] == true)
                             InkWell(
                               onTap: () => _showDetailCatatanDialog(context, item),
@@ -742,8 +718,6 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                     );
                   },
                 ),
-
-                // === PAGINATION: page-based (prev/next), tanpa garis pemisah ===
                 if (_riwayatResponse != null && _riwayatResponse!.lastPage > 1)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
