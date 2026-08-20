@@ -249,7 +249,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📝 Catatan Awal Kunjungan:",
+                  const Text(" Catatan Awal Kunjungan:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -263,7 +263,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("📌 Hasil Meeting:",
+                  const Text(" Hasil Meeting:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 4),
                   Container(
@@ -277,7 +277,7 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                         style: const TextStyle(fontSize: 12, height: 1.4)),
                   ),
                   const SizedBox(height: 14),
-                  const Text("🔄 Riwayat Update Pipeline:",
+                  const Text(" Riwayat Update Pipeline:",
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   const SizedBox(height: 6),
                   if (item.followUps.isEmpty)
@@ -674,9 +674,9 @@ class _DaftarKunjunganManagerScreenState extends State<DaftarKunjunganManagerScr
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFFBEB),
+                                    color: const Color(0xFFFEF3C7),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: const Color(0xFFFDE68A), width: 1),
+                                    // border: Border.all(color: const Color(0xFFFDE68A), width: 1),
                                   ),
                                   child: const Text(
                                     'VIP',

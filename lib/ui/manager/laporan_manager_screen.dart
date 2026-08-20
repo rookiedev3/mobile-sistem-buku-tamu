@@ -586,12 +586,12 @@ class _LaporanManagerScreenState extends State<LaporanManagerScreen> {
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFFFFFBEB),
+                                            color: const Color(0xFFFEF3C7),
                                             borderRadius: BorderRadius.circular(20),
-                                            border: Border.all(
-                                              color: const Color(0xFFFDE68A),
-                                              width: 1,
-                                            ),
+                                            // border: Border.all(
+                                            //   color: const Color(0xFFFDE68A),
+                                            //   width: 1,
+                                            // ),
                                           ),
                                           child: const Text(
                                             'VIP',

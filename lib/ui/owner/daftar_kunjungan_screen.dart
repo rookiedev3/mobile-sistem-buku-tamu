@@ -320,7 +320,7 @@ class _DaftarKunjunganScreenState extends State<DaftarKunjunganScreen> {
                               spacing: 16,
                               runSpacing: 4,
                               children: [
-                                Text('💰 ${_formatValue(fu.estimatedValue?.toDouble())}',
+                                Text(' ${_formatValue(fu.estimatedValue?.toDouble())}',
                                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
                                 if (fu.dueAt != null)
                                   Text('Tanggal Follow Up: ${_formatWaktu(fu.dueAt)}',

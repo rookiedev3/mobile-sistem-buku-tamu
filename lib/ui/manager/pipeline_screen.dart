@@ -422,7 +422,7 @@ class _PipelineScreenState extends State<PipelineScreen> {
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
                         items: const [
                           DropdownMenuItem(value: 'all', child: Text('Semua Status')),
-                          DropdownMenuItem(value: 'vip', child: Text('⭐ VIP')),
+                          DropdownMenuItem(value: 'vip', child: Text(' VIP')),
                           DropdownMenuItem(value: 'reguler', child: Text('Reguler')),
                         ],
                         onChanged: (value) {
@@ -496,30 +496,46 @@ class _PipelineScreenState extends State<PipelineScreen> {
                                   const SizedBox(height: 10),
 
                                   // ⬅️ DIUBAH: VIP sekarang ikon bintang (bukan badge pill), disamakan dengan LeadScreen
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text.rich(
-                                          TextSpan(
-                                            children: [
-                                              const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
-                                              TextSpan(
-                                                text: "${lead.guestName ?? '-'}"
-                                                    "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      if (lead.isVip) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
-                                      ],
-                                    ],
-                                  ),
+                                  // Bagian Tamu di dalam card
+Row(
+  children: [
+    const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF778195)),
+    const SizedBox(width: 6),
+    Expanded(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            const TextSpan(text: "Tamu: ", style: TextStyle(fontSize: 12, color: Color(0xFF778195))),
+            TextSpan(
+              text: "${lead.guestName ?? '-'}"
+                  "${(lead.guestPosition != null && lead.guestPosition!.isNotEmpty) ? '(${lead.guestPosition})' : ''}",
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF172033)),
+            ),
+          ],
+        ),
+      ),
+    ),
+    // 🔄 DIUBAH: Bintang diganti jadi tulisan VIP gaya pill tanpa border
+    if (lead.isVip) ...[
+      const SizedBox(width: 6),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF3C7),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Text(
+          'VIP',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFFB45309),
+          ),
+        ),
+      ),
+    ],
+  ],
+),
                                   const SizedBox(height: 6),
 
                                   // ⬅️ DIUBAH: baris Instansi sekarang selalu tampil dengan label,
