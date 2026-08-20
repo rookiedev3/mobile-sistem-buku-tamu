@@ -258,7 +258,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
               _infoRow("Estimasi Value:", _formatRupiah(item["estimasiValue"]), isBold: true),
               const SizedBox(height: 8),
 
-              const Text("📝 Catatan Awal Kunjungan:",
+              const Text(" Catatan Awal Kunjungan:",
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
               const SizedBox(height: 4),
               Container(
@@ -270,7 +270,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
               const SizedBox(height: 10),
 
               // ← TAMBAHAN: Hasil Meeting Pertama (sebelumnya belum ditampilkan)
-              const Text("📌 Hasil Meeting Pertama:",
+              const Text(" Hasil Meeting Pertama:",
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
               const SizedBox(height: 4),
               Container(
@@ -281,7 +281,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
               ),
               const SizedBox(height: 10),
 
-              const Text("🔄 Riwayat Update Pipeline:",
+              const Text(" Riwayat Update Pipeline:",
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF172033))),
               const SizedBox(height: 4),
               if (riwayatPipeline.isEmpty)
@@ -349,7 +349,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
                     spacing: 12,
                     children: [
                       Text(
-                        "💰 ${_formatRupiah(riwayat["estimasiValue"])}",
+                        " ${_formatRupiah(riwayat["estimasiValue"])}",
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: corporateGreen),
                       ),
                       if (riwayat["dueDate"] != null)
@@ -483,7 +483,7 @@ class _RiwayatPICScreenState extends State<RiwayatPICScreen> {
         backgroundColor: corporateGreen,
         elevation: 0,
         title: const Text(
-          "Front Office - Riwayat Kunjungan",
+          "PIC - Riwayat Kunjungan",
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),

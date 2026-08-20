@@ -646,7 +646,7 @@ class _LeadPICScreenState extends State<LeadPICScreen> with SingleTickerProvider
         backgroundColor: corporateGreen,
         elevation: 0,
         title: const Text(
-          "Front Office - Pipeline Lead",
+          "PIC - Pipeline Lead dan Follow up",
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ),
