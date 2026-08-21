@@ -487,308 +487,15 @@ class _DaftarTamuScreenState extends State<DaftarTamuScreen> {
   }
 
   // Pop-up Ubah Profil Tamu
-  void _showEditTamuDialog(BuildContext context, Map<String, dynamic> tamu) {
-    final int guestId = tamu["id"] ?? 0;
-    final TextEditingController namaController = TextEditingController(
-      text: tamu["name"] ?? tamu["nama"] ?? "",
-    );
-    final TextEditingController waController = TextEditingController(
-      text: tamu["phone"] ?? tamu["wa"] ?? "",
-    );
-    final TextEditingController emailController = TextEditingController(
-      text: tamu["email"] ?? "",
-    );
-    final TextEditingController instansiController = TextEditingController(
-      text: tamu["company_name"] ?? tamu["instansi"] ?? "",
-    );
-    final TextEditingController jabatanController = TextEditingController(
-      text: tamu["position"] ?? tamu["jabatan"] ?? "",
-    );
-    final TextEditingController alamatController = TextEditingController(
-      text: tamu["address"] ?? tamu["alamat"] ?? "",
-    );
-
-    bool isVip =
-        (tamu["is_vip"] == 1 ||
-        tamu["is_vip"] == true ||
-        tamu["status"] == "VIP");
-    String statusTamu = isVip ? 'VIP' : 'Reguler';
-    XFile? pickedPhoto;
-    bool isSubmitting = false;
-
-    showDialog(
+  void _showEditTamuDialog(BuildContext context, Map<String, dynamic> tamu) async {
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  Icon(
-                    Icons.edit_note_rounded,
-                    color: corporateGreen,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    "Ubah Profil Tamu",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Stack(
-                        children: [
-                          _buildAvatar(
-                            tamu,
-                            radius: 32,
-                            iconSize: 36,
-                            localPhoto: pickedPhoto,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: corporateGreen,
-                              child: const Icon(
-                                Icons.camera_alt,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField("Nama Lengkap *", namaController),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "No. WhatsApp *",
-                      waController,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "Email *",
-                      emailController,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField(
-                      "Instansi / Perusahaan *",
-                      instansiController,
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField("Jabatan *", jabatanController),
-                    const SizedBox(height: 6),
-                    const Text(
-                      "Status Tamu",
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF778195),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4F7FC),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: statusTamu,
-                          isExpanded: true,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF172033),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          items: ['Reguler', 'VIP'].map((val) {
-                            return DropdownMenuItem(
-                              value: val,
-                              child: Text(val),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setStateDialog(() => statusTamu = val);
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    _buildTextField("Alamat", alamatController),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () async {
-                            final ImagePicker picker = ImagePicker();
-                            final XFile? image = await picker.pickImage(
-                              source: ImageSource.gallery,
-                            );
-                            if (image != null) {
-                              setStateDialog(() => pickedPhoto = image);
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.upload_file,
-                            size: 12,
-                            color: Color(0xFF006B3F),
-                          ),
-                          label: const Text(
-                            "Ganti Foto",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF006B3F),
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: corporateGreen),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        if (pickedPhoto != null)
-                          const Text(
-                            "Foto Baru ✓",
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    "Batal",
-                    style: TextStyle(fontSize: 11, color: Color(0xFF778195)),
-                  ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: corporateGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                  ),
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          // Validasi Wajib untuk Nama, No WA, Email, Instansi, dan Jabatan
-                          if (namaController.text.trim().isEmpty ||
-                              waController.text.trim().isEmpty ||
-                              emailController.text.trim().isEmpty ||
-                              instansiController.text.trim().isEmpty ||
-                              jabatanController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Nama, No. WA, Email, Instansi, dan Jabatan wajib diisi!',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
+      builder: (context) => FormEditTamuDialog(tamu: tamu),
+    );
 
-                          setStateDialog(() => isSubmitting = true);
-
-                          try {
-                            await DashboardAdminBloc.updateGuest(
-                              guestId: guestId,
-                              name: namaController.text.trim(),
-                              phone: waController.text.trim(),
-                              email: emailController.text.trim(),
-                              companyName: instansiController.text.trim(),
-                              position: jabatanController.text.trim(),
-                              address: alamatController.text.trim(),
-                              isVip: statusTamu == 'VIP',
-                              photoFile: pickedPhoto,
-                            );
-
-                            if (!mounted) return;
-                            Navigator.pop(context);
-                            _fetchGuestsData(page: _currentPage);
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Profil tamu berhasil diperbarui!',
-                                ),
-                                backgroundColor: Color(0xFF006B3F),
-                              ),
-                            );
-                          } catch (e) {
-                            setStateDialog(() => isSubmitting = false);
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Gagal memperbarui profil: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          "Simpan Perubahan",
-                          style: TextStyle(fontSize: 11),
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) {
-      namaController.dispose();
-      waController.dispose();
-      emailController.dispose();
-      instansiController.dispose();
-      jabatanController.dispose();
-      alamatController.dispose();
-    });
+    if (result == true && mounted) {
+      _fetchGuestsData(page: _currentPage);
+    }
   }
 
   // Pop-up Tambah Tamu Baru (Memanggil Widget Dialog Baru)
@@ -1781,6 +1488,8 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
     }
   }
 
+  
+
   /// Picker Foto dengan Validasi Format (JPG, JPEG, PNG) & Ukuran Maksimal 2 MB
   Future<void> _pickPhoto(ImageSource source) async {
     try {
@@ -2227,6 +1936,530 @@ class _FormTambahTamuDialogState extends State<FormTambahTamuDialog> {
   }
 
   /// Helper untuk membuat TextFormField dengan pesan error merah secara otomatis
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(fontSize: 12),
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 11),
+        border: const OutlineInputBorder(),
+        isDense: true,
+        errorStyle: const TextStyle(
+          fontSize: 10,
+          color: Colors.red,
+        ),
+      ),
+    );
+  }
+}
+// ================= WIDGET FORM EDIT TAMU DIALOG =================
+class FormEditTamuDialog extends StatefulWidget {
+  final Map<String, dynamic> tamu;
+
+  const FormEditTamuDialog({super.key, required this.tamu});
+
+  @override
+  State<FormEditTamuDialog> createState() => _FormEditTamuDialogState();
+}
+
+class _FormEditTamuDialogState extends State<FormEditTamuDialog> {
+  final Color corporateGreen = const Color(0xFF006B3F);
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isSubmitting = false;
+
+  late TextEditingController _namaController;
+  late TextEditingController _waController;
+  late TextEditingController _emailController;
+  late TextEditingController _instansiController;
+  late TextEditingController _jabatanController;
+  late TextEditingController _alamatController;
+
+  late String _statusTamu;
+  XFile? _pickedPhoto;
+
+  @override
+  void initState() {
+    super.initState();
+    final tamu = widget.tamu;
+
+    _namaController = TextEditingController(
+      text: tamu["name"] ?? tamu["nama"] ?? "",
+    );
+    _waController = TextEditingController(
+      text: tamu["phone"] ?? tamu["wa"] ?? "",
+    );
+    _emailController = TextEditingController(
+      text: tamu["email"] ?? "",
+    );
+    _instansiController = TextEditingController(
+      text: tamu["company_name"] ?? tamu["instansi"] ?? "",
+    );
+    _jabatanController = TextEditingController(
+      text: tamu["position"] ?? tamu["jabatan"] ?? "",
+    );
+    _alamatController = TextEditingController(
+      text: tamu["address"] ?? tamu["alamat"] ?? "",
+    );
+
+    final bool isVip = (tamu["is_vip"] == 1 ||
+        tamu["is_vip"] == true ||
+        tamu["status"] == "VIP");
+    _statusTamu = isVip ? 'VIP' : 'Reguler';
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _waController.dispose();
+    _emailController.dispose();
+    _instansiController.dispose();
+    _jabatanController.dispose();
+    _alamatController.dispose();
+    super.dispose();
+  }
+
+  /// Helper untuk membangun Avatar (Existing / Upload Baru)
+  Widget _buildAvatarPreview() {
+    if (_pickedPhoto != null) {
+      return CircleAvatar(
+        radius: 32,
+        backgroundImage: kIsWeb
+            ? NetworkImage(_pickedPhoto!.path)
+            : FileImage(File(_pickedPhoto!.path)) as ImageProvider,
+      );
+    }
+
+    final String? photoUrl = widget.tamu["photo_url"] ??
+        widget.tamu["photo_path"] ??
+        widget.tamu["photo"];
+
+    if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+      String finalUrl = photoUrl;
+      if (!finalUrl.startsWith('http')) {
+        final cleanPath =
+            finalUrl.startsWith('/') ? finalUrl.substring(1) : finalUrl;
+        finalUrl = '${ApiUrl.baseUrl}/storage/$cleanPath';
+      }
+
+      return ClipOval(
+        child: Image.network(
+          finalUrl,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => CircleAvatar(
+            radius: 32,
+            backgroundColor: const Color(0xFFF4F7FC),
+            child: Icon(Icons.person, size: 36, color: corporateGreen),
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 32,
+      backgroundColor: const Color(0xFFF4F7FC),
+      child: Icon(Icons.person, size: 36, color: corporateGreen),
+    );
+  }
+
+  /// Pick Photo dari Camera / Gallery
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      final String fileNameLower = image.name.toLowerCase();
+      final String pathLower = image.path.toLowerCase();
+      final String? mimeType = image.mimeType?.toLowerCase();
+
+      final bool isValidFormat = fileNameLower.endsWith('.jpg') ||
+          fileNameLower.endsWith('.jpeg') ||
+          fileNameLower.endsWith('.png') ||
+          pathLower.endsWith('.jpg') ||
+          pathLower.endsWith('.jpeg') ||
+          pathLower.endsWith('.png') ||
+          (mimeType != null &&
+              (mimeType == 'image/jpeg' ||
+                  mimeType == 'image/jpg' ||
+                  mimeType == 'image/png'));
+
+      if (!isValidFormat) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format gambar harus berupa JPG, JPEG, atau PNG!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final int fileSizeInBytes = await image.length();
+      const int maxSizeBytes = 2 * 1024 * 1024; // 2 MB
+
+      if (fileSizeInBytes > maxSizeBytes) {
+        if (!mounted) return;
+        final double sizeInMb = fileSizeInBytes / (1024 * 1024);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ukuran gambar (${sizeInMb.toStringAsFixed(2)} MB) melebihi batas 2 MB!',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setState(() => _pickedPhoto = image);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengambil foto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  /// Submit Update Profile Tamu
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final int guestId = widget.tamu["id"] ?? 0;
+
+    try {
+      await DashboardAdminBloc.updateGuest(
+        guestId: guestId,
+        name: _namaController.text.trim(),
+        phone: _waController.text.trim(),
+        email: _emailController.text.trim(),
+        companyName: _instansiController.text.trim(),
+        position: _jabatanController.text.trim(),
+        address: _alamatController.text.trim(),
+        isVip: _statusTamu == 'VIP',
+        photoFile: _pickedPhoto,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profil tamu berhasil diperbarui!'),
+          backgroundColor: Color(0xFF006B3F),
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui profil: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.all(20),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.edit_note_rounded,
+                          color: corporateGreen,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "Ubah Profil Tamu",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF172033),
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+
+                // Avatar Section
+                Center(
+                  child: Stack(
+                    children: [
+                      _buildAvatarPreview(),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: corporateGreen,
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 1. Nama Lengkap
+                _buildTextField(
+                  "Nama Lengkap *",
+                  _namaController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Nama lengkap wajib diisi!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // 2. WhatsApp
+                _buildTextField(
+                  "No. WhatsApp / Telepon *",
+                  _waController,
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'No. WhatsApp wajib diisi!';
+                    }
+                    final cleanValue = value.trim();
+                    final phoneRegex =
+                        RegExp(r'^(?:\+62|62|08)[0-9]{8,13}$');
+                    if (!phoneRegex.hasMatch(cleanValue)) {
+                      return 'Nomor HP harus diawali 08, 62, atau +62 (10-15 digit)';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // 3. Email
+                _buildTextField(
+                  "Email *",
+                  _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email wajib diisi!';
+                    }
+                    final emailRegex = RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    );
+                    if (!emailRegex.hasMatch(value.trim())) {
+                      return 'Format email tidak valid!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // 4. Instansi
+                _buildTextField(
+                  "Asal Instansi / Perusahaan *",
+                  _instansiController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Asal instansi wajib diisi!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // 5. Jabatan
+                _buildTextField(
+                  "Jabatan *",
+                  _jabatanController,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Jabatan wajib diisi!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Status VIP Dropdown
+                DropdownButtonFormField<String>(
+                  value: _statusTamu,
+                  isExpanded: true,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF172033),
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: "Status Tamu",
+                    labelStyle: TextStyle(fontSize: 11),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: ['Reguler', 'VIP'].map((val) {
+                    return DropdownMenuItem<String>(
+                      value: val,
+                      child: Text(val, style: const TextStyle(fontSize: 12)),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _statusTamu = val);
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Alamat
+                _buildTextField("Alamat", _alamatController),
+                const SizedBox(height: 14),
+
+                // Option Upload Image
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickPhoto(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt, size: 14),
+                        label: const Text(
+                          "Kamera",
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: corporateGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _pickPhoto(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library, size: 14),
+                        label: const Text(
+                          "Galeri",
+                          style: TextStyle(fontSize: 10),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: corporateGreen),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: corporateGreen),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
+                      child: Text(
+                        "Batal",
+                        style: TextStyle(fontSize: 11, color: corporateGreen),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: corporateGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed: _isSubmitting ? null : _submitForm,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "Simpan Perubahan",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextField(
     String label,
     TextEditingController controller, {

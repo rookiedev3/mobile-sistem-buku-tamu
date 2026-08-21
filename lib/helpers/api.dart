@@ -86,6 +86,7 @@ class Api {
   }
 
   /// HTTP POST MULTIPART (DITAMBAHKAN - Untuk Upload Foto / File)
+  /// HTTP POST MULTIPART (Upload Foto / File & Form-Data)
   Future<dynamic> postMultipart(
     String url,
     Map<String, String> fields, {
@@ -98,7 +99,7 @@ class Api {
     try {
       var request = http.MultipartRequest('POST', Uri.parse(url));
 
-      // Set Header Authorization & Accept (Menggunakan String biasa)
+      // Set Header Authorization & Accept
       request.headers.addAll({
         "Authorization": "Bearer $token",
         "Accept": "application/json",
@@ -107,9 +108,9 @@ class Api {
       // Tambahkan Text Fields
       request.fields.addAll(fields);
 
-      // Tambahkan File Gambar via Bytes jika ada
+      // Tambahkan File Gambar via Bytes
       if (file != null) {
-        final bytes = await file.readAsBytes(); // 👈 Membaca data byte memori (Aman untuk Chrome & Mobile)
+        final bytes = await file.readAsBytes();
         request.files.add(
           http.MultipartFile.fromBytes(
             fileParamName,
@@ -121,12 +122,20 @@ class Api {
 
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
+      
+      // Diproses ke _returnResponse agar HTTP status code 400/422/500 terbaca detailnya
       responseJson = _returnResponse(response);
+    } on SocketException {
+      throw FetchDataException('Tidak ada koneksi internet.');
     } catch (e) {
-      throw FetchDataException('No Internet Connection or Upload Error');
+      // Re-throw Exception yang dikirim dari _returnResponse
+      rethrow;
     }
+    
     return responseJson;
   }
+
+  
 
   dynamic _returnResponse(http.Response response) {
     switch (response.statusCode) {
