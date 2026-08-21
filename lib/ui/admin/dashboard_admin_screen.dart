@@ -98,8 +98,9 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
     });
 
     try {
-      final String dateFilterParam =
-          _filterStatus == 'Hari Ini' ? 'today' : 'all';
+      final String dateFilterParam = _filterStatus == 'Hari Ini'
+          ? 'today'
+          : 'all';
 
       final data = await DashboardAdminBloc.getDashboard(
         dateFilter: dateFilterParam,
@@ -124,8 +125,10 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
         parsedCurrentPage =
             (visitsData['current_page'] as num?)?.toInt() ?? targetPage;
         parsedLastPage = (visitsData['last_page'] as num?)?.toInt() ?? 1;
-        parsedTotal = (visitsData['total'] as num?)?.toInt() ?? visitList.length;
-        parsedPerPage = (visitsData['per_page'] as num?)?.toInt() ??
+        parsedTotal =
+            (visitsData['total'] as num?)?.toInt() ?? visitList.length;
+        parsedPerPage =
+            (visitsData['per_page'] as num?)?.toInt() ??
             (visitList.isNotEmpty ? visitList.length : _perPage);
       } else if (visitsData is List) {
         visitList = visitsData;
@@ -247,6 +250,30 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal Check-In: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _processCheckOut(int visitId) async {
+    try {
+      await DashboardAdminBloc.checkOut(visitId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berhasil melakukan Check-Out tamu!'),
+          backgroundColor: Color(0xFF006B3F),
+        ),
+      );
+      // Tetap di halaman yang sama setelah check-out
+      _fetchDashboardData(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal Check-Out: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -387,8 +414,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                   final String title = notif['title'] ?? 'Notifikasi';
                   final String body = notif['body'] ?? '-';
                   final String time = notif['created_at'] ?? '-';
-                  final bool isRead = notif['read_at'] != null ||
-                      (notif['is_read'] ?? false);
+                  final bool isRead =
+                      notif['read_at'] != null || (notif['is_read'] ?? false);
 
                   items.add(
                     PopupMenuItem<String>(
@@ -488,10 +515,7 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                   ),
                   title: const Text(
                     "Konfirmasi Keluar",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   content: const Text(
                     "Apakah Anda yakin ingin keluar?",
@@ -659,9 +683,11 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                         try {
                           await DashboardAdminBloc.storeAppointment(
                             name: (rawResult['nama'] ?? '').toString(),
-                            companyName: (rawResult['instansi'] ?? '').toString(),
+                            companyName: (rawResult['instansi'] ?? '')
+                                .toString(),
                             phone: (rawResult['phone'] ?? '').toString(),
-                            scheduledAt: (rawResult['scheduled_at'] ?? '').toString(),
+                            scheduledAt: (rawResult['scheduled_at'] ?? '')
+                                .toString(),
                             purposeId: rawResult['purpose_id'] as int,
                             assignedTo: rawResult['staff_id'] as int,
                             branchId: rawResult['branch_id'] as int,
@@ -671,7 +697,8 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           // jadi kita reset paginasi setelah berhasil menambah.
                           _fetchDashboardData(resetPage: true);
 
-                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru').toString();
+                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru')
+                              .toString();
                           String jam = (rawResult['jam'] ?? '-').toString();
 
                           await NotificationService.showNotification(
@@ -998,8 +1025,9 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (currentStatus == 'Terjadwal' ||
-                                  currentStatus == 'waiting') ...[
+                              // 1. Kondisi Status: Terjadwal / Waiting -> Muncul Check-In & Batalkan
+                              if (currentStatus.toLowerCase() == 'terjadwal' ||
+                                  currentStatus.toLowerCase() == 'waiting') ...[
                                 OutlinedButton(
                                   onPressed: () => _processCheckIn(visitId),
                                   style: OutlinedButton.styleFrom(
@@ -1043,7 +1071,37 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                                     ),
                                   ),
                                 ),
-                              ] else ...[
+                              ] 
+                              // 2. Kondisi Status: Menunggu / Proses -> Muncul Check-Out
+                              else if (currentStatus.toLowerCase() == 'meeting selesai' ||
+                                  currentStatus.toLowerCase() == 'proses') ...[
+                                ElevatedButton.icon(
+                                  onPressed: () => _processCheckOut(visitId),
+                                  icon: const Icon(Icons.logout_rounded, size: 14),
+                                  label: const Text(
+                                    "Check-Out",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange.shade800,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    minimumSize: const Size(40, 28),
+                                  ),
+                                ),
+                              ] 
+                              // 3. Status Selesai / Dibatalkan -> Hanya Tampilkan Badge Status
+                              else ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
@@ -1132,8 +1190,9 @@ class _DashboardAdminScreenState extends State<DashboardAdminScreen> {
                         ],
                       ),
                       OutlinedButton.icon(
-                        onPressed:
-                            _currentPage < _lastPage ? _goToNextPage : null,
+                        onPressed: _currentPage < _lastPage
+                            ? _goToNextPage
+                            : null,
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,

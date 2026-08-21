@@ -90,8 +90,9 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
     });
 
     try {
-      final String dateFilterParam =
-          _filterStatus == 'Hari Ini' ? 'today' : 'all';
+      final String dateFilterParam = _filterStatus == 'Hari Ini'
+          ? 'today'
+          : 'all';
       final String keywordQuery = _searchController.text.trim();
 
       final data = await DashboardAdminBloc.getDashboard(
@@ -235,6 +236,30 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
     }
   }
 
+  Future<void> _processCheckOut(int visitId) async {
+    try {
+      await DashboardAdminBloc.checkOut(visitId);
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berhasil melakukan Check-Out tamu!'),
+          backgroundColor: Color(0xFF006B3F),
+        ),
+      );
+      // Panggil _fetchJanjiData sesuai dengan nama method di class ini
+      _fetchJanjiData(page: _currentPage);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal Check-Out: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   /// Memproses Pembatalan Kunjungan di Database
   Future<void> _processCancel(int visitId) async {
     try {
@@ -369,8 +394,8 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                   final String title = notif['title'] ?? 'Notifikasi';
                   final String body = notif['body'] ?? '-';
                   final String time = notif['created_at'] ?? '-';
-                  final bool isRead = notif['read_at'] != null ||
-                      (notif['is_read'] ?? false);
+                  final bool isRead =
+                      notif['read_at'] != null || (notif['is_read'] ?? false);
 
                   items.add(
                     PopupMenuItem<String>(
@@ -468,10 +493,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                   ),
                   title: const Text(
                     "Konfirmasi Keluar",
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   content: const Text(
                     "Apakah Anda yakin ingin keluar?",
@@ -574,9 +596,11 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                         try {
                           await DashboardAdminBloc.storeAppointment(
                             name: (rawResult['nama'] ?? '').toString(),
-                            companyName: (rawResult['instansi'] ?? '').toString(),
+                            companyName: (rawResult['instansi'] ?? '')
+                                .toString(),
                             phone: (rawResult['phone'] ?? '').toString(),
-                            scheduledAt: (rawResult['scheduled_at'] ?? '').toString(),
+                            scheduledAt: (rawResult['scheduled_at'] ?? '')
+                                .toString(),
                             purposeId: rawResult['purpose_id'] as int,
                             assignedTo: rawResult['staff_id'] as int,
                             branchId: rawResult['branch_id'] as int,
@@ -584,7 +608,8 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
 
                           _fetchJanjiData();
 
-                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru').toString();
+                          String namaTamu = (rawResult['nama'] ?? 'Tamu Baru')
+                              .toString();
                           String jam = (rawResult['jam'] ?? '-').toString();
 
                           await NotificationService.showNotification(
@@ -746,8 +771,9 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                     final dynamic itemRaw = _daftarJanji[index];
                     if (itemRaw is! Map) return const SizedBox.shrink();
 
-                    final Map<String, dynamic> item =
-                        Map<String, dynamic>.from(itemRaw);
+                    final Map<String, dynamic> item = Map<String, dynamic>.from(
+                      itemRaw,
+                    );
 
                     final int visitId = item['id'] is int
                         ? item['id']
@@ -771,13 +797,14 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
 
                     final Map<String, dynamic>? assignedUser =
                         item['assigned_user'] is Map
-                            ? Map<String, dynamic>.from(item['assigned_user'])
-                            : null;
+                        ? Map<String, dynamic>.from(item['assigned_user'])
+                        : null;
                     final String picName =
                         assignedUser?['name']?.toString() ?? '-';
 
-                    final String scheduledAtFormatted =
-                        _formatDateTime(item['scheduled_at']?.toString());
+                    final String scheduledAtFormatted = _formatDateTime(
+                      item['scheduled_at']?.toString(),
+                    );
                     final String currentStatus =
                         item['status']?.toString() ?? 'Terjadwal';
 
@@ -919,69 +946,94 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                           ),
 
                           // Tombol Aksi Kunjungan
+                          // Tombol Aksi Kunjungan
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (currentStatus == 'Terjadwal' ||
-                                  currentStatus == 'waiting') ...[
-                                OutlinedButton.icon(
+                              // 1. Kondisi Status: Terjadwal / Waiting -> Muncul Check-In & Batalkan
+                              if (currentStatus.toLowerCase() == 'terjadwal' ||
+                                  currentStatus.toLowerCase() == 'waiting') ...[
+                                OutlinedButton(
                                   onPressed: () => _processCheckIn(visitId),
-                                  icon: const Icon(
-                                    Icons.check_circle_outline,
-                                    size: 12,
-                                    color: Colors.green,
-                                  ),
-                                  label: const Text(
-                                    "Check-In",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.green,
-                                    ),
-                                  ),
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
+                                      horizontal: 10,
                                       vertical: 2,
                                     ),
                                     side: const BorderSide(color: Colors.green),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    minimumSize: const Size(40, 24),
+                                    minimumSize: const Size(40, 26),
+                                  ),
+                                  child: const Text(
+                                    "Check-In",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.green,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
-                                OutlinedButton.icon(
+                                OutlinedButton(
                                   onPressed: () => _processCancel(visitId),
-                                  icon: const Icon(
-                                    Icons.cancel_outlined,
-                                    size: 12,
-                                    color: Colors.red,
-                                  ),
-                                  label: const Text(
-                                    "Batalkan",
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.red,
-                                    ),
-                                  ),
                                   style: OutlinedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
+                                      horizontal: 10,
                                       vertical: 2,
                                     ),
                                     side: const BorderSide(color: Colors.red),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    minimumSize: const Size(40, 24),
+                                    minimumSize: const Size(40, 26),
+                                  ),
+                                  child: const Text(
+                                    "Batalkan",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.red,
+                                    ),
                                   ),
                                 ),
-                              ] else ...[
+                              ]
+                              // 2. Kondisi Status: Menunggu / Proses / Meeting Selesai -> Muncul Check-Out
+                             else if (currentStatus.toLowerCase() == 'meeting selesai' ||
+                                  currentStatus.toLowerCase() == 'proses') ...[
+                                ElevatedButton.icon(
+                                  onPressed: () => _processCheckOut(visitId),
+                                  icon: const Icon(
+                                    Icons.logout_rounded,
+                                    size: 14,
+                                  ),
+                                  label: const Text(
+                                    "Check-Out",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange.shade800,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    minimumSize: const Size(40, 28),
+                                  ),
+                                ),
+                              ]
+                              // 3. Status Selesai / Dibatalkan -> Hanya Tampilkan Badge Status
+                              else ...[
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
+                                    horizontal: 10,
+                                    vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
                                     color: statusColor.withValues(alpha: 0.1),
@@ -990,7 +1042,7 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                                   child: Text(
                                     'Status: $currentStatus',
                                     style: TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                       color: statusColor,
                                     ),
@@ -1004,7 +1056,9 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
                     );
                   },
                 ),
-              if (!_isLoading && _errorMessage == null && _daftarJanji.isNotEmpty) ...[
+              if (!_isLoading &&
+                  _errorMessage == null &&
+                  _daftarJanji.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 _buildPaginationControl(),
               ],
@@ -1067,7 +1121,9 @@ class _JanjiTamuScreenState extends State<JanjiTamuScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.first_page, size: 18),
-                onPressed: _currentPage > 1 ? () => _fetchJanjiData(page: 1) : null,
+                onPressed: _currentPage > 1
+                    ? () => _fetchJanjiData(page: 1)
+                    : null,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 color: corporateGreen,
