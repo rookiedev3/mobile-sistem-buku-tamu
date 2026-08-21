@@ -108,6 +108,15 @@ String _friendlyErrorMessage(Object e) {
   return raw.isEmpty ? 'Terjadi kesalahan, silakan coba lagi' : raw;
 }
 
+// TAMBAHAN: helper status akun, disamakan dengan logic di web
+// (resources/views/.../index.blade.php):
+//   is_null($u->role)      -> "Menunggu Persetujuan"
+//   $u->is_active           -> "Aktif"
+//   else                    -> "Nonaktif"
+bool _isPendingApproval(UserModel u) {
+  return u.role == null || u.role!.trim().isEmpty;
+}
+
 class ManajemenPenggunaScreen extends StatefulWidget {
   const ManajemenPenggunaScreen({Key? key}) : super(key: key);
 
@@ -129,6 +138,9 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
   String _filterStatus = 'Semua';
   int _currentPage = 1;
   final int _perPage = 10;
+
+  // TAMBAHAN: opsi status kini punya 3 state, sama seperti web.
+  static const List<String> _statusOptions = ['Semua', 'Menunggu Persetujuan', 'Aktif', 'Non-Aktif'];
 
   @override
   void initState() {
@@ -334,7 +346,11 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
     final emailController = TextEditingController(text: user.email);
     final waController = TextEditingController(text: user.phone);
     final passwordBaruController = TextEditingController();
-    String selectedRole = _roleOptions.contains(user.role) ? user.role! : _roleOptions.first;
+    // DIUBAH: kalau user belum punya role (menunggu persetujuan), dropdown
+    // dibiarkan null (tampil hint "Pilih") daripada dipaksa ke role pertama,
+    // supaya admin tidak tanpa sadar mengubah dari "Menunggu Persetujuan"
+    // jadi role tertentu hanya karena membuka dialog edit.
+    String? selectedRole = _roleOptions.contains(user.role) ? user.role : null;
     int? selectedBranchId = user.branchId;
     bool userAktif = user.isActive ?? true;
     bool isSaving = false;
@@ -391,11 +407,19 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                       const SizedBox(height: 6),
                       const Text("Role / Hak Akses", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
                       const SizedBox(height: 3),
+                      if (selectedRole == null)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 3),
+                          child: Text(
+                            "Pengguna ini belum memiliki role (Menunggu Persetujuan)",
+                            style: TextStyle(fontSize: 9.5, color: Colors.orange),
+                          ),
+                        ),
                       _dropdownBox<String>(
                         value: selectedRole,
                         items: _roleOptions,
                         labelBuilder: (r) => r[0].toUpperCase() + r.substring(1),
-                        onChanged: (val) => setStateDialog(() => selectedRole = val!),
+                        onChanged: (val) => setStateDialog(() => selectedRole = val),
                       ),
                       const SizedBox(height: 6),
                       const Text("Cabang Branch", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF778195))),
@@ -440,6 +464,12 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                       ? null
                       : () async {
                           if (!formKey.currentState!.validate()) return;
+                          if (selectedRole == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Role wajib dipilih untuk menyetujui pengguna ini')),
+                            );
+                            return;
+                          }
                           setStateDialog(() => isSaving = true);
                           try {
                             final res = await UserBloc.updateUser(
@@ -448,7 +478,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                               email: emailController.text.trim(),
                               phone: waController.text.trim(),
                               password: passwordBaruController.text,
-                              role: selectedRole,
+                              role: selectedRole!,
                               branchId: selectedBranchId,
                               isActive: userAktif,
                             );
@@ -591,10 +621,18 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
         }
       }
 
+      // DIUBAH: sekarang ada 3 state status, disamakan dengan web —
+      // "Menunggu Persetujuan" (role belum di-set), "Aktif", "Non-Aktif".
       if (_filterStatus != 'Semua') {
-        final isActive = u.isActive ?? false;
-        if (_filterStatus == 'Aktif' && !isActive) return false;
-        if (_filterStatus == 'Non-Aktif' && isActive) return false;
+        final isPending = _isPendingApproval(u);
+        if (_filterStatus == 'Menunggu Persetujuan') {
+          if (!isPending) return false;
+        } else {
+          if (isPending) return false; // user pending tidak masuk filter Aktif/Non-Aktif
+          final isActive = u.isActive ?? false;
+          if (_filterStatus == 'Aktif' && !isActive) return false;
+          if (_filterStatus == 'Non-Aktif' && isActive) return false;
+        }
       }
 
       return true;
@@ -762,10 +800,14 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                                       value: _filterStatus,
                                       isExpanded: true,
                                       style: const TextStyle(fontSize: 11, color: Color(0xFF172033), fontWeight: FontWeight.bold),
-                                      items: ['Semua', 'Aktif', 'Non-Aktif'].map((val) {
+                                      // DIUBAH: tambah opsi "Menunggu Persetujuan"
+                                      items: _statusOptions.map((val) {
                                         return DropdownMenuItem<String>(
                                           value: val,
-                                          child: Text(val == 'Semua' ? 'Semua Status' : val),
+                                          child: Text(
+                                            val == 'Semua' ? 'Semua Status' : val,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         );
                                       }).toList(),
                                       onChanged: (val) {
@@ -799,7 +841,30 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                         itemCount: paginatedUsers.length,
                         itemBuilder: (context, index) {
                           final user = paginatedUsers[index];
-                          bool isActive = user.isActive ?? false;
+
+                          // DIUBAH: status badge sekarang 3 state, sama seperti web:
+                          // role null -> Menunggu Persetujuan (kuning/oranye)
+                          // is_active -> Aktif (hijau)
+                          // else      -> Non-Aktif (merah)
+                          final isPending = _isPendingApproval(user);
+                          final bool isActive = user.isActive ?? false;
+
+                          late final String statusLabel;
+                          late final Color statusBg;
+                          late final Color statusText;
+                          if (isPending) {
+                            statusLabel = "Menunggu Persetujuan";
+                            statusBg = Colors.orange.withOpacity(0.1);
+                            statusText = Colors.orange[800]!;
+                          } else if (isActive) {
+                            statusLabel = "Aktif";
+                            statusBg = Colors.green.withOpacity(0.1);
+                            statusText = Colors.green[700]!;
+                          } else {
+                            statusLabel = "Non-Aktif";
+                            statusBg = Colors.red.withOpacity(0.1);
+                            statusText = Colors.red[700]!;
+                          }
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -818,17 +883,22 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(4)),
-                                      child: Text("Role: ${user.role ?? '-'}", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F))),
+                                      child: Text(
+                                        // DIUBAH: kalau role belum ada, tampilkan "Belum ditentukan"
+                                        // seperti di web, bukan "Role: -"
+                                        isPending ? "Role: Belum ditentukan" : "Role: ${user.role}",
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006B3F)),
+                                      ),
                                     ),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: isActive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                        color: statusBg,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        isActive ? "Aktif" : "Non-Aktif",
-                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isActive ? Colors.green[700] : Colors.red[700]),
+                                        statusLabel,
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusText),
                                       ),
                                     ),
                                   ],
