@@ -451,6 +451,13 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
           TextFormField(
             controller: _alamatController,
             style: const TextStyle(fontSize: 12),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Alamat wajib diisi!';
+              }
+              return null;
+            },
             decoration: const InputDecoration(
               labelText: "Alamat",
               labelStyle: TextStyle(fontSize: 11),
@@ -486,7 +493,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             style: const TextStyle(fontSize: 12),
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+            autovalidateMode: AutovalidateMode.disabled,
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
                 return 'No. WhatsApp / Telepon wajib diisi!';
@@ -513,7 +520,7 @@ class _FormTambahJanjiDialogState extends State<FormTambahJanjiDialog> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(fontSize: 12),
-            autovalidateMode: AutovalidateMode.onUserInteraction,
+            autovalidateMode: AutovalidateMode.disabled,
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
                 return 'Email wajib diisi!';
