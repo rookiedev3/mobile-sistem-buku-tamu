@@ -137,6 +137,14 @@ class _VisitPurposeTabState extends State<VisitPurposeTab> {
     );
   }
 
+  // TAMBAHAN: validasi client-side sebelum request dikirim ke API,
+  // supaya pesan error Laravel default ("The name field is required.")
+  // tidak sampai tampil mentah dalam bahasa Inggris di SnackBar.
+  String? _validateFormVisitPurpose(String nama) {
+    if (nama.trim().isEmpty) return 'Nama visit purpose wajib diisi';
+    return null;
+  }
+
   void _showFormVisitPurpose(BuildContext context, VisitPurpose? item) {
     final namaCtrl = TextEditingController(text: item?.name ?? '');
     bool aktif = item?.isActive ?? true;
@@ -165,6 +173,15 @@ class _VisitPurposeTabState extends State<VisitPurposeTab> {
             ElevatedButton(
               style: btnStyle(),
               onPressed: () async {
+                // TAMBAHAN: cek validasi dulu sebelum panggil API
+                final errorMsg = _validateFormVisitPurpose(namaCtrl.text);
+                if (errorMsg != null) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
                 try {
                   if (item == null) {
                     await VisitPurposeBloc.tambahVisitPurpose(namaCtrl.text, aktif);

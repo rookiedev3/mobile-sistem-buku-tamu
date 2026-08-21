@@ -133,6 +133,14 @@ class _LeadSourceTabState extends State<LeadSourceTab> {
     );
   }
 
+  // TAMBAHAN: validasi client-side sebelum request dikirim ke API,
+  // supaya pesan error Laravel default ("The name field is required.")
+  // tidak sampai tampil mentah dalam bahasa Inggris di SnackBar.
+  String? _validateFormLeadSource(String nama) {
+    if (nama.trim().isEmpty) return 'Nama lead source wajib diisi';
+    return null;
+  }
+
   void _showFormLeadSource(BuildContext context, LeadSource? item) {
     final namaCtrl = TextEditingController(text: item?.name ?? '');
 
@@ -166,6 +174,15 @@ class _LeadSourceTabState extends State<LeadSourceTab> {
           ElevatedButton(
             style: btnStyle(),
             onPressed: () async {
+              // TAMBAHAN: cek validasi dulu sebelum panggil API
+              final errorMsg = _validateFormLeadSource(namaCtrl.text);
+              if (errorMsg != null) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                );
+                return;
+              }
+
               try {
                 if (item == null) {
                   await LeadSourceBloc.tambahLeadSource(namaCtrl.text);

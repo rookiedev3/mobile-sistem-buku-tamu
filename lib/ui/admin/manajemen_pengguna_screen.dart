@@ -30,26 +30,36 @@ String? _validateEmail(String? val) {
   return null;
 }
 
-// DIUBAH: sebelumnya hanya menerima digit murni, jadi menolak nomor yang
-// sudah dinormalisasi backend ke format "+62xxxxxxxxxx" (lihat
-// UserController::normalizePhone()). Sekarang boleh diawali satu '+',
-// sisanya wajib digit.
+// DIUBAH: sekarang nomor HP hanya boleh diawali "+62" atau "08", disamakan
+// dengan validasi di UserApiController (regex:/^(\+62|08)[0-9]+$/).
+// Sebelumnya hanya mengecek boleh diawali satu '+' bebas + digit, sekarang
+// diperketat supaya format selalu konsisten dengan yang dinormalisasi
+// backend lewat UserApiController::normalizePhone().
+final RegExp _phoneRegex = RegExp(r'^(\+62|08)[0-9]+$');
+
 String? _validatePhone(String? val) {
   if (val == null || val.trim().isEmpty) return 'No. WhatsApp/HP wajib diisi';
   final trimmed = val.trim();
-  if (!RegExp(r'^\+?[0-9]+$').hasMatch(trimmed)) {
-    return 'No. HP hanya boleh berupa angka (boleh diawali +)';
+
+  if (!_phoneRegex.hasMatch(trimmed)) {
+    return 'No. HP harus diawali +62 atau 08';
   }
-  final digitsOnly = trimmed.startsWith('+') ? trimmed.substring(1) : trimmed;
-  if (digitsOnly.length < 9 || digitsOnly.length > 15) return 'No. HP harus 9-15 digit';
+
+  final digitsAfterPrefix = trimmed.startsWith('+62')
+      ? trimmed.substring(3)
+      : trimmed.substring(2); // buang prefix "08"
+
+  if (digitsAfterPrefix.length < 7 || digitsAfterPrefix.length > 13) {
+    return 'No. HP tidak valid';
+  }
   return null;
 }
 
-// TAMBAHAN: formatter khusus nomor HP — hanya izinkan digit dan SATU
-// tanda '+' di posisi paling depan (kalau user coba ketik '+' di tengah,
-// otomatis dibuang). FilteringTextInputFormatter.digitsOnly yang lama
-// selalu membuang semua '+', termasuk yang datang dari data existing
-// (format "+62...") saat mode edit.
+// Formatter khusus nomor HP — hanya izinkan digit dan SATU tanda '+' di
+// posisi paling depan (kalau user coba ketik '+' di tengah, otomatis
+// dibuang). Validasi ketat "harus +62 atau 08" tetap ditangani oleh
+// _validatePhone di atas, bukan di sini, supaya user masih bisa mengetik
+// bertahap (mis. baru mengetik "0" atau "+") tanpa terasa aneh.
 class _PhoneInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -235,6 +245,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                         keyboardType: TextInputType.phone,
                         validator: _validatePhone,
                         inputFormatters: [_PhoneInputFormatter()],
+                        hintText: "Contoh: 08123456789",
                       ),
                       const SizedBox(height: 6),
                       _buildTextField(
@@ -396,6 +407,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
                         keyboardType: TextInputType.phone,
                         validator: _validatePhone,
                         inputFormatters: [_PhoneInputFormatter()],
+                        hintText: "Contoh: 08123456789 atau +628123456789",
                       ),
                       const SizedBox(height: 6),
                       _buildTextField(
@@ -575,6 +587,7 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
     bool obscureText = false,
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
+    String? hintText, // TAMBAHAN: placeholder contoh format, mis. untuk field No. HP
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,6 +602,8 @@ class _ManajemenPenggunaScreenState extends State<ManajemenPenggunaScreen> {
           inputFormatters: inputFormatters,
           style: const TextStyle(fontSize: 11),
           decoration: InputDecoration(
+            hintText: hintText, // TAMBAHAN
+            hintStyle: const TextStyle(fontSize: 10.5, color: Color(0xFF9CA3AF)), // TAMBAHAN
             contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),

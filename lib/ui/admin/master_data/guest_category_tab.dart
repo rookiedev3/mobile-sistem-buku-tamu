@@ -133,6 +133,14 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
     );
   }
 
+  // TAMBAHAN: validasi client-side sebelum request dikirim ke API,
+  // supaya pesan error Laravel default ("The name field is required.")
+  // tidak sampai tampil mentah dalam bahasa Inggris di SnackBar.
+  String? _validateFormGuestCategory(String nama) {
+    if (nama.trim().isEmpty) return 'Nama kategori wajib diisi';
+    return null;
+  }
+
   void _showFormGuestCategory(BuildContext context, GuestCategory? item) {
     final namaCtrl = TextEditingController(text: item?.name ?? '');
 
@@ -162,6 +170,15 @@ class _GuestCategoryTabState extends State<GuestCategoryTab> {
               elevation: 0,
             ),
             onPressed: () async {
+              // TAMBAHAN: cek validasi dulu sebelum panggil API
+              final errorMsg = _validateFormGuestCategory(namaCtrl.text);
+              if (errorMsg != null) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                );
+                return;
+              }
+
               try {
                 if (item == null) {
                   await GuestCategoryBloc.tambahGuestCategory(namaCtrl.text, "");

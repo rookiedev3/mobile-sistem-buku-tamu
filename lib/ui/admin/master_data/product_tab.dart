@@ -151,6 +151,22 @@ class _ProductTabState extends State<ProductTab> {
     );
   }
 
+  // TAMBAHAN: validasi client-side sebelum request dikirim ke API.
+  // Sebelumnya field kosong lolos ke backend dan pesan error Laravel
+  // default ("The code field is required.") ditampilkan mentah-mentah
+  // dalam bahasa Inggris lewat SnackBar. Sekarang dicegat lebih dulu
+  // di Flutter dengan pesan Indonesia.
+  String? _validateFormProduk({
+    required String kode,
+    required String nama,
+    required String kategori,
+  }) {
+    if (kode.trim().isEmpty) return 'Kode produk wajib diisi';
+    if (nama.trim().isEmpty) return 'Nama produk wajib diisi';
+    if (kategori.trim().isEmpty) return 'Kategori wajib diisi';
+    return null;
+  }
+
   void _showFormProduk(BuildContext context, Product? produk) {
     final kodeCtrl = TextEditingController(text: produk?.code ?? '');
     final namaCtrl = TextEditingController(text: produk?.name ?? '');
@@ -187,6 +203,19 @@ class _ProductTabState extends State<ProductTab> {
             ElevatedButton(
               style: btnStyle(),
               onPressed: () async {
+                // TAMBAHAN: cek validasi dulu sebelum panggil API
+                final errorMsg = _validateFormProduk(
+                  kode: kodeCtrl.text,
+                  nama: namaCtrl.text,
+                  kategori: kategoriCtrl.text,
+                );
+                if (errorMsg != null) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
                 try {
                   if (produk == null) {
                     await ProductBloc.tambahProduk(code: kodeCtrl.text, name: namaCtrl.text, category: kategoriCtrl.text, isActive: aktif);

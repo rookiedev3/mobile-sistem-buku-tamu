@@ -151,6 +151,25 @@ class _BranchTabState extends State<BranchTab> {
     );
   }
 
+  // TAMBAHAN: validasi client-side sebelum request dikirim ke API.
+  // Sebelumnya field kosong lolos ke backend dan pesan error Laravel
+  // default ("The code field is required.") ditampilkan mentah-mentah
+  // dalam bahasa Inggris lewat SnackBar. Sekarang dicegat lebih dulu
+  // di Flutter dengan pesan Indonesia.
+  String? _validateFormBranch({
+    required String kode,
+    required String nama,
+    required String alamat,
+    required String telp,
+  }) {
+    if (kode.trim().isEmpty) return 'Kode branch wajib diisi';
+    if (nama.trim().isEmpty) return 'Nama branch wajib diisi';
+    if (alamat.trim().isEmpty) return 'Alamat wajib diisi';
+    if (telp.trim().isEmpty) return 'No. telepon wajib diisi';
+    if (!RegExp(r'^[0-9]+$').hasMatch(telp.trim())) return 'No. telepon hanya boleh berupa angka';
+    return null;
+  }
+
   void _showFormBranch(BuildContext context, Branch? branch) {
     final kodeCtrl = TextEditingController(text: branch?.code ?? '');
     final namaCtrl = TextEditingController(text: branch?.name ?? '');
@@ -190,6 +209,20 @@ class _BranchTabState extends State<BranchTab> {
             ElevatedButton(
               style: btnStyle(),
               onPressed: () async {
+                // TAMBAHAN: cek validasi dulu sebelum panggil API
+                final errorMsg = _validateFormBranch(
+                  kode: kodeCtrl.text,
+                  nama: namaCtrl.text,
+                  alamat: alamatCtrl.text,
+                  telp: telpCtrl.text,
+                );
+                if (errorMsg != null) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
                 try {
                   if (branch == null) {
                     await BranchBloc.tambahBranch(
