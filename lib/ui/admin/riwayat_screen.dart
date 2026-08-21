@@ -222,7 +222,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     final String currentStatus = item['status']?.toString() ?? '-';
     final String guestName = guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
     final String companyName = guest?['company_name']?.toString() ?? '-';
-    final String occupation = guest?['occupation']?.toString() ??
+    final String occupation = guest?['position']?.toString() ??
         guest?['jabatan']?.toString() ??
         '-';
     final String phoneNumber = guest?['phone_number']?.toString() ??
@@ -820,7 +820,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                         guest?['name']?.toString() ?? 'Tamu Tanpa Nama';
                     final String companyName =
                         guest?['company_name']?.toString() ?? '-';
-                    final String occupation = guest?['occupation']?.toString() ??
+                    final String occupation = guest?['position']?.toString() ??
                         guest?['jabatan']?.toString() ??
                         '-';
 
